@@ -7,11 +7,14 @@ package org.strongswan.android.ipc;
 
 import android.app.Service;
 import android.content.Intent;
-import android.os.Binder;
-import android.os.Bundle;
-import android.os.IBinder;
-import android.os.RemoteException;
+import android.os.*;
+import android.util.Log;
+import libcore.io.IoUtils;
+import org.strongswan.android.R;
+import org.strongswan.android.security.LocalKeystore;
 
+import java.io.IOException;
+import java.security.KeyStoreException;
 import java.util.List;
 
 /**
@@ -19,9 +22,11 @@ import java.util.List;
  */
 public class VpnProfileCrudServiceImpl extends Service {
 
+    private static final String TAG = VpnProfileCrudServiceImpl.class.getSimpleName();
     public static final String VPN_PROFILE_CRUD_LOCAL_ACTION = "org.strongswan.android.action.BIND_VPN_PROFILE_CRUD_SERVICE_LOCAL";
     private LocalBinder localBinder = new LocalBinder();
     private VpnProfileCrud vpnProfileCrud;
+    private LocalKeystore localKeystore;
 
     @Override
     public void onCreate() {
@@ -45,6 +50,7 @@ public class VpnProfileCrudServiceImpl extends Service {
 
         @Override
         public boolean createVpnProfile(Bundle vpnProfile) throws RemoteException {
+            installCertificatesFromProfile(vpnProfile);
             return vpnProfileCrud.createVpnProfile(vpnProfile);
         }
 
@@ -75,6 +81,33 @@ public class VpnProfileCrudServiceImpl extends Service {
 
     };
 
+    private void installCertificatesFromProfile(Bundle vpnProfile) {
+        try {
+            createLocalKeystore();
+            String id = localKeystore.generateId();
+            //TODO: Read certificate bytes from sent bundle instead of file
+            String userAlias = localKeystore.addPkcs12(IoUtils.readFileAsByteArray(Environment.getExternalStorageDirectory
+                            () + "/John.p12"), "SECRET_PASSWORD", id);
+            //TODO: Read certificate bytes from sent bundle instead of file
+            String certAlias = localKeystore.addCaCertificate(IoUtils.readFileAsByteArray(Environment
+                    .getExternalStorageDirectory() + "/rootca.pem"), id);
+            vpnProfile.putString(getResources().getString(R.string.vpn_profile_bundle_certificate_id_key), id);
+            vpnProfile.putString(getResources().getString(R.string.vpn_profile_bundle_user_certificate_alias_key),
+                    userAlias);
+            vpnProfile.putString(getResources().getString(R.string.vpn_profile_bundle_certificate_alias_key),
+                    certAlias);
+        } catch (KeyStoreException e) {
+            Log.e(TAG, "Error installing certificate: " + e);
+        } catch (IOException e) {
+            Log.e(TAG, "Error installing certificate: " + e);
+        }
+    }
+
+    private void createLocalKeystore() throws KeyStoreException {
+        if(localKeystore == null) {
+            localKeystore = new LocalKeystore();
+        }
+    }
 
     @Override
     public IBinder onBind(Intent intent) {
