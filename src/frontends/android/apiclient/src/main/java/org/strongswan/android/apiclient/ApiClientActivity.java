@@ -40,6 +40,8 @@ public class ApiClientActivity extends RoboActivity {
     RadioButton serviceRadioButton;
     @InjectView(R.id.package_name_edit_text)
     EditText packageNameEditText;
+    @InjectView(R.id.profile_id_edit_text)
+    EditText vpnProfileIdEditText;
     private VpnProfileCrudService service;
     private Messenger messenger;
     private int ipcType;
@@ -342,6 +344,30 @@ public class ApiClientActivity extends RoboActivity {
         } else {
             try {
                 boolean result = service.deleteVpnProfiles();
+                logAndToast("was any vpn profiles deleted? " + result);
+            } catch (RemoteException e) {
+                logAndToast("failed to delete vpn profiles via service", e);
+            }
+        }
+
+    }
+
+    public void clickDeleteVpnProfile(View view) {
+        if (ipcType == MESSENGER_IPC_TYPE) {
+            if (messenger != null) {
+                Message message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_delete_message), Integer.parseInt(vpnProfileIdEditText.getText().toString()), 0);
+                message.replyTo = returnMessenger;
+                try {
+                    messenger.send(message);
+                } catch (RemoteException e) {
+                    logAndToast("failed to delete vpn profiles via messenger", e);
+                }
+            } else {
+                logAndToast("not connected to messenger");
+            }
+        } else {
+            try {
+                boolean result = service.deleteVpnProfile(Long.parseLong(vpnProfileIdEditText.getText().toString()));
                 logAndToast("was any vpn profiles deleted? " + result);
             } catch (RemoteException e) {
                 logAndToast("failed to delete vpn profiles via service", e);

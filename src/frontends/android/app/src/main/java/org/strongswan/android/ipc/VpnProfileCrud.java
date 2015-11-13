@@ -10,9 +10,14 @@ package org.strongswan.android.ipc;
 import android.content.Context;
 import android.database.SQLException;
 import android.os.Bundle;
+import android.util.Base64;
+import android.util.Log;
+import org.strongswan.android.R;
 import org.strongswan.android.data.VpnProfile;
 import org.strongswan.android.data.VpnProfileDataSource;
+import org.strongswan.android.security.LocalKeystore;
 
+import java.security.KeyStoreException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,8 +26,11 @@ import java.util.List;
  */
 public class VpnProfileCrud {
 
+    private static final String TAG = VpnProfileCrud.class.getSimpleName();
     private final VpnProfileDataSource source;
     private final Context context;
+    private LocalKeystore localKeystore;
+
 
     public VpnProfileCrud(Context context) {
         this.context = context;
@@ -35,7 +43,49 @@ public class VpnProfileCrud {
     }
 
     public boolean createVpnProfile(Bundle vpnProfile) {
-        return source.insertProfile(new VpnProfile(vpnProfile, context.getResources())) != null;
+        return installCertificatesFromBundle(vpnProfile) &&  source.insertProfile(new VpnProfile(vpnProfile, context
+                .getResources())) != null;
+    }
+
+    private boolean installCertificatesFromBundle(Bundle vpnProfile) {
+        try {
+            createLocalKeystore();
+            String id = generateAndSetCertificateIdInBundle(vpnProfile);
+            installUserCertificateFromBundle(vpnProfile, id);
+            installCaCertificateFromBundle(vpnProfile, id);
+            return true;
+        } catch (Throwable e) {
+            Log.e(TAG, "Error installing certificate: " + e);
+        }
+        return false;
+    }
+
+    private void installCaCertificateFromBundle(Bundle vpnProfile, String id) {
+        String certAlias = localKeystore.addCaCertificate(Base64.decode(vpnProfile.getString(context.getResources()
+                .getString(R.string.vpn_profile_bundle_certificate_key)), Base64.DEFAULT), id);
+        vpnProfile.putString(context.getResources().getString(R.string.vpn_profile_bundle_certificate_alias_key),
+                certAlias);
+    }
+
+    private void installUserCertificateFromBundle(Bundle vpnProfile, String id) {
+        String userAlias = localKeystore.addPkcs12(Base64.decode(vpnProfile.getString(
+                        context.getResources().getString(R.string.vpn_profile_bundle_user_certificate_key)),
+                Base64.DEFAULT), vpnProfile.getString(context.getResources().getString(R.string
+                        .vpn_profile_bundle_user_certificate_password_key)), id);
+        vpnProfile.putString(context.getResources().getString(R.string.vpn_profile_bundle_user_certificate_alias_key),
+                userAlias);
+    }
+
+    private String generateAndSetCertificateIdInBundle(Bundle vpnProfile) {
+        String id = localKeystore.generateId();
+        vpnProfile.putString(context.getResources().getString(R.string.vpn_profile_bundle_certificate_id_key), id);
+        return id;
+    }
+
+    private void createLocalKeystore() throws KeyStoreException {
+        if(localKeystore == null) {
+            localKeystore = new LocalKeystore();
+        }
     }
 
     public Bundle readVpnProfile(long l) {
@@ -56,20 +106,46 @@ public class VpnProfileCrud {
     }
 
     public boolean updateVpnProfile(Bundle vpnProfile) {
-        return source.updateVpnProfile(new VpnProfile(vpnProfile, context.getResources()));
+        return installCertificatesFromBundle(vpnProfile) &&  source.updateVpnProfile(new VpnProfile(vpnProfile, context.getResources()));
     }
 
     public boolean deleteVpnProfile(long l) {
         VpnProfile profile = new VpnProfile();
         profile.setId(l);
-        return source.deleteVpnProfile(profile);
+        boolean result = source.deleteVpnProfile(profile);
+        if(result) {
+            return deleteCertificate(readCertificateId(l));
+        }
+        return result;
+    }
+
+    private String readCertificateId(long l) {
+        Bundle vpnProfile =  readVpnProfile(l);
+        if(vpnProfile != null) {
+            return vpnProfile.getString(context.getResources().getString(R.string
+                    .vpn_profile_bundle_certificate_id_key));
+        }
+        return null;
+    }
+
+    private boolean deleteCertificate(String certificateId) {
+        try {
+            createLocalKeystore();
+            return localKeystore.removePkcs12AndCaCertificate(certificateId);
+        } catch (KeyStoreException e) {
+            Log.e(TAG, "Error deleting certificate: " + e);
+        }
+        return false;
     }
 
     public boolean deleteVpnProfiles() {
-        boolean result = false;
+        boolean result = true;
         List<VpnProfile> allVpnProfiles = source.getAllVpnProfiles();
         for (VpnProfile profile : allVpnProfiles) {
-            result = source.deleteVpnProfile(profile);
+            result &= source.deleteVpnProfile(profile);
+            if(result) {
+                result &= deleteCertificate(profile.getCertificateId());
+            }
         }
         return result;
     }

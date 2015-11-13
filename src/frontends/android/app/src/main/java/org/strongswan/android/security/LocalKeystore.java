@@ -63,10 +63,10 @@ public class LocalKeystore {
     private String getUserCertificateAlias() throws KeyStoreException {
         String userCertAlias = "";
         Enumeration<String> aliases = userCertKeystore.aliases();
-        while(aliases.hasMoreElements()) {
+        while (aliases.hasMoreElements()) {
             String alias = aliases.nextElement();
             X509Certificate cert = (X509Certificate) userCertKeystore.getCertificate(alias);
-            if(isNotACaCertificate(cert)) {
+            if (isNotACaCertificate(cert)) {
                 userCertAlias = alias;
                 break;
             }
@@ -82,7 +82,7 @@ public class LocalKeystore {
         try {
             caCertKeystore.load(null, null);
             Certificate ca = getCaCertificateFromBytes(caCertificate);
-            if(ca != null) {
+            if (ca != null) {
                 caCertKeystore.setCertificateEntry(certificateId, ca);
                 caCertKeystore.store(StrongSwanApplication.getContext().openFileOutput(CA_TYPE + certificateId, Context
                         .MODE_PRIVATE), PASSWORD.toCharArray());
@@ -132,7 +132,7 @@ public class LocalKeystore {
 
     private X509Certificate[] convertToX509Certificates(Certificate[] certs) {
         X509Certificate[] x509Certs = new X509Certificate[certs.length];
-        for(int i = 0; i < certs.length; i++) {
+        for (int i = 0; i < certs.length; i++) {
             x509Certs[i] = (X509Certificate) certs[i];
         }
         return x509Certs;
@@ -186,6 +186,7 @@ public class LocalKeystore {
 
     /**
      * Calculates the SHA-1 hash of the current timestamp.
+     *
      * @return hex encoded SHA-1 hash of the current timestamp or null if failed
      */
     public String generateId() {
@@ -195,11 +196,24 @@ public class LocalKeystore {
             byte[] hash = md.digest(Calendar.getInstance().getTime().toString()
                     .getBytes());
             return Utils.bytesToHex(hash);
-        }
-        catch (NoSuchAlgorithmException e)
-        {
+        } catch (NoSuchAlgorithmException e) {
             Log.e(TAG, "Error generating id: " + e);
         }
         return null;
+    }
+
+    public boolean removePkcs12AndCaCertificate(String certificateId) {
+        try {
+            File[] certificateFiles = StrongSwanApplication.getContext().getFilesDir().listFiles();
+            for (File certificate : certificateFiles) {
+                if (certificate.getName().contains(certificateId)) {
+                    certificate.delete();
+                }
+            }
+            return true;
+        } catch (Throwable t) {
+            Log.e(TAG, "Error when removing certificate files: " + t);
+        }
+        return false;
     }
 }

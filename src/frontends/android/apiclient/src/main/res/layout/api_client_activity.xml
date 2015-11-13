@@ -60,4 +60,15 @@
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:text="com.android.chrome"/>
+    <Button
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="Delete VPN Profile with id"
+            android:onClick="clickDeleteVpnProfile"/>
+
+    <EditText
+            android:id="@+id/profile_id_edit_text"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:hint="VPN profile id"/>
 </LinearLayout>
