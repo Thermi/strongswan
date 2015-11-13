@@ -47,3 +47,6 @@ coverage/
 test-driver
 /src/frontends/android/apiclient/target/
 /src/frontends/android/api/target/
+src/frontends/android/.idea/
+src/frontends/android/api/strongswan-api.iml
+src/frontends/android/strongswan-parent.iml
