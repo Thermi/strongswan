@@ -19,6 +19,7 @@ package org.strongswan.android.ui;
 
 import java.security.cert.X509Certificate;
 
+import org.strongswan.android.BuildConfig;
 import org.strongswan.android.R;
 import org.strongswan.android.data.VpnProfile;
 import org.strongswan.android.data.VpnProfileDataSource;
@@ -73,7 +74,7 @@ public class VpnProfileDetailActivity extends Activity
 	private Spinner mSelectVpnType;
 	private ViewGroup mUsernamePassword;
 	private EditText mUsername;
-	private EditText mPassword;
+	 private EditText mPassword;
 	private ViewGroup mUserCertificate;
 	private RelativeLayout mSelectUserCert;
 	private CheckBox mCheckAuto;
@@ -93,22 +94,60 @@ public class VpnProfileDetailActivity extends Activity
 
 		setContentView(R.layout.profile_detail_view);
 
-		mName = (EditText)findViewById(R.id.name);
-		mGateway = (EditText)findViewById(R.id.gateway);
+		 mName = (EditText)findViewById(R.id.name);
+
+		 mGateway = (EditText)findViewById(R.id.gateway);
 		mSelectVpnType = (Spinner)findViewById(R.id.vpn_type);
 		mTncNotice = (RelativeLayout)findViewById(R.id.tnc_notice);
 
 		mUsernamePassword = (ViewGroup)findViewById(R.id.username_password_group);
-		mUsername = (EditText)findViewById(R.id.username);
-		mPassword = (EditText)findViewById(R.id.password);
+        mUsername = (EditText)findViewById(R.id.username);
+	 	mPassword = (EditText)findViewById(R.id.password);
 
 		mUserCertificate = (ViewGroup)findViewById(R.id.user_certificate_group);
 		mSelectUserCert = (RelativeLayout)findViewById(R.id.select_user_certificate);
 
 		mCheckAuto = (CheckBox)findViewById(R.id.ca_auto);
 		mSelectCert = (RelativeLayout)findViewById(R.id.select_certificate);
+        ((TextView)mTncNotice.findViewById(android.R.id.text1)).setText(R.string.tnc_notice_title);
+        ((TextView)mTncNotice.findViewById(android.R.id.text2)).setText(R.string.tnc_notice_subtitle);
 
-		mSelectVpnType.setOnItemSelectedListener(new OnItemSelectedListener() {
+
+		mId = savedInstanceState == null ? null : savedInstanceState.getLong(VpnProfileDataSource.KEY_ID);
+		if (mId == null)
+		{
+			Bundle extras = getIntent().getExtras();
+			mId = extras == null ? null : extras.getLong(VpnProfileDataSource.KEY_ID);
+		}
+
+
+		loadProfileData(savedInstanceState);
+        lockEditIfNeeded();
+        updateCredentialView();
+		updateCertificateSelector();
+	}
+
+
+    @Override
+	protected void onDestroy()
+	{
+		super.onDestroy();
+		mDataSource.close();
+	}
+
+
+    private void lockEditIfNeeded() {
+        if(lockNeeded()){
+            disableUiEditOptions();
+        }else{
+            setListeners();
+        }
+
+    }
+
+    private void setListeners( ){
+
+	 	mSelectVpnType.setOnItemSelectedListener(new OnItemSelectedListener() {
 			@Override
 			public void onItemSelected(AdapterView<?> parent, View view, int position, long id)
 			{
@@ -119,14 +158,13 @@ public class VpnProfileDetailActivity extends Activity
 			@Override
 			public void onNothingSelected(AdapterView<?> parent)
 			{	/* should not happen */
-				mVpnType = VpnType.IKEV2_EAP;
-				updateCredentialView();
+			 mVpnType = VpnType.IKEV2_EAP;
+			 	updateCredentialView();
 			}
 		});
 
-		((TextView)mTncNotice.findViewById(android.R.id.text1)).setText(R.string.tnc_notice_title);
-		((TextView)mTncNotice.findViewById(android.R.id.text2)).setText(R.string.tnc_notice_subtitle);
-		mTncNotice.setOnClickListener(new OnClickListener() {
+
+		 mTncNotice.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v)
 			{
@@ -154,25 +192,24 @@ public class VpnProfileDetailActivity extends Activity
 			}
 		});
 
-		mId = savedInstanceState == null ? null : savedInstanceState.getLong(VpnProfileDataSource.KEY_ID);
-		if (mId == null)
-		{
-			Bundle extras = getIntent().getExtras();
-			mId = extras == null ? null : extras.getLong(VpnProfileDataSource.KEY_ID);
-		}
+    }
 
-		loadProfileData(savedInstanceState);
+    private void disableUiEditOptions(){
 
-		updateCredentialView();
-		updateCertificateSelector();
-	}
+            mPassword.setEnabled(false);
+            mUsername.setEnabled(false);
+            mGateway.setEnabled(false);
+            mName.setEnabled(false);
+            mSelectVpnType.setEnabled(false);
+            mSelectVpnType.setClickable(false);
+            mCheckAuto.setEnabled(false);
 
-	@Override
-	protected void onDestroy()
-	{
-		super.onDestroy();
-		mDataSource.close();
-	}
+    }
+
+    private boolean lockNeeded(){
+        return  BuildConfig.DEBUG;
+    }
+
 
 	@Override
 	protected void onSaveInstanceState(Bundle outState)
@@ -576,4 +613,6 @@ public class VpnProfileDetailActivity extends Activity
 				}).create();
 		}
 	}
+
+
 }
