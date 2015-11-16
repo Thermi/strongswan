@@ -1,0 +1,147 @@
+/*
+ * Copyright © 2015 FancyFon Software Ltd.
+ * All rights reserved.
+ */
+package org.strongswan.android.apiclient;
+
+import android.app.AlertDialog;
+import android.content.DialogInterface;
+import android.content.res.Resources;
+import android.os.Bundle;
+import android.os.Environment;
+import android.util.Base64;
+import android.view.View;
+import android.widget.Button;
+import android.widget.CheckedTextView;
+import android.widget.EditText;
+import com.google.inject.Inject;
+import libcore.io.IoUtils;
+import roboguice.activity.RoboActivity;
+import roboguice.inject.ContentView;
+import roboguice.inject.InjectView;
+
+import java.io.File;
+import java.util.ArrayList;
+
+/**
+ * @author Marcin Waligórski <marcin.waligorski@fancyfon.com>
+ */
+@ContentView(R.layout.api_client_create_vpn_profile)
+public class CreateVpnProfileView extends RoboActivity {
+
+    private static final String TAG = CreateVpnProfileView.class.getSimpleName();
+
+    @Inject
+    Resources resources;
+    @Inject
+    Logger logger;
+    @Inject
+    VpnServiceConnector vpnServiceConnector;
+    @InjectView(R.id.vpn_name_edit_text)
+    EditText vpnNameEditText;
+    @InjectView(R.id.vpn_gateway_edit_text)
+    EditText vpnGatewayEditText;
+    @InjectView(R.id.vpn_username_edit_text)
+    EditText vpnUsernameEditText;
+    @InjectView(R.id.vpn_password_edit_text)
+    EditText vpnPasswordEditText;
+    @InjectView(R.id.vpn_user_certificate_password_edit_text)
+    EditText vpnUserCertificatePasswordEditText;
+    @InjectView(R.id.package_name_edit_text)
+    EditText vpnPackageNameEditText;
+    @InjectView(R.id.user_certificate)
+    CheckedTextView vpnUserCertificateCheckedTextView;
+    @InjectView(R.id.ca_certificate)
+    CheckedTextView vpnCaCertificateCheckedTextView;
+    @InjectView(R.id.vpn_type)
+    Button vpnTypeButton;
+
+    private String vpnType;
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        vpnServiceConnector.connect();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        vpnServiceConnector.disconnect();
+    }
+
+    public void checkUserCertificateClick(View view) {
+        vpnUserCertificateCheckedTextView.setChecked(!vpnUserCertificateCheckedTextView.isChecked());
+        vpnUserCertificatePasswordEditText.setEnabled(vpnUserCertificateCheckedTextView.isChecked());
+    }
+
+    public void checkCaCertificateClick(View view) {
+        vpnCaCertificateCheckedTextView.setChecked(!vpnCaCertificateCheckedTextView.isChecked());
+    }
+
+    public void selectVpnTypeClick(View view) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Choose vpn type")
+                .setItems(R.array.array_vpn_type, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        vpnType = resources.getStringArray(R.array.array_vpn_type)[which];
+                        vpnTypeButton.setText(vpnType);
+                    }
+                });
+        AlertDialog dialog =  builder.create();
+        dialog.show();
+    }
+
+    public void clickCreateVpnProfile(View view) {
+        Bundle vpnProfile = new Bundle();
+        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_name_key), vpnNameEditText.getText().toString());
+        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_gateway_key), vpnGatewayEditText.getText
+                ().toString());
+        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_type_key), vpnType);
+        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_password_key),
+                vpnUserCertificatePasswordEditText.getText().toString());
+        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_username_key), vpnUsernameEditText
+                .getText().toString());
+        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_password_key), vpnPasswordEditText
+                .getText().toString());
+        if(vpnCaCertificateCheckedTextView.isChecked()) {
+            vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_certificate_key), getCaCertificate());
+        }
+        if(vpnUserCertificateCheckedTextView.isChecked()) {
+            vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_key), getUserCertificate());
+        }
+
+        ArrayList<String> packages = new ArrayList<String>();
+        packages.add(vpnPackageNameEditText.getText().toString());
+        vpnProfile.putStringArrayList(resources.getString(R.string.vpn_profile_bundle_allowed_applications), packages);
+        try {
+            boolean result = vpnServiceConnector.getService().createVpnProfile(vpnProfile);
+            logger.logAndToast(TAG, "was vpn profile added? " + result);
+        } catch (Exception e) {
+            logger.logAndToast(TAG, "failed to add eap vpn profile via service", e);
+        }
+    }
+
+    private String getCaCertificate() {
+        try {
+            return    getCertificateBase64String(Environment.getExternalStorageDirectory()+ File.separator+ "rootca.pem");
+        } catch ( Exception e) {
+            logger.logAndToast(TAG, "Error when parsing Ca Certificate,  sending null in bundle ", e);
+            return null;
+        }
+    }
+
+    private String getUserCertificate() {
+        try {
+            return    getCertificateBase64String(Environment.getExternalStorageDirectory()+ File.separator+"john.p12");
+        } catch ( Exception e) {
+            logger.logAndToast(TAG, "Error when parsing user certificate,  sending null in bundle ", e);
+            return null;
+        }
+    }
+
+    //  Max bundle size is 1 MB, some checking later
+    private String getCertificateBase64String(String  path) throws Exception {
+        return Base64.encodeToString(IoUtils.readFileAsByteArray(path), Base64.DEFAULT);
+    }
+}

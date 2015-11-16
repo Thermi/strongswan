@@ -13,7 +13,6 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Service"
-                android:checked="true"
                 android:onClick="clickService"/>
 
         <RadioButton
@@ -21,6 +20,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Messenger"
+                android:checked="true"
                 android:onClick="clickMessenger"/>
 
     </RadioGroup>
@@ -54,12 +54,6 @@
             android:layout_height="wrap_content"
             android:text="Delete VPN Profiles"
             android:onClick="clickDeleteVpnProfiles"/>
-
-    <EditText
-            android:id="@+id/package_name_edit_text"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:text="com.android.chrome"/>
     <Button
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
@@ -71,4 +65,14 @@
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
             android:hint="VPN profile id"/>
+    <EditText
+            android:id="@+id/package_name_edit_text"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="com.android.chrome"/>
+    <Button
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="Create profile with selected values"
+            android:onClick="clickCreateVpnProfileActivity"/>
 </LinearLayout>

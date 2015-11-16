@@ -10,6 +10,7 @@ package org.strongswan.android.ipc;
 import android.content.Context;
 import android.database.SQLException;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
 import org.strongswan.android.R;
@@ -49,10 +50,15 @@ public class VpnProfileCrud {
 
     private boolean installCertificatesFromBundle(Bundle vpnProfile) {
         try {
-            createLocalKeystore();
-            String id = generateAndSetCertificateIdInBundle(vpnProfile);
-            installUserCertificateFromBundle(vpnProfile, id);
-            installCaCertificateFromBundle(vpnProfile, id);
+            if(isThereUserOrCaCertificateInBundle(vpnProfile)) {
+                Log.d(TAG, "At least one certificate is in bundle.");
+                createLocalKeystore();
+                String id = generateAndSetCertificateIdInBundle(vpnProfile);
+                installUserCertificateFromBundle(vpnProfile, id);
+                installCaCertificateFromBundle(vpnProfile, id);
+            } else {
+                Log.d(TAG, "No certificate in bundle.");
+            }
             return true;
         } catch (Throwable e) {
             Log.e(TAG, "Error installing certificate: " + e);
@@ -60,23 +66,44 @@ public class VpnProfileCrud {
         return false;
     }
 
+    private boolean isThereUserOrCaCertificateInBundle(Bundle vpnProfile) {
+        return isUserCertificateInBundle(vpnProfile) && isCaCertificateInBundle(vpnProfile);
+    }
+
+    private boolean isCaCertificateInBundle(Bundle vpnProfile) {
+        return !TextUtils.isEmpty(vpnProfile.getString(
+                context.getResources().getString(R.string.vpn_profile_bundle_certificate_key)));
+    }
+
+    private boolean isUserCertificateInBundle(Bundle vpnProfile) {
+        return !TextUtils.isEmpty(vpnProfile.getString(
+                context.getResources().getString(R.string.vpn_profile_bundle_user_certificate_key)));
+    }
+
     private void installCaCertificateFromBundle(Bundle vpnProfile, String id) {
-        String certAlias = localKeystore.addCaCertificate(Base64.decode(vpnProfile.getString(context.getResources()
-                .getString(R.string.vpn_profile_bundle_certificate_key)), Base64.DEFAULT), id);
-        vpnProfile.putString(context.getResources().getString(R.string.vpn_profile_bundle_certificate_alias_key),
-                certAlias);
+        if(isCaCertificateInBundle(vpnProfile)) {
+            Log.i(TAG, "Installing CA certificate.");
+            String certAlias = localKeystore.addCaCertificate(Base64.decode(vpnProfile.getString(context.getResources()
+                    .getString(R.string.vpn_profile_bundle_certificate_key)), Base64.DEFAULT), id);
+            vpnProfile.putString(context.getResources().getString(R.string.vpn_profile_bundle_certificate_alias_key),
+                    certAlias);
+        }
     }
 
     private void installUserCertificateFromBundle(Bundle vpnProfile, String id) {
-        String userAlias = localKeystore.addPkcs12(Base64.decode(vpnProfile.getString(
-                        context.getResources().getString(R.string.vpn_profile_bundle_user_certificate_key)),
-                Base64.DEFAULT), vpnProfile.getString(context.getResources().getString(R.string
-                        .vpn_profile_bundle_user_certificate_password_key)), id);
-        vpnProfile.putString(context.getResources().getString(R.string.vpn_profile_bundle_user_certificate_alias_key),
-                userAlias);
+        if(isUserCertificateInBundle(vpnProfile)) {
+            Log.i(TAG, "Installing user certificate.");
+            String userAlias = localKeystore.addPkcs12(Base64.decode(vpnProfile.getString(
+                            context.getResources().getString(R.string.vpn_profile_bundle_user_certificate_key)),
+                    Base64.DEFAULT), vpnProfile.getString(context.getResources().getString(R.string
+                    .vpn_profile_bundle_user_certificate_password_key)), id);
+            vpnProfile.putString(context.getResources().getString(R.string.vpn_profile_bundle_user_certificate_alias_key),
+                    userAlias);
+        }
     }
 
     private String generateAndSetCertificateIdInBundle(Bundle vpnProfile) {
+        Log.i(TAG, "Generating id.");
         String id = localKeystore.generateId();
         vpnProfile.putString(context.getResources().getString(R.string.vpn_profile_bundle_certificate_id_key), id);
         return id;
