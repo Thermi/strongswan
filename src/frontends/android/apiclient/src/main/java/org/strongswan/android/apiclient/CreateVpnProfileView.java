@@ -10,6 +10,7 @@ import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.Message;
 import android.os.RemoteException;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckedTextView;
@@ -19,6 +20,7 @@ import roboguice.activity.RoboActivity;
 import roboguice.inject.ContentView;
 import roboguice.inject.InjectView;
 
+import javax.xml.soap.Text;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -64,6 +66,21 @@ public class CreateVpnProfileView extends RoboActivity {
     private String vpnType;
 
     @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        vpnUserCertificateCheckedTextView.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                checkUserCertificateClick(view);
+            }
+        });
+        vpnCaCertificateCheckedTextView.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                checkCaCertificateClick(view);
+            }
+        });
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         vpnServiceConnector.connect();
@@ -98,6 +115,26 @@ public class CreateVpnProfileView extends RoboActivity {
     }
 
     public void clickCreateVpnProfile(View view) {
+        if(verifyThatMandatoryFieldsAreSet()) {
+            Bundle vpnProfile = prepareVpnProfile();
+            if (vpnProfile != null) {
+                try {
+                    Message message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_create_message), random.nextInt(), 0);
+                    message.setData(vpnProfile);
+                    message.replyTo = returnMessenger.getReturnMessenger();
+                    try {
+                        vpnServiceConnector.getMessenger().send(message);
+                    } catch (RemoteException e) {
+                        logger.logAndToast(TAG, "failed to add eap vpn profile via service", e);
+                    }
+                } catch (Exception e) {
+                    logger.logAndToast(TAG, "failed to add eap vpn profile via service", e);
+                }
+            }
+        }
+    }
+
+    private Bundle prepareVpnProfile() {
         Bundle vpnProfile = new Bundle();
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_name_key), vpnNameEditText.getText().toString());
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_gateway_key), vpnGatewayEditText.getText
@@ -122,17 +159,22 @@ public class CreateVpnProfileView extends RoboActivity {
         ArrayList<String> packages = new ArrayList<String>();
         packages.add(vpnPackageNameEditText.getText().toString());
         vpnProfile.putStringArrayList(resources.getString(R.string.vpn_profile_bundle_allowed_applications), packages);
-        try {
-            Message message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_create_message), random.nextInt(), 0);
-            message.setData(vpnProfile);
-            message.replyTo = returnMessenger.getReturnMessenger();
-            try {
-                vpnServiceConnector.getMessenger().send(message);
-            } catch (RemoteException e) {
-                logger.logAndToast(TAG, "failed to add eap vpn profile via service", e);
-            }
-        } catch (Exception e) {
-            logger.logAndToast(TAG, "failed to add eap vpn profile via service", e);
+        return vpnProfile;
+    }
+
+    private boolean verifyThatMandatoryFieldsAreSet() {
+        if(TextUtils.isEmpty(vpnNameEditText.getText())) {
+            logger.logAndToast(TAG, "Vpn name is not set");
+            return false;
         }
+        if(TextUtils.isEmpty(vpnGatewayEditText.getText())) {
+            logger.logAndToast(TAG, "Vpn gateway is not set");
+            return false;
+        }
+        if(TextUtils.isEmpty(vpnType)) {
+            logger.logAndToast(TAG, "Vpn type is not set");
+            return false;
+        }
+        return true;
     }
 }

@@ -3,6 +3,7 @@ package org.strongswan.android.apiclient;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.os.*;
+import android.text.TextUtils;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.RadioButton;
@@ -198,38 +199,49 @@ public class ApiClientActivity extends RoboActivity {
                 logger.logAndToast(TAG, "not connected to messenger");
             }
         } else {
-            try {
-                boolean result = vpnServiceConnector.getService().deleteVpnProfiles();
-                logger.logAndToast(TAG, "was any vpn profiles deleted? " + result);
-            } catch (RemoteException e) {
-                logger.logAndToast(TAG, "failed to delete vpn profiles via service", e);
+            if (vpnServiceConnector.getService() != null) {
+                try {
+                    boolean result = vpnServiceConnector.getService().deleteVpnProfiles();
+                    logger.logAndToast(TAG, "was any vpn profiles deleted? " + result);
+                } catch (RemoteException e) {
+                    logger.logAndToast(TAG, "failed to delete vpn profiles via service", e);
+                }
+            } else {
+                logger.logAndToast(TAG, "not connected to service");
             }
         }
 
     }
 
     public void clickDeleteVpnProfile(View view) {
-        if (ipcType == MESSENGER_IPC_TYPE) {
-            if (vpnServiceConnector.getMessenger() != null) {
-                Message message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_delete_message), Integer.parseInt(vpnProfileIdEditText.getText().toString()), 0);
-                message.replyTo = returnMessenger.getReturnMessenger();
-                try {
-                    vpnServiceConnector.getMessenger().send(message);
-                } catch (RemoteException e) {
-                    logger.logAndToast(TAG, "failed to delete vpn profiles via messenger", e);
+        if(!TextUtils.isEmpty(vpnProfileIdEditText.getText())) {
+            if (ipcType == MESSENGER_IPC_TYPE) {
+                if (vpnServiceConnector.getMessenger() != null) {
+                    Message message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_delete_message), Integer.parseInt(vpnProfileIdEditText.getText().toString()), 0);
+                    message.replyTo = returnMessenger.getReturnMessenger();
+                    try {
+                        vpnServiceConnector.getMessenger().send(message);
+                    } catch (RemoteException e) {
+                        logger.logAndToast(TAG, "failed to delete vpn profiles via messenger", e);
+                    }
+                } else {
+                    logger.logAndToast(TAG, "not connected to messenger");
                 }
             } else {
-                logger.logAndToast(TAG, "not connected to messenger");
+                if (vpnServiceConnector.getService() != null) {
+                    try {
+                        boolean result = vpnServiceConnector.getService().deleteVpnProfile(Long.parseLong(vpnProfileIdEditText.getText().toString()));
+                        logger.logAndToast(TAG, "was any vpn profiles deleted? " + result);
+                    } catch (RemoteException e) {
+                        logger.logAndToast(TAG, "failed to delete vpn profiles via service", e);
+                    }
+                } else {
+                    logger.logAndToast(TAG, "not connected to service");
+                }
             }
         } else {
-            try {
-                boolean result = vpnServiceConnector.getService().deleteVpnProfile(Long.parseLong(vpnProfileIdEditText.getText().toString()));
-                logger.logAndToast(TAG, "was any vpn profiles deleted? " + result);
-            } catch (RemoteException e) {
-                logger.logAndToast(TAG, "failed to delete vpn profiles via service", e);
-            }
+            logger.logAndToast(TAG, "No vpn profile id");
         }
-
     }
 }
 

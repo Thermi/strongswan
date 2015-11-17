@@ -80,25 +80,33 @@ public class VpnProfileCrud {
                 context.getResources().getString(R.string.vpn_profile_bundle_user_certificate_key)));
     }
 
-    private void installCaCertificateFromBundle(Bundle vpnProfile, String id) {
+    private void installCaCertificateFromBundle(Bundle vpnProfile, String id) throws Exception {
         if(isCaCertificateInBundle(vpnProfile)) {
             Log.i(TAG, "Installing CA certificate.");
             String certAlias = localKeystore.addCaCertificate(Base64.decode(vpnProfile.getString(context.getResources()
                     .getString(R.string.vpn_profile_bundle_certificate_key)), Base64.DEFAULT), id);
-            vpnProfile.putString(context.getResources().getString(R.string.vpn_profile_bundle_certificate_alias_key),
-                    certAlias);
+            if(certAlias != null) {
+                vpnProfile.putString(context.getResources().getString(R.string.vpn_profile_bundle_certificate_alias_key),
+                        certAlias);
+            } else {
+                throw new Exception("Failed to install CA certificate");
+            }
         }
     }
 
-    private void installUserCertificateFromBundle(Bundle vpnProfile, String id) {
+    private void installUserCertificateFromBundle(Bundle vpnProfile, String id) throws Exception {
         if(isUserCertificateInBundle(vpnProfile)) {
             Log.i(TAG, "Installing user certificate.");
             String userAlias = localKeystore.addPkcs12(Base64.decode(vpnProfile.getString(
                             context.getResources().getString(R.string.vpn_profile_bundle_user_certificate_key)),
                     Base64.DEFAULT), vpnProfile.getString(context.getResources().getString(R.string
                     .vpn_profile_bundle_user_certificate_password_key)), id);
-            vpnProfile.putString(context.getResources().getString(R.string.vpn_profile_bundle_user_certificate_alias_key),
-                    userAlias);
+            if(userAlias != null) {
+                vpnProfile.putString(context.getResources().getString(R.string.vpn_profile_bundle_user_certificate_alias_key),
+                        userAlias);
+            } else {
+                throw new Exception("Failed to install user certificate");
+            }
         }
     }
 
