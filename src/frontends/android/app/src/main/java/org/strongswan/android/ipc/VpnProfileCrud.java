@@ -67,7 +67,7 @@ public class VpnProfileCrud {
     }
 
     private boolean isThereUserOrCaCertificateInBundle(Bundle vpnProfile) {
-        return isUserCertificateInBundle(vpnProfile) && isCaCertificateInBundle(vpnProfile);
+        return isUserCertificateInBundle(vpnProfile) || isCaCertificateInBundle(vpnProfile);
     }
 
     private boolean isCaCertificateInBundle(Bundle vpnProfile) {

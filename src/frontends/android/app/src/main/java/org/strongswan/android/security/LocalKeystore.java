@@ -204,10 +204,12 @@ public class LocalKeystore {
 
     public boolean removePkcs12AndCaCertificate(String certificateId) {
         try {
-            File[] certificateFiles = StrongSwanApplication.getContext().getFilesDir().listFiles();
-            for (File certificate : certificateFiles) {
-                if (certificate.getName().contains(certificateId)) {
-                    certificate.delete();
+            if(certificateId != null) {
+                File[] certificateFiles = StrongSwanApplication.getContext().getFilesDir().listFiles();
+                for (File certificate : certificateFiles) {
+                    if (certificate.getName().contains(certificateId)) {
+                        certificate.delete();
+                    }
                 }
             }
             return true;

@@ -140,8 +140,7 @@ public class CreateVpnProfileView extends RoboActivity {
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_gateway_key), vpnGatewayEditText.getText
                 ().toString());
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_type_key), vpnType);
-        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_password_key),
-                vpnUserCertificatePasswordEditText.getText().toString());
+
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_username_key), vpnUsernameEditText
                 .getText().toString());
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_password_key), vpnPasswordEditText
@@ -154,6 +153,8 @@ public class CreateVpnProfileView extends RoboActivity {
         if(vpnUserCertificateCheckedTextView.isChecked()) {
             vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_key),
                     certificateReader.getUserCertificate());
+            vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_password_key),
+                    vpnUserCertificatePasswordEditText.getText().toString());
         }
 
         ArrayList<String> packages = new ArrayList<String>();
