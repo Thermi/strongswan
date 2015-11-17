@@ -8,20 +8,19 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.res.Resources;
 import android.os.Bundle;
-import android.os.Environment;
-import android.util.Base64;
+import android.os.Message;
+import android.os.RemoteException;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckedTextView;
 import android.widget.EditText;
 import com.google.inject.Inject;
-import libcore.io.IoUtils;
 import roboguice.activity.RoboActivity;
 import roboguice.inject.ContentView;
 import roboguice.inject.InjectView;
 
-import java.io.File;
 import java.util.ArrayList;
+import java.util.Random;
 
 /**
  * @author Marcin Waligórski <marcin.waligorski@fancyfon.com>
@@ -32,11 +31,17 @@ public class CreateVpnProfileView extends RoboActivity {
     private static final String TAG = CreateVpnProfileView.class.getSimpleName();
 
     @Inject
+    Random random;
+    @Inject
     Resources resources;
     @Inject
     Logger logger;
     @Inject
     VpnServiceConnector vpnServiceConnector;
+    @Inject
+    CertificateReader certificateReader;
+    @Inject
+    ReturnMessenger returnMessenger;
     @InjectView(R.id.vpn_name_edit_text)
     EditText vpnNameEditText;
     @InjectView(R.id.vpn_gateway_edit_text)
@@ -105,43 +110,29 @@ public class CreateVpnProfileView extends RoboActivity {
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_password_key), vpnPasswordEditText
                 .getText().toString());
         if(vpnCaCertificateCheckedTextView.isChecked()) {
-            vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_certificate_key), getCaCertificate());
+            vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_certificate_key),
+                    certificateReader.getCaCertificate
+                            ());
         }
         if(vpnUserCertificateCheckedTextView.isChecked()) {
-            vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_key), getUserCertificate());
+            vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_key),
+                    certificateReader.getUserCertificate());
         }
 
         ArrayList<String> packages = new ArrayList<String>();
         packages.add(vpnPackageNameEditText.getText().toString());
         vpnProfile.putStringArrayList(resources.getString(R.string.vpn_profile_bundle_allowed_applications), packages);
         try {
-            boolean result = vpnServiceConnector.getService().createVpnProfile(vpnProfile);
-            logger.logAndToast(TAG, "was vpn profile added? " + result);
+            Message message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_create_message), random.nextInt(), 0);
+            message.setData(vpnProfile);
+            message.replyTo = returnMessenger.getReturnMessenger();
+            try {
+                vpnServiceConnector.getMessenger().send(message);
+            } catch (RemoteException e) {
+                logger.logAndToast(TAG, "failed to add eap vpn profile via service", e);
+            }
         } catch (Exception e) {
             logger.logAndToast(TAG, "failed to add eap vpn profile via service", e);
         }
-    }
-
-    private String getCaCertificate() {
-        try {
-            return    getCertificateBase64String(Environment.getExternalStorageDirectory()+ File.separator+ "rootca.pem");
-        } catch ( Exception e) {
-            logger.logAndToast(TAG, "Error when parsing Ca Certificate,  sending null in bundle ", e);
-            return null;
-        }
-    }
-
-    private String getUserCertificate() {
-        try {
-            return    getCertificateBase64String(Environment.getExternalStorageDirectory()+ File.separator+"john.p12");
-        } catch ( Exception e) {
-            logger.logAndToast(TAG, "Error when parsing user certificate,  sending null in bundle ", e);
-            return null;
-        }
-    }
-
-    //  Max bundle size is 1 MB, some checking later
-    private String getCertificateBase64String(String  path) throws Exception {
-        return Base64.encodeToString(IoUtils.readFileAsByteArray(path), Base64.DEFAULT);
     }
 }

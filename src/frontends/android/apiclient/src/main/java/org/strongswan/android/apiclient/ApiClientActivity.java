@@ -3,17 +3,14 @@ package org.strongswan.android.apiclient;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.os.*;
-import android.util.Base64;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.RadioButton;
 import com.google.inject.Inject;
-import libcore.io.IoUtils;
 import roboguice.activity.RoboActivity;
 import roboguice.inject.ContentView;
 import roboguice.inject.InjectView;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -23,6 +20,7 @@ public class ApiClientActivity extends RoboActivity {
     public static final String TAG = "strongSwanApiClient";
     public static final int SERVICE_IPC_TYPE = 0;
     public static final int MESSENGER_IPC_TYPE = 1;
+
     @Inject
     Resources resources;
     @Inject
@@ -31,6 +29,10 @@ public class ApiClientActivity extends RoboActivity {
     Logger logger;
     @Inject
     VpnServiceConnector vpnServiceConnector;
+    @Inject
+    CertificateReader certificateReader;
+    @Inject
+    ReturnMessenger returnMessenger;
     @InjectView(R.id.messenger_radio_button)
     RadioButton messengerRadioButton;
     @InjectView(R.id.service_radio_button)
@@ -43,54 +45,17 @@ public class ApiClientActivity extends RoboActivity {
     private  ArrayList<String>allowedApps;
     private int ipcType;
 
-    //  Max bundle size is 1 MB, some checking later
-    private String getCertificateBase64String(String  path) throws Exception {
-           return Base64.encodeToString(IoUtils.readFileAsByteArray(path) , Base64.DEFAULT);
-    }
-
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-    }
-
     @Override
     protected void onDestroy() {
-        vpnServiceConnector.disconnect();
         super.onDestroy();
+        vpnServiceConnector.disconnect();
     }
-
-    private Messenger returnMessenger = new Messenger(new Handler() {
-        @Override
-        public void handleMessage(Message msg) {
-            if (msg.what == getInteger(org.strongswan.android.api.R.integer.vpn_profile_create_message)) {
-            } else if (msg.what == getInteger(org.strongswan.android.api.R.integer.vpn_profile_read_message)) {
-            } else if (msg.what == getInteger(org.strongswan.android.api.R.integer.vpn_profile_read_all_message)) {
-                Bundle data = msg.getData();
-                long[] ids = data.getLongArray(getString(R.string.vpn_profile_bundle_ids_key));
-                if (ids.length == 0) {
-                    logger.logAndToast(TAG, "No vpn profiles");
-                    return;
-                }
-                for (long id : ids) {
-                    Bundle bundle = data.getBundle(getString(R.string.vpn_profile_bundle_id_params_key, id));
-                    logger.logAndToastVpnProfileBundle(TAG, bundle);
-                }
-            } else if (msg.what == getInteger(org.strongswan.android.api.R.integer.vpn_profile_update_message)) {
-            } else if (msg.what == getInteger(org.strongswan.android.api.R.integer.vpn_profile_delete_message)) {
-            } else if (msg.what == getInteger(org.strongswan.android.api.R.integer.vpn_profile_delete_all_message)) {
-                logger.logAndToast(TAG, "was any vpn profiles deleted via messenger? " + (msg.arg2 == 0));
-            } else {
-                logger.logAndToast(TAG,"Unknown message: " + msg);
-                super.handleMessage(msg);
-            }
-        }
-    });
 
     public void clickReadVpnProfiles(View view) {
         if (ipcType == MESSENGER_IPC_TYPE) {
             if (vpnServiceConnector.getMessenger() != null) {
                 Message message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_read_all_message), random.nextInt(), 0);
-                message.replyTo = returnMessenger;
+                message.replyTo = returnMessenger.getReturnMessenger();
                 try {
                     vpnServiceConnector.getMessenger().send(message);
                 } catch (RemoteException e) {
@@ -135,7 +100,7 @@ public class ApiClientActivity extends RoboActivity {
             if (vpnServiceConnector.getMessenger() != null) {
                 Message message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_create_message), random.nextInt(), 0);
                 message.setData(eapBundle);
-                message.replyTo = returnMessenger;
+                message.replyTo = returnMessenger.getReturnMessenger();
                 try {
                     vpnServiceConnector.getMessenger().send(message);
                 } catch (RemoteException e) {
@@ -143,7 +108,7 @@ public class ApiClientActivity extends RoboActivity {
                 }
                 message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_create_message), random.nextInt(), 0);
                 message.setData(certBundle);
-                message.replyTo = returnMessenger;
+                message.replyTo = returnMessenger.getReturnMessenger();
                 try {
                     vpnServiceConnector.getMessenger().send(message);
                 } catch (RemoteException e) {
@@ -172,8 +137,6 @@ public class ApiClientActivity extends RoboActivity {
         }
     }
 
-
-
     private Bundle getEapBundle() {
         Bundle vpnProfile = new Bundle();
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_name_key), "eap famocvpn");
@@ -191,30 +154,14 @@ public class ApiClientActivity extends RoboActivity {
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_gateway_key), "famocvpn.emdmcloud.com");
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_type_key), resources.getString(R.string.vpn_profile_bundle_type_ikev2_cert_value));
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_password_key),
-                "pass");
-        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_certificate_key),getCaCertificate() );
-        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_key), getUserCertificate());
+                "PASS");
+        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_certificate_key), certificateReader
+                .getCaCertificate() );
+        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_key), certificateReader.
+                getUserCertificate());
 
         vpnProfile.putStringArrayList(resources.getString(R.string.vpn_profile_bundle_allowed_applications),allowedApps );
         return vpnProfile;
-    }
-
-    private String getCaCertificate() {
-        try {
-         return    getCertificateBase64String(Environment.getExternalStorageDirectory()+File.separator+ "rootca.pem");
-        } catch ( Exception e) {
-            logger.logAndToast(TAG, "Error when parsing Ca Certificate,  sending null in bundle ", e);
-            return null;
-        }
-    }
-
-    private String getUserCertificate() {
-        try {
-            return    getCertificateBase64String(Environment.getExternalStorageDirectory()+ File.separator+"john.p12");
-        } catch ( Exception e) {
-            logger.logAndToast(TAG, "Error when parsing user certificate,  sending null in bundle ", e);
-            return null;
-        }
     }
 
     private int getInteger(int id) {
@@ -224,7 +171,6 @@ public class ApiClientActivity extends RoboActivity {
     public void clickCreateVpnProfileActivity(View view) {
         startActivity(new Intent(this, CreateVpnProfileView.class));
     }
-
 
     public void clickService(View view) {
         ipcType = SERVICE_IPC_TYPE;
@@ -242,7 +188,7 @@ public class ApiClientActivity extends RoboActivity {
         if (ipcType == MESSENGER_IPC_TYPE) {
             if (vpnServiceConnector.getMessenger() != null) {
                 Message message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_delete_all_message), random.nextInt(), 0);
-                message.replyTo = returnMessenger;
+                message.replyTo = returnMessenger.getReturnMessenger();
                 try {
                     vpnServiceConnector.getMessenger().send(message);
                 } catch (RemoteException e) {
@@ -266,7 +212,7 @@ public class ApiClientActivity extends RoboActivity {
         if (ipcType == MESSENGER_IPC_TYPE) {
             if (vpnServiceConnector.getMessenger() != null) {
                 Message message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_delete_message), Integer.parseInt(vpnProfileIdEditText.getText().toString()), 0);
-                message.replyTo = returnMessenger;
+                message.replyTo = returnMessenger.getReturnMessenger();
                 try {
                     vpnServiceConnector.getMessenger().send(message);
                 } catch (RemoteException e) {
