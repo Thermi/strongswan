@@ -26,7 +26,7 @@ public class CertificateReader {
         try {
             return getCertificateBase64String(Environment.getExternalStorageDirectory() + File.separator + CA_PEM);
         } catch ( Exception e) {
-            logger.logAndToast(TAG, "Error when parsing Ca Certificate,  sending null in bundle ", e);
+            logger.logAndToast(TAG, "Error when parsing Ca Certificate", e);
             return null;
         }
     }
@@ -35,7 +35,7 @@ public class CertificateReader {
         try {
             return getCertificateBase64String(Environment.getExternalStorageDirectory() + File.separator + USER_P12);
         } catch ( Exception e) {
-            logger.logAndToast(TAG, "Error when parsing user certificate,  sending null in bundle ", e);
+            logger.logAndToast(TAG, "Error when parsing user certificate", e);
             return null;
         }
     }

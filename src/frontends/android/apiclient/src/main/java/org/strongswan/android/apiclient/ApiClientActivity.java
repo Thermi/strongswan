@@ -54,30 +54,25 @@ public class ApiClientActivity extends RoboActivity {
 
     public void clickReadVpnProfiles(View view) {
         if (ipcType == MESSENGER_IPC_TYPE) {
-            if (vpnServiceConnector.getMessenger() != null) {
-                Message message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_read_all_message), random.nextInt(), 0);
-                message.replyTo = returnMessenger.getReturnMessenger();
-                try {
-                    vpnServiceConnector.getMessenger().send(message);
-                } catch (RemoteException e) {
-                    logger.logAndToast(TAG, "failed to get vpn profiles via messenger", e);
+            sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_read_all_message), random.nextInt(),
+                    "failed to get vpn profiles via messenger");
+        } else {
+            readProfilesViaService();
+        }
+    }
+
+    private void readProfilesViaService() {
+        if (vpnServiceConnector.getService() != null) {
+            try {
+                List<Bundle> vpnProfiles = vpnServiceConnector.getService().readVpnProfiles();
+                for (Bundle bundle : vpnProfiles) {
+                    logger.logAndToastVpnProfileBundle(TAG, bundle);
                 }
-            } else {
-                logger.logAndToast(TAG, "not connected to messenger");
+            } catch (RemoteException e) {
+                logger.logAndToast(TAG, "failed to get vpn profiles via service", e);
             }
         } else {
-            if (vpnServiceConnector.getService() != null) {
-                try {
-                    List<Bundle> vpnProfiles = vpnServiceConnector.getService().readVpnProfiles();
-                    for (Bundle bundle : vpnProfiles) {
-                        logger.logAndToastVpnProfileBundle(TAG, bundle);
-                    }
-                } catch (RemoteException e) {
-                    logger.logAndToast(TAG, "failed to get vpn profiles via service", e);
-                }
-            } else {
-                logger.logAndToast(TAG, "not connected to service");
-            }
+            logger.logAndToast(TAG, "not connected to service");
         }
     }
 
@@ -98,43 +93,47 @@ public class ApiClientActivity extends RoboActivity {
         Bundle eapBundle = getEapBundle();
         Bundle certBundle = getCertBundle();
         if (ipcType == MESSENGER_IPC_TYPE) {
-            if (vpnServiceConnector.getMessenger() != null) {
-                Message message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_create_message), random.nextInt(), 0);
-                message.setData(eapBundle);
-                message.replyTo = returnMessenger.getReturnMessenger();
-                try {
-                    vpnServiceConnector.getMessenger().send(message);
-                } catch (RemoteException e) {
-                    logger.logAndToast(TAG, "failed to add eap vpn profile via service", e);
-                }
-                message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_create_message), random.nextInt(), 0);
-                message.setData(certBundle);
-                message.replyTo = returnMessenger.getReturnMessenger();
-                try {
-                    vpnServiceConnector.getMessenger().send(message);
-                } catch (RemoteException e) {
-                    logger.logAndToast(TAG, "failed to add cert vpn profile via service", e);
-                }
-            } else {
-                logger.logAndToast(TAG, "not connected to messenger");
+            if(eapBundle != null) {
+                sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_create_message), random.nextInt(),
+                        eapBundle, "failed to add eap vpn profile via service");
+            }
+            if(certBundle != null) {
+                sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_create_message), random.nextInt(),
+                        certBundle, "failed to add cert vpn profile via service");
             }
         } else {
-            if (vpnServiceConnector.getService() != null) {
-                try {
-                    boolean result = vpnServiceConnector.getService().createVpnProfile(eapBundle);
-                    logger.logAndToast(TAG, "was eap vpn profile added? " + result);
-                } catch (Exception e) {
-                    logger.logAndToast(TAG, "failed to add eap vpn profile via service", e);
-                }
-                try {
-                    boolean result = vpnServiceConnector.getService().createVpnProfile(certBundle);
-                    logger.logAndToast(TAG, "was cert vpn profile added? " + result);
-                } catch (Exception e) {
-                    logger.logAndToast(TAG, "failed to add cert vpn profile via service", e);
-                }
-            } else {
-                logger.logAndToast(TAG, "not connected to service");
+            createVpnProfileViaService(eapBundle, certBundle);
+        }
+    }
+
+    private void createVpnProfileViaService(Bundle eapBundle, Bundle certBundle) {
+        if (vpnServiceConnector.getService() != null) {
+            if(eapBundle != null) {
+                addEapProfileViaService(eapBundle);
             }
+            if(certBundle != null) {
+                addCertProfileViaService(certBundle);
+            }
+        } else {
+            logger.logAndToast(TAG, "not connected to service");
+        }
+    }
+
+    private void addCertProfileViaService(Bundle certBundle) {
+        try {
+            boolean result = vpnServiceConnector.getService().createVpnProfile(certBundle);
+            logger.logAndToast(TAG, "was cert vpn profile added? " + result);
+        } catch (Exception e) {
+            logger.logAndToast(TAG, "failed to add cert vpn profile via service", e);
+        }
+    }
+
+    private void addEapProfileViaService(Bundle eapBundle) {
+        try {
+            boolean result = vpnServiceConnector.getService().createVpnProfile(eapBundle);
+            logger.logAndToast(TAG, "was eap vpn profile added? " + result);
+        } catch (Exception e) {
+            logger.logAndToast(TAG, "failed to add eap vpn profile via service", e);
         }
     }
 
@@ -143,7 +142,7 @@ public class ApiClientActivity extends RoboActivity {
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_name_key), "eap famocvpn");
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_gateway_key), "famocvpn.emdmcloud.com");
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_username_key), "john");
-        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_password_key), "haslo123");
+        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_password_key), "pass123");
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_type_key), resources.getString(R.string.vpn_profile_bundle_type_ikev2_eap_value));
         vpnProfile.putStringArrayList(resources.getString(R.string.vpn_profile_bundle_allowed_applications), allowedApps);
         return vpnProfile;
@@ -156,17 +155,23 @@ public class ApiClientActivity extends RoboActivity {
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_type_key), resources.getString(R.string.vpn_profile_bundle_type_ikev2_cert_value));
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_password_key),
                 "PASS");
-        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_certificate_key), certificateReader
-                .getCaCertificate() );
-        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_key), certificateReader.
-                getUserCertificate());
-
-        vpnProfile.putStringArrayList(resources.getString(R.string.vpn_profile_bundle_allowed_applications),allowedApps );
+        if (addCertToBundle(vpnProfile)) {
+            return null;
+        }
+        vpnProfile.putStringArrayList(resources.getString(R.string.vpn_profile_bundle_allowed_applications), allowedApps);
         return vpnProfile;
     }
 
-    private int getInteger(int id) {
-        return getResources().getInteger(id);
+    private boolean addCertToBundle(Bundle vpnProfile) {
+        String caCert = certificateReader.getCaCertificate();
+        String userCert = certificateReader.getUserCertificate();
+        if(caCert == null || userCert == null) {
+            logger.logAndToast(TAG, "Error creating cert bundle. Vpn create failed");
+            return true;
+        }
+        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_certificate_key), caCert);
+        vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_key), userCert);
+        return false;
     }
 
     public void clickCreateVpnProfileActivity(View view) {
@@ -187,17 +192,8 @@ public class ApiClientActivity extends RoboActivity {
 
     public void clickDeleteVpnProfiles(View view) {
         if (ipcType == MESSENGER_IPC_TYPE) {
-            if (vpnServiceConnector.getMessenger() != null) {
-                Message message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_delete_all_message), random.nextInt(), 0);
-                message.replyTo = returnMessenger.getReturnMessenger();
-                try {
-                    vpnServiceConnector.getMessenger().send(message);
-                } catch (RemoteException e) {
-                    logger.logAndToast(TAG, "failed to delete vpn profiles via messenger", e);
-                }
-            } else {
-                logger.logAndToast(TAG, "not connected to messenger");
-            }
+            sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_delete_all_message), random.nextInt(),
+                    "failed to delete vpn profiles via messenger");
         } else {
             if (vpnServiceConnector.getService() != null) {
                 try {
@@ -216,17 +212,8 @@ public class ApiClientActivity extends RoboActivity {
     public void clickDeleteVpnProfile(View view) {
         if(!TextUtils.isEmpty(vpnProfileIdEditText.getText())) {
             if (ipcType == MESSENGER_IPC_TYPE) {
-                if (vpnServiceConnector.getMessenger() != null) {
-                    Message message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_delete_message), Integer.parseInt(vpnProfileIdEditText.getText().toString()), 0);
-                    message.replyTo = returnMessenger.getReturnMessenger();
-                    try {
-                        vpnServiceConnector.getMessenger().send(message);
-                    } catch (RemoteException e) {
-                        logger.logAndToast(TAG, "failed to delete vpn profiles via messenger", e);
-                    }
-                } else {
-                    logger.logAndToast(TAG, "not connected to messenger");
-                }
+                sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_delete_message), Integer.parseInt
+                        (vpnProfileIdEditText.getText().toString()), "failed to delete vpn profiles via messenger");
             } else {
                 if (vpnServiceConnector.getService() != null) {
                     try {
@@ -241,6 +228,27 @@ public class ApiClientActivity extends RoboActivity {
             }
         } else {
             logger.logAndToast(TAG, "No vpn profile id");
+        }
+    }
+
+    private void sendViaMessenger(int messageType, int arg2, String loggerMessage) {
+        sendViaMessenger(messageType, arg2, null, loggerMessage);
+    }
+
+    private void sendViaMessenger(int messageType, int arg2, Bundle bundle, String loggerMessage) {
+        if (vpnServiceConnector.getMessenger() != null) {
+            Message message = Message.obtain(null, messageType, arg2, 0);
+            if (bundle != null) {
+                message.setData(bundle);
+            }
+            message.replyTo = returnMessenger.getReturnMessenger();
+            try {
+                vpnServiceConnector.getMessenger().send(message);
+            } catch (RemoteException e) {
+                logger.logAndToast(TAG, loggerMessage, e);
+            }
+        } else {
+            logger.logAndToast(TAG, "not connected to messenger");
         }
     }
 }

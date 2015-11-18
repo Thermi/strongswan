@@ -20,7 +20,6 @@ import roboguice.activity.RoboActivity;
 import roboguice.inject.ContentView;
 import roboguice.inject.InjectView;
 
-import javax.xml.soap.Text;
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -118,19 +117,25 @@ public class CreateVpnProfileView extends RoboActivity {
         if(verifyThatMandatoryFieldsAreSet()) {
             Bundle vpnProfile = prepareVpnProfile();
             if (vpnProfile != null) {
-                try {
-                    Message message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_create_message), random.nextInt(), 0);
-                    message.setData(vpnProfile);
-                    message.replyTo = returnMessenger.getReturnMessenger();
-                    try {
-                        vpnServiceConnector.getMessenger().send(message);
-                    } catch (RemoteException e) {
-                        logger.logAndToast(TAG, "failed to add eap vpn profile via service", e);
-                    }
-                } catch (Exception e) {
-                    logger.logAndToast(TAG, "failed to add eap vpn profile via service", e);
-                }
+                sendProfileViaMessenger(vpnProfile);
+            } else {
+                logger.logAndToast(TAG, "Error creating profile. Vpn not created");
             }
+        }
+    }
+
+    private void sendProfileViaMessenger(Bundle vpnProfile) {
+        try {
+            Message message = Message.obtain(null, getResources().getInteger(R.integer.vpn_profile_create_message), random.nextInt(), 0);
+            message.setData(vpnProfile);
+            message.replyTo = returnMessenger.getReturnMessenger();
+            try {
+                vpnServiceConnector.getMessenger().send(message);
+            } catch (RemoteException e) {
+                logger.logAndToast(TAG, "Error creating profile. Vpn not created", e);
+            }
+        } catch (Exception e) {
+            logger.logAndToast(TAG, "Error creating profile. Vpn not created", e);
         }
     }
 
@@ -145,22 +150,42 @@ public class CreateVpnProfileView extends RoboActivity {
                 .getText().toString());
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_password_key), vpnPasswordEditText
                 .getText().toString());
-        if(vpnCaCertificateCheckedTextView.isChecked()) {
-            vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_certificate_key),
-                    certificateReader.getCaCertificate
-                            ());
+        if (!addCaCertificate(vpnProfile)) {
+            return null;
         }
-        if(vpnUserCertificateCheckedTextView.isChecked()) {
-            vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_key),
-                    certificateReader.getUserCertificate());
-            vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_password_key),
-                    vpnUserCertificatePasswordEditText.getText().toString());
+        if (!addUserCertificate(vpnProfile)) {
+            return null;
         }
-
         ArrayList<String> packages = new ArrayList<String>();
         packages.add(vpnPackageNameEditText.getText().toString());
         vpnProfile.putStringArrayList(resources.getString(R.string.vpn_profile_bundle_allowed_applications), packages);
         return vpnProfile;
+    }
+
+    private boolean addUserCertificate(Bundle vpnProfile) {
+        if(vpnUserCertificateCheckedTextView.isChecked()) {
+            String userCert = certificateReader.getUserCertificate();
+            if(userCert == null) {
+                return false;
+            }
+            vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_key),
+                    userCert);
+            vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_password_key),
+                    vpnUserCertificatePasswordEditText.getText().toString());
+        }
+        return true;
+    }
+
+    private boolean addCaCertificate(Bundle vpnProfile) {
+        if(vpnCaCertificateCheckedTextView.isChecked()) {
+            String caCert = certificateReader.getCaCertificate();
+            if(caCert == null) {
+                return false;
+            }
+            vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_certificate_key),
+                    caCert);
+        }
+        return true;
     }
 
     private boolean verifyThatMandatoryFieldsAreSet() {

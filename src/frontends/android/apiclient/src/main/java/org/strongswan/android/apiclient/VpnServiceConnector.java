@@ -95,20 +95,28 @@ public class VpnServiceConnector {
 
     public void disconnect() {
         try {
-            if (service != null) {
-                context.unbindService(vpnProfileCrudServiceConnection);
-                logger.logAndToast(TAG, "unbinding from service");
-            } else {
-                logger.logAndToast(TAG, "not connected to service");
-            }
-            if (messenger != null) {
-                context.unbindService(vpnProfileCrudMessengerServiceConnection);
-                logger.logAndToast(TAG, "unbinding from messenger");
-            } else {
-                logger.logAndToast(TAG, "not connected to messenger");
-            }
+            disconnectFromService();
+            disconnectFromMessenger();
         } catch (Exception e) {
             logger.logAndToast(TAG, "Error disconnecting: " + e);
+        }
+    }
+
+    private void disconnectFromMessenger() {
+        if (messenger != null) {
+            context.unbindService(vpnProfileCrudMessengerServiceConnection);
+            logger.logAndToast(TAG, "unbinding from messenger");
+        } else {
+            logger.logAndToast(TAG, "not connected to messenger");
+        }
+    }
+
+    private void disconnectFromService() {
+        if (service != null) {
+            context.unbindService(vpnProfileCrudServiceConnection);
+            logger.logAndToast(TAG, "unbinding from service");
+        } else {
+            logger.logAndToast(TAG, "not connected to service");
         }
     }
 
