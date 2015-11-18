@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.strongswan.android</groupId>
     <artifactId>strongswan-parent</artifactId>
-    <version>1.5.0</version>
+    <version>1.4.5</version>
     <packaging>pom</packaging>
 
     <name>strongSwan Parent</name>
@@ -46,6 +46,7 @@
     </dependencyManagement>
   
     <build>
+        <finalName>${project.artifactId}_${project.version}</finalName>
         <resources>
             <resource>
                 <directory>${project.basedir}/src/main</directory>
