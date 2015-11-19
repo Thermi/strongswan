@@ -17,27 +17,11 @@
 
 package org.strongswan.android.ui;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.strongswan.android.R;
-import org.strongswan.android.data.VpnProfile;
-import org.strongswan.android.logic.VpnStateService;
-import org.strongswan.android.logic.VpnStateService.ErrorState;
-import org.strongswan.android.logic.VpnStateService.State;
-import org.strongswan.android.logic.VpnStateService.VpnStateListener;
-import org.strongswan.android.logic.imc.ImcState;
-import org.strongswan.android.logic.imc.RemediationInstruction;
-
 import android.app.AlertDialog;
 import android.app.Fragment;
 import android.app.ProgressDialog;
 import android.app.Service;
-import android.content.ComponentName;
-import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
-import android.content.ServiceConnection;
+import android.content.*;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.LayoutInflater;
@@ -46,6 +30,17 @@ import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
+import com.fancyfon.strongswan.R;
+import org.strongswan.android.data.VpnProfile;
+import org.strongswan.android.logic.VpnStateService;
+import org.strongswan.android.logic.VpnStateService.ErrorState;
+import org.strongswan.android.logic.VpnStateService.State;
+import org.strongswan.android.logic.VpnStateService.VpnStateListener;
+import org.strongswan.android.logic.imc.ImcState;
+import org.strongswan.android.logic.imc.RemediationInstruction;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class VpnStateFragment extends Fragment implements VpnStateListener
 {

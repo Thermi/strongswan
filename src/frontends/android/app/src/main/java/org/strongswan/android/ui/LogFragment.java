@@ -15,15 +15,6 @@
 
 package org.strongswan.android.ui;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.StringReader;
-
-import org.strongswan.android.R;
-import org.strongswan.android.logic.CharonVpnService;
-
 import android.app.Fragment;
 import android.os.Bundle;
 import android.os.FileObserver;
@@ -32,6 +23,10 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import com.fancyfon.strongswan.R;
+import org.strongswan.android.logic.CharonVpnService;
+
+import java.io.*;
 
 public class LogFragment extends Fragment implements Runnable
 {

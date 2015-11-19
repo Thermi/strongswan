@@ -17,13 +17,12 @@
 
 package org.strongswan.android.logic.imc.collectors;
 
-import java.util.Locale;
-
+import android.content.ContentResolver;
+import android.content.Context;
 import org.strongswan.android.logic.imc.attributes.Attribute;
 import org.strongswan.android.logic.imc.attributes.SettingsAttribute;
 
-import android.content.ContentResolver;
-import android.content.Context;
+import java.util.Locale;
 
 public class SettingsCollector implements Collector
 {

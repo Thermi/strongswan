@@ -15,15 +15,6 @@
 
 package org.strongswan.android.ui;
 
-import java.security.KeyStore;
-
-import org.strongswan.android.R;
-import org.strongswan.android.data.VpnProfileDataSource;
-import org.strongswan.android.logic.TrustedCertificateManager;
-import org.strongswan.android.logic.TrustedCertificateManager.TrustedCertificateSource;
-import org.strongswan.android.security.TrustedCertificateEntry;
-import org.strongswan.android.ui.CertificateDeleteConfirmationDialog.OnCertificateDeleteListener;
-
 import android.app.ActionBar;
 import android.app.ActionBar.Tab;
 import android.app.Activity;
@@ -34,6 +25,14 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
+import com.fancyfon.strongswan.R;
+import org.strongswan.android.data.VpnProfileDataSource;
+import org.strongswan.android.logic.TrustedCertificateManager;
+import org.strongswan.android.logic.TrustedCertificateManager.TrustedCertificateSource;
+import org.strongswan.android.security.TrustedCertificateEntry;
+import org.strongswan.android.ui.CertificateDeleteConfirmationDialog.OnCertificateDeleteListener;
+
+import java.security.KeyStore;
 
 public class TrustedCertificatesActivity extends Activity implements TrustedCertificateListFragment.OnTrustedCertificateSelectedListener, OnCertificateDeleteListener
 {

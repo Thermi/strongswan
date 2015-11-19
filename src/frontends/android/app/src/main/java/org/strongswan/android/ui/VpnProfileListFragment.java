@@ -17,16 +17,6 @@
 
 package org.strongswan.android.ui;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-
-import org.strongswan.android.BuildConfig;
-import org.strongswan.android.R;
-import org.strongswan.android.data.VpnProfile;
-import org.strongswan.android.data.VpnProfileDataSource;
-import org.strongswan.android.ui.adapter.VpnProfileAdapter;
-
 import android.app.Activity;
 import android.app.Fragment;
 import android.content.Context;
@@ -34,18 +24,21 @@ import android.content.Intent;
 import android.content.res.TypedArray;
 import android.os.Bundle;
 import android.util.AttributeSet;
-import android.view.ActionMode;
-import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
-import android.view.View;
-import android.view.ViewGroup;
+import android.view.*;
 import android.widget.AbsListView.MultiChoiceModeListener;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ListView;
 import android.widget.Toast;
+import com.fancyfon.strongswan.BuildConfig;
+import com.fancyfon.strongswan.R;
+import org.strongswan.android.data.VpnProfile;
+import org.strongswan.android.data.VpnProfileDataSource;
+import org.strongswan.android.ui.adapter.VpnProfileAdapter;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 
 public class VpnProfileListFragment extends Fragment
 {

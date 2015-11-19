@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.res.Resources;
 import android.os.*;
+import com.fancyfon.strongswan.apiclient.R;
 import com.google.inject.Inject;
 import org.strongswan.android.ipc.VpnProfileCrudService;
 
@@ -71,7 +72,7 @@ public class VpnServiceConnector {
             return context.bindService(intent, vpnProfileCrudServiceConnection, Context.BIND_AUTO_CREATE);
         } else {
             logger.logAndToast(TAG, "already connected to service");
-            return false;
+            return true;
         }
     }
 
@@ -81,7 +82,7 @@ public class VpnServiceConnector {
             return context.bindService(intent, vpnProfileCrudMessengerServiceConnection, Context.BIND_AUTO_CREATE);
         } else {
             logger.logAndToast(TAG, "already connected to messenger");
-            return false;
+            return true;
         }
     }
 
@@ -105,6 +106,7 @@ public class VpnServiceConnector {
     private void disconnectFromMessenger() {
         if (messenger != null) {
             context.unbindService(vpnProfileCrudMessengerServiceConnection);
+            messenger = null;
             logger.logAndToast(TAG, "unbinding from messenger");
         } else {
             logger.logAndToast(TAG, "not connected to messenger");
@@ -115,6 +117,7 @@ public class VpnServiceConnector {
         if (service != null) {
             context.unbindService(vpnProfileCrudServiceConnection);
             logger.logAndToast(TAG, "unbinding from service");
+            service = null;
         } else {
             logger.logAndToast(TAG, "not connected to service");
         }

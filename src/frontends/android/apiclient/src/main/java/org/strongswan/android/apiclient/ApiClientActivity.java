@@ -2,11 +2,14 @@ package org.strongswan.android.apiclient;
 
 import android.content.Intent;
 import android.content.res.Resources;
-import android.os.*;
+import android.os.Bundle;
+import android.os.Message;
+import android.os.RemoteException;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.RadioButton;
+import com.fancyfon.strongswan.apiclient.R;
 import com.google.inject.Inject;
 import roboguice.activity.RoboActivity;
 import roboguice.inject.ContentView;
@@ -14,7 +17,6 @@ import roboguice.inject.InjectView;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 @ContentView(R.layout.api_client_activity)
 public class ApiClientActivity extends RoboActivity {
@@ -24,8 +26,6 @@ public class ApiClientActivity extends RoboActivity {
 
     @Inject
     Resources resources;
-    @Inject
-    Random random;
     @Inject
     Logger logger;
     @Inject
@@ -54,8 +54,8 @@ public class ApiClientActivity extends RoboActivity {
 
     public void clickReadVpnProfiles(View view) {
         if (ipcType == MESSENGER_IPC_TYPE) {
-            sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_read_all_message), random.nextInt(),
-                    "failed to get vpn profiles via messenger");
+            sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_read_all_message), "failed to get vpn " +
+                    "profiles via messenger");
         } else {
             readProfilesViaService();
         }
@@ -94,12 +94,11 @@ public class ApiClientActivity extends RoboActivity {
         Bundle certBundle = getCertBundle();
         if (ipcType == MESSENGER_IPC_TYPE) {
             if(eapBundle != null) {
-                sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_create_message), random.nextInt(),
-                        eapBundle, "failed to add eap vpn profile via service");
+                sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_create_message), eapBundle, "failed " +
+                        "to add eap vpn profile via service");
             }
             if(certBundle != null) {
-                sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_create_message), random.nextInt(),
-                        certBundle, "failed to add cert vpn profile via service");
+                sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_create_message), certBundle, "failed to add cert vpn profile via service");
             }
         } else {
             createVpnProfileViaService(eapBundle, certBundle);
@@ -154,7 +153,7 @@ public class ApiClientActivity extends RoboActivity {
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_gateway_key), "famocvpn.emdmcloud.com");
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_type_key), resources.getString(R.string.vpn_profile_bundle_type_ikev2_cert_value));
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_password_key),
-                "PASS");
+                "pass");
         if (addCertToBundle(vpnProfile)) {
             return null;
         }
@@ -166,7 +165,7 @@ public class ApiClientActivity extends RoboActivity {
         String caCert = certificateReader.getCaCertificate();
         String userCert = certificateReader.getUserCertificate();
         if(caCert == null || userCert == null) {
-            logger.logAndToast(TAG, "Error creating cert bundle. Vpn create failed");
+            logger.logAndToast(TAG, "Error creating cert bundle. Vpn failed to create.");
             return true;
         }
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_certificate_key), caCert);
@@ -192,8 +191,7 @@ public class ApiClientActivity extends RoboActivity {
 
     public void clickDeleteVpnProfiles(View view) {
         if (ipcType == MESSENGER_IPC_TYPE) {
-            sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_delete_all_message), random.nextInt(),
-                    "failed to delete vpn profiles via messenger");
+            sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_delete_all_message), "failed to delete vpn profiles via messenger");
         } else {
             if (vpnServiceConnector.getService() != null) {
                 try {
@@ -231,8 +229,16 @@ public class ApiClientActivity extends RoboActivity {
         }
     }
 
+    private void sendViaMessenger(int messageType, String loggerMessage) {
+        sendViaMessenger(messageType, 0, loggerMessage);
+    }
+
     private void sendViaMessenger(int messageType, int messageArgument, String loggerMessage) {
         sendViaMessenger(messageType, messageArgument, null, loggerMessage);
+    }
+
+    private void sendViaMessenger(int messageType, Bundle bundle, String loggerMessage) {
+        sendViaMessenger(messageType, 0, bundle, loggerMessage);
     }
 
     private void sendViaMessenger(int messageType, int messageArgument, Bundle bundle, String loggerMessage) {

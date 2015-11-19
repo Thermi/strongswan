@@ -17,8 +17,18 @@
 
 package org.strongswan.android.ui;
 
-import org.strongswan.android.BuildConfig;
-import org.strongswan.android.R;
+import android.app.*;
+import android.app.AlertDialog.Builder;
+import android.content.*;
+import android.net.VpnService;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.os.IBinder;
+import android.view.*;
+import android.widget.EditText;
+import android.widget.Toast;
+import com.fancyfon.strongswan.BuildConfig;
+import com.fancyfon.strongswan.R;
 import org.strongswan.android.data.VpnProfile;
 import org.strongswan.android.data.VpnProfileDataSource;
 import org.strongswan.android.data.VpnType.VpnTypeFeature;
@@ -27,33 +37,6 @@ import org.strongswan.android.logic.TrustedCertificateManager;
 import org.strongswan.android.logic.VpnStateService;
 import org.strongswan.android.logic.VpnStateService.State;
 import org.strongswan.android.ui.VpnProfileListFragment.OnVpnProfileSelectedListener;
-
-import android.app.ActionBar;
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.AlertDialog.Builder;
-import android.app.Dialog;
-import android.app.DialogFragment;
-import android.app.Fragment;
-import android.app.FragmentManager;
-import android.app.FragmentTransaction;
-import android.app.Service;
-import android.content.ActivityNotFoundException;
-import android.content.ComponentName;
-import android.content.DialogInterface;
-import android.content.Intent;
-import android.content.ServiceConnection;
-import android.net.VpnService;
-import android.os.AsyncTask;
-import android.os.Bundle;
-import android.os.IBinder;
-import android.view.LayoutInflater;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.View;
-import android.view.Window;
-import android.widget.EditText;
-import android.widget.Toast;
 
 public class MainActivity extends Activity implements OnVpnProfileSelectedListener
 {

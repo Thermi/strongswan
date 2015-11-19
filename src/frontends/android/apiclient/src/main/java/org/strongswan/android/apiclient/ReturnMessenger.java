@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.os.Messenger;
+import com.fancyfon.strongswan.apiclient.R;
 import com.google.inject.Inject;
 
 /**
@@ -30,15 +31,15 @@ public class ReturnMessenger {
     private Messenger returnMessenger = new Messenger(new Handler() {
         @Override
         public void handleMessage(Message msg) {
-            if (msg.what == getInteger(org.strongswan.android.api.R.integer.vpn_profile_create_message)) {
+            if (msg.what == getInteger(R.integer.vpn_profile_create_message)) {
                 if (msg.arg2 == SUCCESS) {
                     logger.logAndToast(TAG, "Vpn created successfully.");
                 } else {
                     logger.logAndToast(TAG, "Vpn create failed.");
                 }
-            } else if (msg.what == getInteger(org.strongswan.android.api.R.integer.vpn_profile_read_message)) {
+            } else if (msg.what == getInteger(R.integer.vpn_profile_read_message)) {
                 // not used for now
-            } else if (msg.what == getInteger(org.strongswan.android.api.R.integer.vpn_profile_read_all_message)) {
+            } else if (msg.what == getInteger(R.integer.vpn_profile_read_all_message)) {
                 Bundle data = msg.getData();
                 long[] ids = data.getLongArray(context.getString(R.string.vpn_profile_bundle_ids_key));
                 if (ids.length == 0) {
@@ -46,11 +47,11 @@ public class ReturnMessenger {
                     return;
                 }
                 logVpnProfiles(data, ids);
-            } else if (msg.what == getInteger(org.strongswan.android.api.R.integer.vpn_profile_update_message)) {
+            } else if (msg.what == getInteger(R.integer.vpn_profile_update_message)) {
                 logger.logAndToast(TAG, "Vpn updated successfully.");
-            } else if (msg.what == getInteger(org.strongswan.android.api.R.integer.vpn_profile_delete_message)) {
+            } else if (msg.what == getInteger(R.integer.vpn_profile_delete_message)) {
                 logger.logAndToast(TAG, "Vpn deleted successfully.");
-            } else if (msg.what == getInteger(org.strongswan.android.api.R.integer.vpn_profile_delete_all_message)) {
+            } else if (msg.what == getInteger(R.integer.vpn_profile_delete_all_message)) {
                 logger.logAndToast(TAG, "was any vpn profiles deleted via messenger? " + (msg.arg2 == 0));
             } else {
                 logger.logAndToast(TAG,"Unknown message: " + msg);

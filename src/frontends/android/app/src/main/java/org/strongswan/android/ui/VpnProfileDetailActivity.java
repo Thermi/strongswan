@@ -17,17 +17,6 @@
 
 package org.strongswan.android.ui;
 
-import java.security.cert.X509Certificate;
-
-import org.strongswan.android.BuildConfig;
-import org.strongswan.android.R;
-import org.strongswan.android.data.VpnProfile;
-import org.strongswan.android.data.VpnProfileDataSource;
-import org.strongswan.android.data.VpnType;
-import org.strongswan.android.data.VpnType.VpnTypeFeature;
-import org.strongswan.android.logic.TrustedCertificateManager;
-import org.strongswan.android.security.TrustedCertificateEntry;
-
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -42,22 +31,21 @@ import android.security.KeyChainAliasCallback;
 import android.security.KeyChainException;
 import android.text.Html;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuInflater;
-import android.view.MenuItem;
-import android.view.View;
+import android.view.*;
 import android.view.View.OnClickListener;
-import android.view.ViewGroup;
-import android.widget.AdapterView;
+import android.widget.*;
 import android.widget.AdapterView.OnItemSelectedListener;
-import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
-import android.widget.EditText;
-import android.widget.RelativeLayout;
-import android.widget.ScrollView;
-import android.widget.Spinner;
-import android.widget.TextView;
+import com.fancyfon.strongswan.BuildConfig;
+import com.fancyfon.strongswan.R;
+import org.strongswan.android.data.VpnProfile;
+import org.strongswan.android.data.VpnProfileDataSource;
+import org.strongswan.android.data.VpnType;
+import org.strongswan.android.data.VpnType.VpnTypeFeature;
+import org.strongswan.android.logic.TrustedCertificateManager;
+import org.strongswan.android.security.TrustedCertificateEntry;
+
+import java.security.cert.X509Certificate;
 
 public class VpnProfileDetailActivity extends Activity
 {
@@ -610,8 +598,7 @@ public class VpnProfileDetailActivity extends Activity
 					.setMessage(Html.fromHtml(getString(R.string.tnc_notice_details)))
 					.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
 						@Override
-						public void onClick(DialogInterface dialog, int id)
-						{
+						public void onClick(DialogInterface dialog, int id) {
 							dialog.dismiss();
 						}
 					}).create();

@@ -9,6 +9,7 @@ import android.content.res.Resources;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
+import com.fancyfon.strongswan.apiclient.R;
 import com.google.inject.Inject;
 
 /**

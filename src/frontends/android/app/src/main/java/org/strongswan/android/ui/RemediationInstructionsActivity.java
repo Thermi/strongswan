@@ -15,15 +15,14 @@
 
 package org.strongswan.android.ui;
 
-import java.util.ArrayList;
-
-import org.strongswan.android.R;
-import org.strongswan.android.logic.imc.RemediationInstruction;
-import org.strongswan.android.ui.RemediationInstructionsFragment.OnRemediationInstructionSelectedListener;
-
 import android.app.Activity;
 import android.os.Bundle;
 import android.view.MenuItem;
+import com.fancyfon.strongswan.R;
+import org.strongswan.android.logic.imc.RemediationInstruction;
+import org.strongswan.android.ui.RemediationInstructionsFragment.OnRemediationInstructionSelectedListener;
+
+import java.util.ArrayList;
 
 public class RemediationInstructionsActivity extends Activity implements OnRemediationInstructionSelectedListener
 {

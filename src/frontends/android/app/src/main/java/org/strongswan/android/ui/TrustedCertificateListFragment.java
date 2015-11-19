@@ -15,19 +15,6 @@
 
 package org.strongswan.android.ui;
 
-import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Hashtable;
-import java.util.List;
-import java.util.Map.Entry;
-
-import org.strongswan.android.R;
-import org.strongswan.android.logic.TrustedCertificateManager;
-import org.strongswan.android.logic.TrustedCertificateManager.TrustedCertificateSource;
-import org.strongswan.android.security.TrustedCertificateEntry;
-import org.strongswan.android.ui.adapter.TrustedCertificateAdapter;
-
 import android.app.Activity;
 import android.app.ListFragment;
 import android.app.LoaderManager.LoaderCallbacks;
@@ -43,6 +30,18 @@ import android.view.View;
 import android.widget.ListView;
 import android.widget.SearchView;
 import android.widget.SearchView.OnQueryTextListener;
+import com.fancyfon.strongswan.R;
+import org.strongswan.android.logic.TrustedCertificateManager;
+import org.strongswan.android.logic.TrustedCertificateManager.TrustedCertificateSource;
+import org.strongswan.android.security.TrustedCertificateEntry;
+import org.strongswan.android.ui.adapter.TrustedCertificateAdapter;
+
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Hashtable;
+import java.util.List;
+import java.util.Map.Entry;
 
 public class TrustedCertificateListFragment extends ListFragment implements LoaderCallbacks<List<TrustedCertificateEntry>>, OnQueryTextListener
 {

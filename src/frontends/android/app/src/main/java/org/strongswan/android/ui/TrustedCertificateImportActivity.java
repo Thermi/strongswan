@@ -15,29 +15,24 @@
 
 package org.strongswan.android.ui;
 
-import java.io.FileNotFoundException;
-import java.io.InputStream;
-import java.security.KeyStore;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-
-import org.strongswan.android.R;
-import org.strongswan.android.data.VpnProfileDataSource;
-import org.strongswan.android.logic.TrustedCertificateManager;
-
 import android.annotation.TargetApi;
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.app.DialogFragment;
-import android.app.FragmentTransaction;
+import android.app.*;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.widget.Toast;
+import com.fancyfon.strongswan.R;
+import org.strongswan.android.data.VpnProfileDataSource;
+import org.strongswan.android.logic.TrustedCertificateManager;
+
+import java.io.FileNotFoundException;
+import java.io.InputStream;
+import java.security.KeyStore;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 
 public class TrustedCertificateImportActivity extends Activity
 {

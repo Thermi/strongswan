@@ -15,12 +15,6 @@
 
 package org.strongswan.android.ui;
 
-import java.io.File;
-
-import org.strongswan.android.R;
-import org.strongswan.android.data.LogContentProvider;
-import org.strongswan.android.logic.CharonVpnService;
-
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager.NameNotFoundException;
@@ -28,6 +22,11 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
+import com.fancyfon.strongswan.R;
+import org.strongswan.android.data.LogContentProvider;
+import org.strongswan.android.logic.CharonVpnService;
+
+import java.io.File;
 
 public class LogActivity extends Activity
 {

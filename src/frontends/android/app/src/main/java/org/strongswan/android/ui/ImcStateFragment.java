@@ -15,14 +15,6 @@
 
 package org.strongswan.android.ui;
 
-import java.util.ArrayList;
-
-import org.strongswan.android.R;
-import org.strongswan.android.logic.VpnStateService;
-import org.strongswan.android.logic.VpnStateService.VpnStateListener;
-import org.strongswan.android.logic.imc.ImcState;
-import org.strongswan.android.logic.imc.RemediationInstruction;
-
 import android.app.Fragment;
 import android.app.FragmentTransaction;
 import android.app.Service;
@@ -32,16 +24,18 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.view.GestureDetector;
-import android.view.LayoutInflater;
-import android.view.MotionEvent;
-import android.view.View;
+import android.view.*;
 import android.view.View.OnClickListener;
 import android.view.View.OnTouchListener;
-import android.view.ViewConfiguration;
-import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import com.fancyfon.strongswan.R;
+import org.strongswan.android.logic.VpnStateService;
+import org.strongswan.android.logic.VpnStateService.VpnStateListener;
+import org.strongswan.android.logic.imc.ImcState;
+import org.strongswan.android.logic.imc.RemediationInstruction;
+
+import java.util.ArrayList;
 
 public class ImcStateFragment extends Fragment implements VpnStateListener
 {

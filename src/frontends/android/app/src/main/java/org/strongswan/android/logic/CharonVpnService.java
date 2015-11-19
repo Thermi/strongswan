@@ -17,15 +17,20 @@
 
 package org.strongswan.android.logic;
 
-import java.io.File;
-import java.security.KeyStoreException;
-import java.security.PrivateKey;
-import java.security.cert.CertificateEncodingException;
-import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.List;
-
+import android.app.PendingIntent;
+import android.app.Service;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
+import android.net.VpnService;
 import android.os.Build;
+import android.os.Bundle;
+import android.os.IBinder;
+import android.os.ParcelFileDescriptor;
+import android.security.KeyChainException;
+import android.util.Log;
 import org.strongswan.android.data.VpnProfile;
 import org.strongswan.android.data.VpnProfileDataSource;
 import org.strongswan.android.data.VpnType.VpnTypeFeature;
@@ -36,19 +41,13 @@ import org.strongswan.android.logic.imc.RemediationInstruction;
 import org.strongswan.android.security.LocalKeystore;
 import org.strongswan.android.ui.MainActivity;
 
-import android.app.PendingIntent;
-import android.app.Service;
-import android.content.ComponentName;
-import android.content.Context;
-import android.content.Intent;
-import android.content.ServiceConnection;
-import android.content.pm.PackageManager;
-import android.net.VpnService;
-import android.os.Bundle;
-import android.os.IBinder;
-import android.os.ParcelFileDescriptor;
-import android.security.KeyChainException;
-import android.util.Log;
+import java.io.File;
+import java.security.KeyStoreException;
+import java.security.PrivateKey;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.List;
 
 public class CharonVpnService extends VpnService implements Runnable
 {
