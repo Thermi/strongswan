@@ -15,10 +15,6 @@
 -->
 <menu xmlns:android="http://schemas.android.com/apk/res/android" >
 
-    <item
-        android:id="@+id/menu_manage_certs"
-        android:title="@string/trusted_certs_title"
-        android:showAsAction="withText" />
 
     <item
         android:id="@+id/menu_show_log"

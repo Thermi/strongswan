@@ -140,8 +140,10 @@ public class VpnProfileListFragment extends Fragment
 
 	@Override
 	public void onCreateOptionsMenu(Menu menu, MenuInflater inflater)
-	{
+	{	if(BuildConfig.DEBUG){
 		inflater.inflate(R.menu.profile_list, menu);
+	}
+
 	}
 
 	@Override
@@ -151,7 +153,7 @@ public class VpnProfileListFragment extends Fragment
 		{
 			case R.id.add_profile:
 				Intent connectionIntent = new Intent(getActivity(),
-													 VpnProfileDetailActivity.class);
+						VpnProfileDetailActivity.class);
 				startActivityForResult(connectionIntent, ADD_REQUEST);
 				return true;
 			default:
@@ -212,12 +214,26 @@ public class VpnProfileListFragment extends Fragment
 		@Override
 		public boolean onCreateActionMode(ActionMode mode, Menu menu)
 		{
-			MenuInflater inflater = mode.getMenuInflater();
-			inflater.inflate(R.menu.profile_list_context, menu);
+			if(BuildConfig.DEBUG) {
+				setDebugProfileView(mode,menu);
+			}else {
+				setProfileView(mode,menu);
+
+			}
 			mEditProfile = menu.findItem(R.id.edit_profile);
 			mSelected = new HashSet<Integer>();
-			mode.setTitle(R.string.select_profiles);
 			return true;
+		}
+
+		private void setDebugProfileView(ActionMode mode, Menu menu){
+			MenuInflater inflater = mode.getMenuInflater();
+			inflater.inflate(R.menu.profile_list_context_debug, menu);
+			mode.setTitle(R.string.select_profiles);
+		}
+
+		private void setProfileView(ActionMode mode, Menu menu){
+			MenuInflater inflater = mode.getMenuInflater();
+			inflater.inflate(R.menu.profile_list_context, menu);
 		}
 
 		@Override
@@ -248,7 +264,7 @@ public class VpnProfileListFragment extends Fragment
 					}
 					mListAdapter.notifyDataSetChanged();
 					Toast.makeText(VpnProfileListFragment.this.getActivity(),
-								   R.string.profiles_deleted, Toast.LENGTH_SHORT).show();
+							R.string.profiles_deleted, Toast.LENGTH_SHORT).show();
 					break;
 				}
 				default:
@@ -272,18 +288,9 @@ public class VpnProfileListFragment extends Fragment
 			}
 			final int checkedCount = mSelected.size();
 			mEditProfile.setEnabled(checkedCount == 1);
-			switch (checkedCount)
-			{
-				case 0:
-					mode.setSubtitle(R.string.no_profile_selected);
-					break;
-				case 1:
-					mode.setSubtitle(R.string.one_profile_selected);
-					break;
-				default:
-					mode.setSubtitle(String.format(getString(R.string.x_profiles_selected), checkedCount));
-					break;
-			}
+
 		}
 	};
+
+
 }
