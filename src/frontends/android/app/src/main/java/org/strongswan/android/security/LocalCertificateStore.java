@@ -15,26 +15,17 @@
 
 package org.strongswan.android.security;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateEncodingException;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.regex.Pattern;
-
+import android.content.Context;
 import org.strongswan.android.logic.StrongSwanApplication;
 import org.strongswan.android.utils.Utils;
 
-import android.content.Context;
+import java.io.*;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.regex.Pattern;
 
 public class LocalCertificateStore
 {

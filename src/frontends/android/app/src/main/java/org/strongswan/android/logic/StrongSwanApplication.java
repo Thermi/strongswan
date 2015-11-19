@@ -15,12 +15,11 @@
 
 package org.strongswan.android.logic;
 
-import java.security.Security;
-
-import org.strongswan.android.security.LocalCertificateKeyStoreProvider;
-
 import android.app.Application;
 import android.content.Context;
+import org.strongswan.android.security.LocalCertificateKeyStoreProvider;
+
+import java.security.Security;
 
 public class StrongSwanApplication extends Application
 {

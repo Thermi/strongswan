@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.res.Resources;
 import android.os.*;
+import com.fancyfon.strongswan.apiclient.R;
 import com.google.inject.Inject;
 import org.strongswan.android.ipc.VpnProfileCrudService;
 

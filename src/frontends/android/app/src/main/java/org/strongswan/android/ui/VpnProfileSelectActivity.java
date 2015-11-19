@@ -15,13 +15,12 @@
 
 package org.strongswan.android.ui;
 
-import org.strongswan.android.R;
-import org.strongswan.android.data.VpnProfile;
-import org.strongswan.android.ui.VpnProfileListFragment.OnVpnProfileSelectedListener;
-
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
+import com.fancyfon.strongswan.R;
+import org.strongswan.android.data.VpnProfile;
+import org.strongswan.android.ui.VpnProfileListFragment.OnVpnProfileSelectedListener;
 
 public class VpnProfileSelectActivity extends Activity implements OnVpnProfileSelectedListener
 {

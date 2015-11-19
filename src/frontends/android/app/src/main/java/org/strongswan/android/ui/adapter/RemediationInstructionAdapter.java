@@ -15,17 +15,16 @@
 
 package org.strongswan.android.ui.adapter;
 
-import java.util.List;
-
-import org.strongswan.android.R;
-import org.strongswan.android.logic.imc.RemediationInstruction;
-
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
+import com.fancyfon.strongswan.R;
+import org.strongswan.android.logic.imc.RemediationInstruction;
+
+import java.util.List;
 
 public class RemediationInstructionAdapter extends ArrayAdapter<RemediationInstruction>
 {

@@ -7,7 +7,7 @@
     <name>strongSwan API</name>
 
     <parent>
-        <groupId>com.strongswan.android</groupId>
+        <groupId>com.fancyfon.strongswan</groupId>
         <artifactId>strongswan-parent</artifactId>
         <version>1.4.5</version>
     </parent>

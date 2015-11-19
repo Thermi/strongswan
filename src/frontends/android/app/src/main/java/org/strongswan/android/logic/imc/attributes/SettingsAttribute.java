@@ -17,11 +17,10 @@
 
 package org.strongswan.android.logic.imc.attributes;
 
-import java.util.LinkedList;
-
+import android.util.Pair;
 import org.strongswan.android.utils.BufferedByteWriter;
 
-import android.util.Pair;
+import java.util.LinkedList;
 
 /**
  * ITA Settings attribute

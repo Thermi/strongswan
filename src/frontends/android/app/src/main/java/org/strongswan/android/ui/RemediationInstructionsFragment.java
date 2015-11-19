@@ -15,17 +15,16 @@
 
 package org.strongswan.android.ui;
 
-import java.util.ArrayList;
-
-import org.strongswan.android.R;
-import org.strongswan.android.logic.imc.RemediationInstruction;
-import org.strongswan.android.ui.adapter.RemediationInstructionAdapter;
-
 import android.app.Activity;
 import android.app.ListFragment;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ListView;
+import com.fancyfon.strongswan.R;
+import org.strongswan.android.logic.imc.RemediationInstruction;
+import org.strongswan.android.ui.adapter.RemediationInstructionAdapter;
+
+import java.util.ArrayList;
 
 public class RemediationInstructionsFragment extends ListFragment
 {

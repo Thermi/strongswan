@@ -17,20 +17,19 @@
 
 package org.strongswan.android.ui.adapter;
 
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-
-import org.strongswan.android.R;
-import org.strongswan.android.data.VpnProfile;
-import org.strongswan.android.data.VpnType.VpnTypeFeature;
-
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
+import com.fancyfon.strongswan.R;
+import org.strongswan.android.data.VpnProfile;
+import org.strongswan.android.data.VpnType.VpnTypeFeature;
+
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 public class VpnProfileAdapter extends ArrayAdapter<VpnProfile>
 {

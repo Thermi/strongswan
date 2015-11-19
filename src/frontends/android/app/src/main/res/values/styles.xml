@@ -13,7 +13,7 @@
     or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
     for more details.
 -->
-<resources xmlns:android="http://schemas.android.com/apk/res/android">
+<resources>
 
     <style name="ApplicationTheme" parent="@android:style/Theme.Holo">
     </style>

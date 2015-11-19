@@ -11,7 +11,6 @@ import android.util.Log;
 import org.strongswan.android.logic.StrongSwanApplication;
 import org.strongswan.android.utils.Utils;
 
-import javax.xml.soap.Text;
 import java.io.*;
 import java.security.*;
 import java.security.cert.Certificate;

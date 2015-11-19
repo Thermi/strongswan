@@ -19,7 +19,7 @@ package org.strongswan.android.data;
 
 import android.content.res.Resources;
 import android.os.Bundle;
-import org.strongswan.android.R;
+import com.fancyfon.strongswan.R;
 
 import java.util.ArrayList;
 

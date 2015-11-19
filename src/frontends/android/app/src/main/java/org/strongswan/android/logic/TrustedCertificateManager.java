@@ -17,6 +17,8 @@
 
 package org.strongswan.android.logic;
 
+import android.util.Log;
+
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.cert.Certificate;
@@ -25,8 +27,6 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-
-import android.util.Log;
 
 public class TrustedCertificateManager
 {

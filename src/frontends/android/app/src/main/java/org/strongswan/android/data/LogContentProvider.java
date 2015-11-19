@@ -15,14 +15,6 @@
 
 package org.strongswan.android.data;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.util.concurrent.ConcurrentHashMap;
-
-import org.strongswan.android.logic.CharonVpnService;
-
 import android.content.ContentProvider;
 import android.content.ContentValues;
 import android.database.Cursor;
@@ -31,6 +23,13 @@ import android.net.Uri;
 import android.os.ParcelFileDescriptor;
 import android.os.SystemClock;
 import android.provider.OpenableColumns;
+import org.strongswan.android.logic.CharonVpnService;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class LogContentProvider extends ContentProvider
 {

@@ -15,9 +15,9 @@
 
 package org.strongswan.android.security;
 
-import java.security.cert.X509Certificate;
-
 import android.net.http.SslCertificate;
+
+import java.security.cert.X509Certificate;
 
 public class TrustedCertificateEntry implements Comparable<TrustedCertificateEntry>
 {

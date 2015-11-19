@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="org.strongswan.android.apiclient"
+    package="com.fancyfon.strongswan.apiclient"
     android:versionCode="26"
     android:versionName="${strongswan.version}" >
 
@@ -18,13 +18,13 @@
         android:allowBackup="false"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name">
-        <activity android:name=".ApiClientActivity" >
+        <activity android:name="org.strongswan.android.apiclient.ApiClientActivity" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".CreateVpnProfileView" />
+        <activity android:name="org.strongswan.android.apiclient.CreateVpnProfileView" />
     </application>
 
 </manifest>

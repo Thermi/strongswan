@@ -9,7 +9,7 @@ import android.app.Service;
 import android.content.Intent;
 import android.os.*;
 import android.util.Log;
-import org.strongswan.android.api.R;
+import com.fancyfon.strongswan.api.R;
 
 import java.util.List;
 

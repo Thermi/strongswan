@@ -2,11 +2,14 @@ package org.strongswan.android.apiclient;
 
 import android.content.Intent;
 import android.content.res.Resources;
-import android.os.*;
+import android.os.Bundle;
+import android.os.Message;
+import android.os.RemoteException;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.RadioButton;
+import com.fancyfon.strongswan.apiclient.R;
 import com.google.inject.Inject;
 import roboguice.activity.RoboActivity;
 import roboguice.inject.ContentView;
@@ -14,7 +17,6 @@ import roboguice.inject.InjectView;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 @ContentView(R.layout.api_client_activity)
 public class ApiClientActivity extends RoboActivity {
@@ -151,7 +153,7 @@ public class ApiClientActivity extends RoboActivity {
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_gateway_key), "famocvpn.emdmcloud.com");
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_type_key), resources.getString(R.string.vpn_profile_bundle_type_ikev2_cert_value));
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_password_key),
-                "PASS");
+                "pass");
         if (addCertToBundle(vpnProfile)) {
             return null;
         }
@@ -163,7 +165,7 @@ public class ApiClientActivity extends RoboActivity {
         String caCert = certificateReader.getCaCertificate();
         String userCert = certificateReader.getUserCertificate();
         if(caCert == null || userCert == null) {
-            logger.logAndToast(TAG, "Error creating cert bundle. Vpn create failed");
+            logger.logAndToast(TAG, "Error creating cert bundle. Vpn failed to create.");
             return true;
         }
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_certificate_key), caCert);
