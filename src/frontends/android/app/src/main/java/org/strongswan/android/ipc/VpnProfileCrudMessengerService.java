@@ -64,7 +64,7 @@ public class VpnProfileCrudMessengerService extends Service {
 
 
         private void delete(Message msg) {
-            long id = msg.getData().getLong(getString(R.string.vpn_profile_bundle_id_key));
+            long id = msg.arg1;
             boolean result = vpnProfileCrud.deleteVpnProfile(id);
             reply(msg, result);
         }
