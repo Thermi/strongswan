@@ -18,6 +18,12 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
         <strongswan.version>${version}</strongswan.version>
+        <application.fileName>${project.artifactId}${application.fileName.connector}${project
+        .version}${type}</application.fileName>
+        <application.fileName.connector>_</application.fileName.connector>
+        <type.debug>${application.fileName.connector}Debug</type.debug>
+        <type.release />
+        <type>${type.debug}</type>
     </properties>
     
     <dependencyManagement>
@@ -46,7 +52,7 @@
     </dependencyManagement>
   
     <build>
-        <finalName>${project.artifactId}_${project.version}</finalName>
+        <finalName>${application.fileName}</finalName>
         <resources>
             <resource>
                 <directory>${project.basedir}/src/main</directory>
@@ -96,6 +102,7 @@
                 </property>
             </activation>
             <properties>
+                <type>${type.release}</type>
                 <android.release>true</android.release>
             </properties>
         </profile>

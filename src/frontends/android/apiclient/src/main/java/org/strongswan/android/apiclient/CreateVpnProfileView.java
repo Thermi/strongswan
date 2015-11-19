@@ -144,13 +144,13 @@ public class CreateVpnProfileView extends RoboActivity {
         Bundle vpnProfile = new Bundle();
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_name_key), vpnNameEditText.getText().toString());
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_gateway_key), vpnGatewayEditText.getText
-                ().toString());
+                ().toString().replace(" ", ""));
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_type_key), vpnType);
 
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_username_key), vpnUsernameEditText
-                .getText().toString());
+                .getText().toString().replace(" ", ""));
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_password_key), vpnPasswordEditText
-                .getText().toString());
+                .getText().toString().replace(" ", ""));
         if (!addCaCertificate(vpnProfile)) {
             return null;
         }
@@ -158,7 +158,7 @@ public class CreateVpnProfileView extends RoboActivity {
             return null;
         }
         ArrayList<String> packages = new ArrayList<String>();
-        packages.add(vpnPackageNameEditText.getText().toString());
+        packages.add(vpnPackageNameEditText.getText().toString().replace(" ", ""));
         vpnProfile.putStringArrayList(resources.getString(R.string.vpn_profile_bundle_allowed_applications), packages);
         return vpnProfile;
     }
@@ -172,7 +172,7 @@ public class CreateVpnProfileView extends RoboActivity {
             vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_key),
                     userCert);
             vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_password_key),
-                    vpnUserCertificatePasswordEditText.getText().toString());
+                    vpnUserCertificatePasswordEditText.getText().toString().replace(" ", ""));
         }
         return true;
     }
