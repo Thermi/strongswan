@@ -50,7 +50,11 @@ public class ReturnMessenger {
             } else if (msg.what == getInteger(R.integer.vpn_profile_update_message)) {
                 logger.logAndToast(TAG, "Vpn updated successfully.");
             } else if (msg.what == getInteger(R.integer.vpn_profile_delete_message)) {
-                logger.logAndToast(TAG, "Vpn deleted successfully.");
+                if (msg.arg2 == SUCCESS) {
+                    logger.logAndToast(TAG, "Vpn deleted successfully.");
+                } else {
+                    logger.logAndToast(TAG, "Vpn delete failed.");
+                }
             } else if (msg.what == getInteger(R.integer.vpn_profile_delete_all_message)) {
                 logger.logAndToast(TAG, "was any vpn profiles deleted via messenger? " + (msg.arg2 == 0));
             } else {

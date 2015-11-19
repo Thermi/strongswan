@@ -64,6 +64,8 @@
                 android:id="@+id/profile_id_edit_text"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
+                android:inputType="numberDecimal"
+                android:maxLength="10"
                 android:hint="VPN profile id"/>
         <EditText
                 android:id="@+id/package_name_edit_text"

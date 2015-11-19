@@ -31,6 +31,8 @@ import java.util.Random;
 public class CreateVpnProfileView extends RoboActivity {
 
     private static final String TAG = CreateVpnProfileView.class.getSimpleName();
+    private static final String SPACE = " ";
+    private static final String NOTHING = "";
 
     @Inject
     Random random;
@@ -144,13 +146,13 @@ public class CreateVpnProfileView extends RoboActivity {
         Bundle vpnProfile = new Bundle();
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_name_key), vpnNameEditText.getText().toString());
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_gateway_key), vpnGatewayEditText.getText
-                ().toString().replace(" ", ""));
+                ().toString().replace(SPACE, NOTHING));
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_type_key), vpnType);
 
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_username_key), vpnUsernameEditText
-                .getText().toString().replace(" ", ""));
+                .getText().toString().replace(SPACE, NOTHING));
         vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_password_key), vpnPasswordEditText
-                .getText().toString().replace(" ", ""));
+                .getText().toString().replace(SPACE, NOTHING));
         if (!addCaCertificate(vpnProfile)) {
             return null;
         }
@@ -158,7 +160,7 @@ public class CreateVpnProfileView extends RoboActivity {
             return null;
         }
         ArrayList<String> packages = new ArrayList<String>();
-        packages.add(vpnPackageNameEditText.getText().toString().replace(" ", ""));
+        packages.add(vpnPackageNameEditText.getText().toString().replace(SPACE, NOTHING));
         vpnProfile.putStringArrayList(resources.getString(R.string.vpn_profile_bundle_allowed_applications), packages);
         return vpnProfile;
     }
@@ -172,7 +174,7 @@ public class CreateVpnProfileView extends RoboActivity {
             vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_key),
                     userCert);
             vpnProfile.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_password_key),
-                    vpnUserCertificatePasswordEditText.getText().toString().replace(" ", ""));
+                    vpnUserCertificatePasswordEditText.getText().toString().replace(SPACE, NOTHING));
         }
         return true;
     }

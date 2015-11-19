@@ -210,8 +210,14 @@ public class ApiClientActivity extends RoboActivity {
     public void clickDeleteVpnProfile(View view) {
         if(!TextUtils.isEmpty(vpnProfileIdEditText.getText())) {
             if (ipcType == MESSENGER_IPC_TYPE) {
-                sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_delete_message), Integer.parseInt
-                        (vpnProfileIdEditText.getText().toString()), "failed to delete vpn profiles via messenger");
+                try {
+                    sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_delete_message), Integer.parseInt
+                            (vpnProfileIdEditText.getText().toString()), "failed to " +
+                            "delete vpn profiles via messenger");
+                } catch (NumberFormatException e) {
+                    logger.logAndToast(TAG, "Invalid value for id.");
+                }
+
             } else {
                 if (vpnServiceConnector.getService() != null) {
                     try {
