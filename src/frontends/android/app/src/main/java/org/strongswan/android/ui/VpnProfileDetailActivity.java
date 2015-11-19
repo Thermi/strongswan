@@ -208,7 +208,7 @@ public class VpnProfileDetailActivity extends Activity
 	}
 
 	private boolean lockNeeded(){
-		return BuildConfig.DEBUG;
+		return !BuildConfig.DEBUG;
 	}
 
 

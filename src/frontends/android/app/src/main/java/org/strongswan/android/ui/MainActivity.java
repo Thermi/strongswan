@@ -17,6 +17,7 @@
 
 package org.strongswan.android.ui;
 
+import org.strongswan.android.BuildConfig;
 import org.strongswan.android.R;
 import org.strongswan.android.data.VpnProfile;
 import org.strongswan.android.data.VpnProfileDataSource;
@@ -132,9 +133,9 @@ public class MainActivity extends Activity implements OnVpnProfileSelectedListen
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu){
 		if(BuildConfig.DEBUG){
-			getMenuInflater().inflate(R.menu.main, menu);
-		}else{
 			getMenuInflater().inflate(R.menu.main_debug, menu);
+		}else{
+			getMenuInflater().inflate(R.menu.main, menu);
 		}
 		return true;
 	}
