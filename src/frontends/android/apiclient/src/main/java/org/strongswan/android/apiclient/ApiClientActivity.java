@@ -231,13 +231,13 @@ public class ApiClientActivity extends RoboActivity {
         }
     }
 
-    private void sendViaMessenger(int messageType, int arg2, String loggerMessage) {
-        sendViaMessenger(messageType, arg2, null, loggerMessage);
+    private void sendViaMessenger(int messageType, int messageArgument, String loggerMessage) {
+        sendViaMessenger(messageType, messageArgument, null, loggerMessage);
     }
 
-    private void sendViaMessenger(int messageType, int arg2, Bundle bundle, String loggerMessage) {
+    private void sendViaMessenger(int messageType, int messageArgument, Bundle bundle, String loggerMessage) {
         if (vpnServiceConnector.getMessenger() != null) {
-            Message message = Message.obtain(null, messageType, arg2, 0);
+            Message message = Message.obtain(null, messageType, messageArgument, 0);
             if (bundle != null) {
                 message.setData(bundle);
             }
