@@ -44,7 +44,7 @@ public class ApiClientActivity extends RoboActivity {
     EditText vpnProfileIdEditText;
 
     private  ArrayList<String>allowedApps;
-    private int ipcType;
+    private int ipcType = MESSENGER_IPC_TYPE;
 
     @Override
     protected void onDestroy() {

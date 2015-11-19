@@ -17,7 +17,7 @@ All rights reserved.
     <string name="vpn_profile_crud_permission">org.strongswan.android.permission.VPN_PROFILE_CRUD</string>
     
     <string name="vpn_profile_bundle_id_key">id</string>
-    <string name="vpn_profile_bundle_id_params_key">id_%1$</string>
+    <string name="vpn_profile_bundle_id_params_key">id_%1$s</string>
     <string name="vpn_profile_bundle_ids_key">ids</string>
     <string name="vpn_profile_bundle_name_key">name</string>
     <string name="vpn_profile_bundle_gateway_key">gateway</string>
