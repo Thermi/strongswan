@@ -17,6 +17,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
+        <strongswan.version>${version}</strongswan.version>
     </properties>
     
     <dependencyManagement>
@@ -45,6 +46,17 @@
     </dependencyManagement>
   
     <build>
+        <finalName>${project.artifactId}_${project.version}</finalName>
+        <resources>
+            <resource>
+                <directory>${project.basedir}/src/main</directory>
+                <targetPath>${project.basedir}/target/filtered-manifest</targetPath>
+                <filtering>true</filtering>
+                <includes>
+                    <include>AndroidManifest.xml</include>
+                </includes>
+            </resource>
+        </resources>
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -53,13 +65,39 @@
                     <version>4.2.0</version>
                     <extensions>true</extensions>
                     <configuration>
+                        <undeployBeforeDeploy>true</undeployBeforeDeploy>
+                        <androidManifestFile>${project.build.directory}/filtered-manifest/AndroidManifest.xml</androidManifestFile>
                         <sdk>
                             <platform>21</platform>
                         </sdk>
                     </configuration>
                 </plugin>
+                <plugin>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <phase>initialize</phase>
+                            <goals>
+                                <goal>resources</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
     </build>
-
+    <profiles>
+        <profile>
+            <id>release</id>
+            <activation>
+                <property>
+                    <name>profile</name>
+                    <value>release</value>
+                </property>
+            </activation>
+            <properties>
+                <android.release>true</android.release>
+            </properties>
+        </profile>
+    </profiles>
 </project>

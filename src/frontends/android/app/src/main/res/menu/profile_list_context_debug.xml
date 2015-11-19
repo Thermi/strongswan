@@ -15,9 +15,10 @@
 -->
 <menu xmlns:android="http://schemas.android.com/apk/res/android" >
 
-
     <item android:id="@+id/edit_profile"
-        android:title="@string/show_profile_details" ></item>
+        android:title="@string/edit_profile" ></item>
 
+    <item android:id="@+id/delete_profile"
+        android:title="@string/delete_profile" ></item>
 
 </menu>

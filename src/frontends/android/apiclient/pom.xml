@@ -41,7 +41,6 @@
     </dependencies>
 
     <build>
-        <finalName>apiclient</finalName>
         <plugins>
             <plugin>
                 <groupId>com.simpligility.maven.plugins</groupId>

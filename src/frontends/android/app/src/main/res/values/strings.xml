@@ -40,6 +40,7 @@
     <string name="add_profile">Add VPN profile</string>
     <string name="edit_profile">Edit</string>
     <string name="delete_profile">Delete</string>
+    <string name="show_profile_details">Show Details</string>
     <string name="select_profiles">Select profiles</string>
     <string name="profiles_deleted">Selected profiles deleted</string>
     <string name="no_profile_selected">No profile selected</string>
@@ -49,6 +50,7 @@
     <!-- VPN profile details -->
     <string name="profile_edit_save">Save</string>
     <string name="profile_edit_cancel">Cancel</string>
+    <string name="profile_details_cancel">Back</string>
     <string name="profile_name_label">Profile Name:</string>
     <string name="profile_name_hint">(use gateway address)</string>
     <string name="profile_gateway_label">Gateway:</string>

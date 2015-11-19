@@ -55,6 +55,7 @@ import android.widget.CompoundButton;
 import android.widget.CompoundButton.OnCheckedChangeListener;
 import android.widget.EditText;
 import android.widget.RelativeLayout;
+import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -74,12 +75,13 @@ public class VpnProfileDetailActivity extends Activity
 	private Spinner mSelectVpnType;
 	private ViewGroup mUsernamePassword;
 	private EditText mUsername;
-	 private EditText mPassword;
+	private EditText mPassword;
 	private ViewGroup mUserCertificate;
 	private RelativeLayout mSelectUserCert;
 	private CheckBox mCheckAuto;
 	private RelativeLayout mSelectCert;
 	private RelativeLayout mTncNotice;
+
 
 	@Override
 	public void onCreate(Bundle savedInstanceState)
@@ -93,24 +95,25 @@ public class VpnProfileDetailActivity extends Activity
 		mDataSource.open();
 
 		setContentView(R.layout.profile_detail_view);
+		ScrollView focuslayout = (ScrollView) findViewById(R.id.detail_view);
+		focuslayout.requestFocus();
+		mName = (EditText)findViewById(R.id.name);
 
-		 mName = (EditText)findViewById(R.id.name);
-
-		 mGateway = (EditText)findViewById(R.id.gateway);
+		mGateway = (EditText)findViewById(R.id.gateway);
 		mSelectVpnType = (Spinner)findViewById(R.id.vpn_type);
 		mTncNotice = (RelativeLayout)findViewById(R.id.tnc_notice);
 
 		mUsernamePassword = (ViewGroup)findViewById(R.id.username_password_group);
-        mUsername = (EditText)findViewById(R.id.username);
-	 	mPassword = (EditText)findViewById(R.id.password);
+		mUsername = (EditText)findViewById(R.id.username);
+		mPassword = (EditText)findViewById(R.id.password);
 
 		mUserCertificate = (ViewGroup)findViewById(R.id.user_certificate_group);
 		mSelectUserCert = (RelativeLayout)findViewById(R.id.select_user_certificate);
 
 		mCheckAuto = (CheckBox)findViewById(R.id.ca_auto);
 		mSelectCert = (RelativeLayout)findViewById(R.id.select_certificate);
-        ((TextView)mTncNotice.findViewById(android.R.id.text1)).setText(R.string.tnc_notice_title);
-        ((TextView)mTncNotice.findViewById(android.R.id.text2)).setText(R.string.tnc_notice_subtitle);
+		((TextView)mTncNotice.findViewById(android.R.id.text1)).setText(R.string.tnc_notice_title);
+		((TextView)mTncNotice.findViewById(android.R.id.text2)).setText(R.string.tnc_notice_subtitle);
 
 
 		mId = savedInstanceState == null ? null : savedInstanceState.getLong(VpnProfileDataSource.KEY_ID);
@@ -122,13 +125,13 @@ public class VpnProfileDetailActivity extends Activity
 
 
 		loadProfileData(savedInstanceState);
-        lockEditIfNeeded();
-        updateCredentialView();
+		lockEditIfNeeded();
+		updateCredentialView();
 		updateCertificateSelector();
 	}
 
 
-    @Override
+	@Override
 	protected void onDestroy()
 	{
 		super.onDestroy();
@@ -136,18 +139,18 @@ public class VpnProfileDetailActivity extends Activity
 	}
 
 
-    private void lockEditIfNeeded() {
-        if(lockNeeded()){
-            disableUiEditOptions();
-        }else{
-            setListeners();
-        }
+	private void lockEditIfNeeded() {
+		if(lockNeeded()){
+			disableUiEditOptions();
+		}else{
+			setListeners();
+		}
 
-    }
+	}
 
-    private void setListeners( ){
+	private void setListeners( ){
 
-	 	mSelectVpnType.setOnItemSelectedListener(new OnItemSelectedListener() {
+		mSelectVpnType.setOnItemSelectedListener(new OnItemSelectedListener() {
 			@Override
 			public void onItemSelected(AdapterView<?> parent, View view, int position, long id)
 			{
@@ -158,13 +161,13 @@ public class VpnProfileDetailActivity extends Activity
 			@Override
 			public void onNothingSelected(AdapterView<?> parent)
 			{	/* should not happen */
-			 mVpnType = VpnType.IKEV2_EAP;
-			 	updateCredentialView();
+				mVpnType = VpnType.IKEV2_EAP;
+				updateCredentialView();
 			}
 		});
 
 
-		 mTncNotice.setOnClickListener(new OnClickListener() {
+		mTncNotice.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v)
 			{
@@ -176,39 +179,37 @@ public class VpnProfileDetailActivity extends Activity
 
 		mCheckAuto.setOnCheckedChangeListener(new OnCheckedChangeListener() {
 			@Override
-			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked)
-			{
+			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
 				updateCertificateSelector();
 			}
 		});
 
 		mSelectCert.setOnClickListener(new OnClickListener() {
 			@Override
-			public void onClick(View v)
-			{
+			public void onClick(View v) {
 				Intent intent = new Intent(VpnProfileDetailActivity.this, TrustedCertificatesActivity.class);
 				intent.setAction(TrustedCertificatesActivity.SELECT_CERTIFICATE);
 				startActivityForResult(intent, SELECT_TRUSTED_CERTIFICATE);
 			}
 		});
 
-    }
+	}
 
-    private void disableUiEditOptions(){
+	private void disableUiEditOptions(){
 
-            mPassword.setEnabled(false);
-            mUsername.setEnabled(false);
-            mGateway.setEnabled(false);
-            mName.setEnabled(false);
-            mSelectVpnType.setEnabled(false);
-            mSelectVpnType.setClickable(false);
-            mCheckAuto.setEnabled(false);
+		mPassword.setEnabled(false);
+		mUsername.setEnabled(false);
+		mGateway.setEnabled(false);
+		mName.setEnabled(false);
+		mSelectVpnType.setEnabled(false);
+		mSelectVpnType.setClickable(false);
+		mCheckAuto.setEnabled(false);
 
-    }
+	}
 
-    private boolean lockNeeded(){
-        return  BuildConfig.DEBUG;
-    }
+	private boolean lockNeeded(){
+		return !BuildConfig.DEBUG;
+	}
 
 
 	@Override
@@ -232,8 +233,11 @@ public class VpnProfileDetailActivity extends Activity
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu)
 	{
-		MenuInflater inflater = getMenuInflater();
-		inflater.inflate(R.menu.profile_edit, menu);
+
+		if(BuildConfig.DEBUG){
+			MenuInflater inflater = getMenuInflater();
+			inflater.inflate(R.menu.profile_edit_debug, menu);
+		}
 		return true;
 	}
 
@@ -461,7 +465,7 @@ public class VpnProfileDetailActivity extends Activity
 			else
 			{
 				Log.e(VpnProfileDetailActivity.class.getSimpleName(),
-					  "VPN profile with id " + mId + " not found");
+						"VPN profile with id " + mId + " not found");
 				finish();
 			}
 		}
@@ -602,15 +606,15 @@ public class VpnProfileDetailActivity extends Activity
 		public Dialog onCreateDialog(Bundle savedInstanceState)
 		{
 			return new AlertDialog.Builder(getActivity())
-				.setTitle(R.string.tnc_notice_title)
-				.setMessage(Html.fromHtml(getString(R.string.tnc_notice_details)))
-				.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-					@Override
-					public void onClick(DialogInterface dialog, int id)
-					{
-						dialog.dismiss();
-					}
-				}).create();
+					.setTitle(R.string.tnc_notice_title)
+					.setMessage(Html.fromHtml(getString(R.string.tnc_notice_details)))
+					.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int id)
+						{
+							dialog.dismiss();
+						}
+					}).create();
 		}
 	}
 

@@ -6,10 +6,12 @@ package org.strongswan.android.security;
 
 
 import android.content.Context;
+import android.text.TextUtils;
 import android.util.Log;
 import org.strongswan.android.logic.StrongSwanApplication;
 import org.strongswan.android.utils.Utils;
 
+import javax.xml.soap.Text;
 import java.io.*;
 import java.security.*;
 import java.security.cert.Certificate;
@@ -204,10 +206,12 @@ public class LocalKeystore {
 
     public boolean removePkcs12AndCaCertificate(String certificateId) {
         try {
-            File[] certificateFiles = StrongSwanApplication.getContext().getFilesDir().listFiles();
-            for (File certificate : certificateFiles) {
-                if (certificate.getName().contains(certificateId)) {
-                    certificate.delete();
+            if(!TextUtils.isEmpty(certificateId)) {
+                File[] certificateFiles = StrongSwanApplication.getContext().getFilesDir().listFiles();
+                for (File certificate : certificateFiles) {
+                    if (certificate.getName().contains(certificateId)) {
+                        certificate.delete();
+                    }
                 }
             }
             return true;

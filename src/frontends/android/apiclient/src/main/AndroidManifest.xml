@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="org.strongswan.android.apiclient"
     android:versionCode="26"
-    android:versionName="1.4.5" >
+    android:versionName="${strongswan.version}" >
 
     <uses-sdk
         android:minSdkVersion="14"
@@ -24,6 +24,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".CreateVpnProfileView" />
     </application>
 
 </manifest>

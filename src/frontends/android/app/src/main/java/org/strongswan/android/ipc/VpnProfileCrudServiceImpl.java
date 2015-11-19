@@ -45,7 +45,7 @@ public class VpnProfileCrudServiceImpl extends Service {
 
         @Override
         public boolean createVpnProfile(Bundle vpnProfile) throws RemoteException {
-            return  vpnProfileCrud.createVpnProfile(vpnProfile);
+            return vpnProfileCrud.createVpnProfile(vpnProfile);
         }
 
         @Override

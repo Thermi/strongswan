@@ -17,6 +17,7 @@
 
 package org.strongswan.android.ui;
 
+import org.strongswan.android.BuildConfig;
 import org.strongswan.android.R;
 import org.strongswan.android.data.VpnProfile;
 import org.strongswan.android.data.VpnProfileDataSource;
@@ -96,7 +97,7 @@ public class MainActivity extends Activity implements OnVpnProfileSelectedListen
 		setContentView(R.layout.main);
 
 		this.bindService(new Intent(this, VpnStateService.class),
-						 mServiceConnection, Service.BIND_AUTO_CREATE);
+				mServiceConnection, Service.BIND_AUTO_CREATE);
 
 		ActionBar bar = getActionBar();
 		bar.setDisplayShowTitleEnabled(false);
@@ -130,9 +131,12 @@ public class MainActivity extends Activity implements OnVpnProfileSelectedListen
 	}
 
 	@Override
-	public boolean onCreateOptionsMenu(Menu menu)
-	{
-		getMenuInflater().inflate(R.menu.main, menu);
+	public boolean onCreateOptionsMenu(Menu menu){
+		if(BuildConfig.DEBUG){
+			getMenuInflater().inflate(R.menu.main_debug, menu);
+		}else{
+			getMenuInflater().inflate(R.menu.main, menu);
+		}
 		return true;
 	}
 
@@ -244,7 +248,7 @@ public class MainActivity extends Activity implements OnVpnProfileSelectedListen
 	private void startVpnProfile(Bundle profileInfo)
 	{
 		if (profileInfo.getBoolean(PROFILE_REQUIRES_PASSWORD) &&
-			profileInfo.getString(VpnProfileDataSource.KEY_PASSWORD) == null)
+				profileInfo.getString(VpnProfileDataSource.KEY_PASSWORD) == null)
 		{
 			LoginDialog login = new LoginDialog();
 			login.setArguments(profileInfo);
@@ -342,24 +346,24 @@ public class MainActivity extends Activity implements OnVpnProfileSelectedListen
 			}
 
 			return new AlertDialog.Builder(getActivity())
-				.setIcon(icon)
-				.setTitle(String.format(getString(title), profileInfo.getString(PROFILE_NAME)))
-				.setMessage(message)
-				.setPositiveButton(button, new DialogInterface.OnClickListener() {
-					@Override
-					public void onClick(DialogInterface dialog, int whichButton)
-					{
-						MainActivity activity = (MainActivity)getActivity();
-						activity.startVpnProfile(profileInfo);
-					}
-				})
-				.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-					@Override
-					public void onClick(DialogInterface dialog, int which)
-					{
-						dismiss();
-					}
-				}).create();
+					.setIcon(icon)
+					.setTitle(String.format(getString(title), profileInfo.getString(PROFILE_NAME)))
+					.setMessage(message)
+					.setPositiveButton(button, new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int whichButton)
+						{
+							MainActivity activity = (MainActivity)getActivity();
+							activity.startVpnProfile(profileInfo);
+						}
+					})
+					.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which)
+						{
+							dismiss();
+						}
+					}).create();
 		}
 	}
 
@@ -425,16 +429,16 @@ public class MainActivity extends Activity implements OnVpnProfileSelectedListen
 			final Bundle arguments = getArguments();
 			final int messageId = arguments.getInt(ERROR_MESSAGE_ID);
 			return new AlertDialog.Builder(getActivity())
-				.setTitle(R.string.vpn_not_supported_title)
-				.setMessage(messageId)
-				.setCancelable(false)
-				.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-					@Override
-					public void onClick(DialogInterface dialog, int id)
-					{
-						dialog.dismiss();
-					}
-				}).create();
+					.setTitle(R.string.vpn_not_supported_title)
+					.setMessage(messageId)
+					.setCancelable(false)
+					.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int id)
+						{
+							dialog.dismiss();
+						}
+					}).create();
 		}
 	}
 }

@@ -27,7 +27,6 @@
     </dependencies>
 
     <build>
-        <finalName>strongswan</finalName>
         <plugins>
             <plugin>
                 <groupId>com.simpligility.maven.plugins</groupId>
