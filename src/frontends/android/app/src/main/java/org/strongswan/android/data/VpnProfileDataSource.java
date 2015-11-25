@@ -226,6 +226,24 @@ public class VpnProfileDataSource
 
 	/**
 	 * Get a single VPN profile from the database.
+	 * @param name name of vpn profile
+	 * @return the profile or null, if not found
+	 */
+	public VpnProfile getVpnProfile(String name)
+	{
+		VpnProfile profile = null;
+		Cursor cursor = mDatabase.query(TABLE_VPNPROFILE, ALL_COLUMNS,
+				KEY_NAME + "=" + name, null, null, null, null);
+		if (cursor.moveToFirst())
+		{
+			profile = VpnProfileFromCursor(cursor);
+		}
+		cursor.close();
+		return profile;
+	}
+
+	/**
+	 * Get a single VPN profile from the database.
 	 * @param id the ID of the VPN profile
 	 * @return the profile or null, if not found
 	 */
