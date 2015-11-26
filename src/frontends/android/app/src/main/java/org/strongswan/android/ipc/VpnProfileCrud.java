@@ -56,8 +56,8 @@ public class VpnProfileCrud {
         return vpnProfile.toBundle(context.getResources());
     }
 
-    public Bundle readVpnProfile(long l) {
-        VpnProfile vpnProfile = source.getVpnProfile(l);
+    public Bundle readVpnProfile(long id) {
+        VpnProfile vpnProfile = source.getVpnProfile(id);
         if (vpnProfile == null) {
             return null;
         }
@@ -77,26 +77,28 @@ public class VpnProfileCrud {
         return installCertificatesFromBundle(vpnProfile) &&  source.updateVpnProfile(new VpnProfile(vpnProfile, context.getResources()));
     }
 
-    public boolean deleteVpnProfile(long l) {
+    public boolean deleteVpnProfile(long id) {
         VpnProfile profile = new VpnProfile();
-        profile.setId(l);
+        profile.setId(id);
         boolean result = source.deleteVpnProfile(profile);
         if(result) {
-            return deleteCertificate(readCertificateId(l));
+            return deleteCertificate(readCertificateId(id));
         }
         return result;
     }
 
     public boolean deleteVpnProfiles() {
-        boolean result = true;
+        boolean deleteAllResult = true;
+        boolean deleteOneResult;
         List<VpnProfile> allVpnProfiles = source.getAllVpnProfiles();
         for (VpnProfile profile : allVpnProfiles) {
-            result &= source.deleteVpnProfile(profile);
-            if(result) {
-                result &= deleteCertificate(profile.getCertificateId());
+            deleteOneResult = source.deleteVpnProfile(profile);
+            if(deleteOneResult) {
+                deleteOneResult &= deleteCertificate(profile.getCertificateId());
             }
+            deleteAllResult &= deleteOneResult;
         }
-        return result;
+        return deleteAllResult;
     }
 
     public boolean deleteCertificate(String certificateId) {
@@ -188,8 +190,8 @@ public class VpnProfileCrud {
         }
     }
 
-    private String readCertificateId(long l) {
-        Bundle vpnProfile = readVpnProfile(l);
+    private String readCertificateId(long id) {
+        Bundle vpnProfile = readVpnProfile(id);
         if (vpnProfile != null) {
             return vpnProfile.getString(context.getResources().getString(R.string
                     .vpn_profile_bundle_certificate_id_key));

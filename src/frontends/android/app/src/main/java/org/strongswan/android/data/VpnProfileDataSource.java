@@ -232,13 +232,16 @@ public class VpnProfileDataSource
 	public VpnProfile getVpnProfile(String name)
 	{
 		VpnProfile profile = null;
-		Cursor cursor = mDatabase.query(TABLE_VPNPROFILE, ALL_COLUMNS,
-				KEY_NAME + "=" + name, null, null, null, null);
-		if (cursor.moveToFirst())
-		{
-			profile = VpnProfileFromCursor(cursor);
+		Cursor cursor = null;
+		try {
+			cursor = mDatabase.query(TABLE_VPNPROFILE, ALL_COLUMNS,
+					KEY_NAME + "=" + name, null, null, null, null);
+			if (cursor.moveToFirst()) {
+				profile = VpnProfileFromCursor(cursor);
+			}
+		} finally {
+			closeCursor(cursor);
 		}
-		cursor.close();
 		return profile;
 	}
 
@@ -250,13 +253,16 @@ public class VpnProfileDataSource
 	public VpnProfile getVpnProfile(long id)
 	{
 		VpnProfile profile = null;
-		Cursor cursor = mDatabase.query(TABLE_VPNPROFILE, ALL_COLUMNS,
-										KEY_ID + "=" + id, null, null, null, null);
-		if (cursor.moveToFirst())
-		{
-			profile = VpnProfileFromCursor(cursor);
+		Cursor cursor = null;
+		try {
+			cursor = mDatabase.query(TABLE_VPNPROFILE, ALL_COLUMNS,
+					KEY_ID + "=" + id, null, null, null, null);
+			if (cursor.moveToFirst()) {
+				profile = VpnProfileFromCursor(cursor);
+			}
+		} finally {
+			closeCursor(cursor);
 		}
-		cursor.close();
 		return profile;
 	}
 
@@ -268,15 +274,18 @@ public class VpnProfileDataSource
 	{
 		List<VpnProfile> vpnProfiles = new ArrayList<VpnProfile>();
 
-		Cursor cursor = mDatabase.query(TABLE_VPNPROFILE, ALL_COLUMNS, null, null, null, null, null);
-		cursor.moveToFirst();
-		while (!cursor.isAfterLast())
-		{
-			VpnProfile vpnProfile = VpnProfileFromCursor(cursor);
-			vpnProfiles.add(vpnProfile);
-			cursor.moveToNext();
+		Cursor cursor = null;
+		try {
+			cursor = mDatabase.query(TABLE_VPNPROFILE, ALL_COLUMNS, null, null, null, null, null);
+			cursor.moveToFirst();
+			while (!cursor.isAfterLast()) {
+				VpnProfile vpnProfile = VpnProfileFromCursor(cursor);
+				vpnProfiles.add(vpnProfile);
+				cursor.moveToNext();
+			}
+		} finally {
+			closeCursor(cursor);
 		}
-		cursor.close();
 		return vpnProfiles;
 	}
 
@@ -333,4 +342,10 @@ public class VpnProfileDataSource
         }
         return new ArrayList<String> ( Arrays.asList(string.split(",")));
     }
+
+	private void closeCursor(Cursor cursor) {
+		if(cursor != null) {
+			cursor.close();
+		}
+	}
 }
