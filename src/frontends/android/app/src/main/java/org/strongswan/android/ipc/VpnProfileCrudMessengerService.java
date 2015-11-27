@@ -30,9 +30,10 @@ public class VpnProfileCrudMessengerService extends Service {
             uid = Binder.getCallingUid();
             return super.sendMessageAtTime(msg, uptimeMillis);
         }
+
         @Override
         public void handleMessage(Message msg) {
-            if ( callerVerificator.isCallerPermitted(uid)){
+            if (callerVerificator.isCallerPermitted(uid)) {
 
                 if (msg.what == getInteger(R.integer.vpn_profile_create_message)) {
                     create(msg);
@@ -54,15 +55,12 @@ public class VpnProfileCrudMessengerService extends Service {
                     Log.w(TAG, "Unknown message: " + msg);
                     super.handleMessage(msg);
                 }
-
-
-
-            }else{
-                Log.e(TAG, "Cannot verify caller  uid " +uid  );
-                reply(msg,false);
-
+            } else {
+                Log.e(TAG, "Cannot verify caller  uid " + uid);
+                reply(msg, false);
             }
         }
+
         private void deleteAll(Message msg) {
             boolean result = vpnProfileCrud.deleteVpnProfiles();
             reply(msg, result);
@@ -81,7 +79,6 @@ public class VpnProfileCrudMessengerService extends Service {
             result.putLongArray(getString(R.string.vpn_profile_bundle_ids_key), ids);
             reply(msg, result);
         }
-
 
         private void delete(Message msg) {
             long id = msg.arg1;
@@ -142,7 +139,6 @@ public class VpnProfileCrudMessengerService extends Service {
                 Log.e(TAG, "failed to send return message", e);
             }
         }
-
     });
 
     @Override
@@ -154,7 +150,7 @@ public class VpnProfileCrudMessengerService extends Service {
     public void onCreate() {
         super.onCreate();
         vpnProfileCrud = new VpnProfileCrud(this);
-        callerVerificator=new StrongswanCallerVerificator(getApplicationContext());
+        callerVerificator = new StrongswanCallerVerificator(getApplicationContext());
     }
 
     @Override
