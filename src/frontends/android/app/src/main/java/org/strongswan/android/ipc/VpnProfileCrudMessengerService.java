@@ -9,7 +9,9 @@ import android.app.Service;
 import android.content.Intent;
 import android.os.*;
 import android.util.Log;
+import com.fancyfon.mobile.android.verification.CallerVerificator;
 import com.fancyfon.strongswan.api.R;
+import org.strongswan.android.ipc.verification.StrongswanCallerVerificator;
 
 import java.util.List;
 
@@ -20,30 +22,41 @@ public class VpnProfileCrudMessengerService extends Service {
 
     private static final String TAG = "VpnProfileService";
     private VpnProfileCrud vpnProfileCrud;
-
+    private CallerVerificator callerVerificator;
+    private int uid;
     Messenger messenger = new Messenger(new Handler() {
+        @Override
+        public boolean sendMessageAtTime(Message msg, long uptimeMillis) {
+            uid = Binder.getCallingUid();
+            return super.sendMessageAtTime(msg, uptimeMillis);
+        }
 
         @Override
         public void handleMessage(Message msg) {
-            if (msg.what == getInteger(R.integer.vpn_profile_create_message)) {
-                create(msg);
-            } else if (msg.what == getInteger(R.integer.vpn_profile_read_message)) {
-                read(msg);
-            } else if (msg.what == getInteger(R.integer.vpn_profile_read_all_message)) {
-                readAll(msg);
-            } else if (msg.what == getInteger(R.integer.vpn_profile_update_message)) {
-                update(msg);
-            } else if (msg.what == getInteger(R.integer.vpn_profile_delete_message)) {
-                delete(msg);
-            } else if (msg.what == getInteger(R.integer.vpn_profile_delete_all_message)) {
-                deleteAll(msg);
-            } else if (msg.what == getInteger(R.integer.vpn_profile_delete_profile_certificate_message)) {
-                deleteCertificate(msg);
-            } else if (msg.what == getInteger(R.integer.vpn_profile_read_by_name_message)) {
-                readByName(msg);
+            if (callerVerificator.isCallerPermitted(uid)) {
+                if (msg.what == getInteger(R.integer.vpn_profile_create_message)) {
+                    create(msg);
+                } else if (msg.what == getInteger(R.integer.vpn_profile_read_message)) {
+                    read(msg);
+                } else if (msg.what == getInteger(R.integer.vpn_profile_read_all_message)) {
+                    readAll(msg);
+                } else if (msg.what == getInteger(R.integer.vpn_profile_update_message)) {
+                    update(msg);
+                } else if (msg.what == getInteger(R.integer.vpn_profile_delete_message)) {
+                    delete(msg);
+                } else if (msg.what == getInteger(R.integer.vpn_profile_delete_all_message)) {
+                    deleteAll(msg);
+                } else if (msg.what == getInteger(R.integer.vpn_profile_delete_profile_certificate_message)) {
+                    deleteCertificate(msg);
+                } else if (msg.what == getInteger(R.integer.vpn_profile_read_by_name_message)) {
+                    readByName(msg);
+                } else {
+                    Log.w(TAG, "Unknown message: " + msg);
+                    super.handleMessage(msg);
+                }
             } else {
-                Log.w(TAG, "Unknown message: " + msg);
-                super.handleMessage(msg);
+                Log.e(TAG, "Cannot verify caller  uid " + uid);
+                reply(msg, false);
             }
         }
 
@@ -65,7 +78,6 @@ public class VpnProfileCrudMessengerService extends Service {
             result.putLongArray(getString(R.string.vpn_profile_bundle_ids_key), ids);
             reply(msg, result);
         }
-
 
         private void delete(Message msg) {
             long id = msg.arg1;
@@ -126,7 +138,6 @@ public class VpnProfileCrudMessengerService extends Service {
                 Log.e(TAG, "failed to send return message", e);
             }
         }
-
     });
 
     @Override
@@ -138,6 +149,7 @@ public class VpnProfileCrudMessengerService extends Service {
     public void onCreate() {
         super.onCreate();
         vpnProfileCrud = new VpnProfileCrud(this);
+        callerVerificator = new StrongswanCallerVerificator(getApplicationContext());
     }
 
     @Override

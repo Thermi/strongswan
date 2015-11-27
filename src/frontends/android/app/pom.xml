@@ -14,6 +14,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>com.fancyfon.mobile.android.verification</groupId>
+            <artifactId>Android_Caller_Verification_Library</artifactId>
+            <version>1.0.1</version>
+        </dependency>
+        <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>strongswan-api</artifactId>
             <version>${project.version}</version>
