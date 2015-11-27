@@ -48,6 +48,73 @@ public class VpnProfileCrud {
                 .getResources())) != null;
     }
 
+    public Bundle readVpnProfile(String name) {
+        VpnProfile vpnProfile = source.getVpnProfile(name);
+        if (vpnProfile == null) {
+            return null;
+        }
+        return vpnProfile.toBundle(context.getResources());
+    }
+
+    public Bundle readVpnProfile(long id) {
+        VpnProfile vpnProfile = source.getVpnProfile(id);
+        if (vpnProfile == null) {
+            return null;
+        }
+        return vpnProfile.toBundle(context.getResources());
+    }
+
+    public List<Bundle> readVpnProfiles() {
+        List<VpnProfile> allVpnProfiles = source.getAllVpnProfiles();
+        List<Bundle> bundles = new ArrayList<Bundle>(allVpnProfiles.size());
+        for (VpnProfile profile : allVpnProfiles) {
+            bundles.add(profile.toBundle(context.getResources()));
+        }
+        return bundles;
+    }
+
+    public boolean updateVpnProfile(Bundle vpnProfile) {
+        return installCertificatesFromBundle(vpnProfile) &&  source.updateVpnProfile(new VpnProfile(vpnProfile, context.getResources()));
+    }
+
+    public boolean deleteVpnProfile(long id) {
+        VpnProfile profile = new VpnProfile();
+        profile.setId(id);
+        boolean result = source.deleteVpnProfile(profile);
+        if(result) {
+            return deleteCertificate(readCertificateId(id));
+        }
+        return result;
+    }
+
+    public boolean deleteVpnProfiles() {
+        boolean deleteAllResult = true;
+        boolean deleteOneResult;
+        List<VpnProfile> allVpnProfiles = source.getAllVpnProfiles();
+        for (VpnProfile profile : allVpnProfiles) {
+            deleteOneResult = source.deleteVpnProfile(profile);
+            if(deleteOneResult) {
+                deleteOneResult &= deleteCertificate(profile.getCertificateId());
+            }
+            deleteAllResult &= deleteOneResult;
+        }
+        return deleteAllResult;
+    }
+
+    public boolean deleteCertificate(String certificateId) {
+        try {
+            createLocalKeystore();
+            return localKeystore.removePkcs12AndCaCertificate(certificateId);
+        } catch (KeyStoreException e) {
+            Log.e(TAG, "Error deleting certificate: " + e);
+        }
+        return false;
+    }
+
+    public void close() {
+        source.close();
+    }
+
     private boolean installCertificatesFromBundle(Bundle vpnProfile) {
         try {
             if(isThereUserOrCaCertificateInBundle(vpnProfile)) {
@@ -123,69 +190,12 @@ public class VpnProfileCrud {
         }
     }
 
-    public Bundle readVpnProfile(long l) {
-        VpnProfile vpnProfile = source.getVpnProfile(l);
-        if (vpnProfile == null) {
-            return null;
-        }
-        return vpnProfile.toBundle(context.getResources());
-    }
-
-    public List<Bundle> readVpnProfiles() {
-        List<VpnProfile> allVpnProfiles = source.getAllVpnProfiles();
-        List<Bundle> bundles = new ArrayList<Bundle>(allVpnProfiles.size());
-        for (VpnProfile profile : allVpnProfiles) {
-            bundles.add(profile.toBundle(context.getResources()));
-        }
-        return bundles;
-    }
-
-    public boolean updateVpnProfile(Bundle vpnProfile) {
-        return installCertificatesFromBundle(vpnProfile) &&  source.updateVpnProfile(new VpnProfile(vpnProfile, context.getResources()));
-    }
-
-    public boolean deleteVpnProfile(long l) {
-        VpnProfile profile = new VpnProfile();
-        profile.setId(l);
-        boolean result = source.deleteVpnProfile(profile);
-        if(result) {
-            return deleteCertificate(readCertificateId(l));
-        }
-        return result;
-    }
-
-    private String readCertificateId(long l) {
-        Bundle vpnProfile =  readVpnProfile(l);
-        if(vpnProfile != null) {
+    private String readCertificateId(long id) {
+        Bundle vpnProfile = readVpnProfile(id);
+        if (vpnProfile != null) {
             return vpnProfile.getString(context.getResources().getString(R.string
                     .vpn_profile_bundle_certificate_id_key));
         }
         return null;
-    }
-
-    private boolean deleteCertificate(String certificateId) {
-        try {
-            createLocalKeystore();
-            return localKeystore.removePkcs12AndCaCertificate(certificateId);
-        } catch (KeyStoreException e) {
-            Log.e(TAG, "Error deleting certificate: " + e);
-        }
-        return false;
-    }
-
-    public boolean deleteVpnProfiles() {
-        boolean result = true;
-        List<VpnProfile> allVpnProfiles = source.getAllVpnProfiles();
-        for (VpnProfile profile : allVpnProfiles) {
-            result &= source.deleteVpnProfile(profile);
-            if(result) {
-                result &= deleteCertificate(profile.getCertificateId());
-            }
-        }
-        return result;
-    }
-
-    public void close() {
-        source.close();
     }
 }

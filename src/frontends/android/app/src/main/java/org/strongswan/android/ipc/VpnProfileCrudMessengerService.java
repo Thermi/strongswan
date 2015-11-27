@@ -32,7 +32,8 @@ public class VpnProfileCrudMessengerService extends Service {
         }
         @Override
         public void handleMessage(Message msg) {
-            if ( callerVerificator.isCallerPermitted(uid)) {
+            if ( callerVerificator.isCallerPermitted(uid)){
+
                 if (msg.what == getInteger(R.integer.vpn_profile_create_message)) {
                     create(msg);
                 } else if (msg.what == getInteger(R.integer.vpn_profile_read_message)) {
@@ -45,17 +46,23 @@ public class VpnProfileCrudMessengerService extends Service {
                     delete(msg);
                 } else if (msg.what == getInteger(R.integer.vpn_profile_delete_all_message)) {
                     deleteAll(msg);
+                } else if (msg.what == getInteger(R.integer.vpn_profile_delete_profile_certificate_message)) {
+                    deleteCertificate(msg);
+                } else if (msg.what == getInteger(R.integer.vpn_profile_read_by_name_message)) {
+                    readByName(msg);
                 } else {
                     Log.w(TAG, "Unknown message: " + msg);
                     super.handleMessage(msg);
                 }
+
+
+
             }else{
                 Log.e(TAG, "Cannot verify caller  uid " +uid  );
                 reply(msg,false);
 
             }
         }
-
         private void deleteAll(Message msg) {
             boolean result = vpnProfileCrud.deleteVpnProfiles();
             reply(msg, result);
@@ -93,8 +100,19 @@ public class VpnProfileCrudMessengerService extends Service {
             reply(msg, result);
         }
 
+        private void readByName(Message msg) {
+            Bundle result = vpnProfileCrud.readVpnProfile(msg.getData().getString(getString(R.string.vpn_profile_bundle_name_key)));
+            reply(msg, result);
+        }
+
         private void create(Message msg) {
             boolean result = vpnProfileCrud.createVpnProfile(msg.getData());
+            reply(msg, result);
+        }
+
+        private void deleteCertificate(Message msg) {
+            boolean result = vpnProfileCrud.deleteCertificate(msg.getData().getString(getString(R.string
+                    .vpn_profile_bundle_certificate_id_key)));
             reply(msg, result);
         }
 
@@ -102,7 +120,6 @@ public class VpnProfileCrudMessengerService extends Service {
             Message returnMsg = getReturnMessage(msg, result);
             sendReturnMessage(returnMsg, msg.replyTo);
         }
-
 
         private void reply(Message msg, Bundle result) {
             if (result == null) {
@@ -130,7 +147,7 @@ public class VpnProfileCrudMessengerService extends Service {
 
     @Override
     public IBinder onBind(Intent intent) {
-           return messenger.getBinder();
+        return messenger.getBinder();
     }
 
     @Override
