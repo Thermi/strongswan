@@ -31,10 +31,10 @@ All rights reserved.
     <string name="vpn_profile_bundle_certificate_key">certificate</string>
     <string name="vpn_profile_bundle_allowed_applications">allowed_applications</string>
     <string name="vpn_profile_bundle_type_key">type</string>
-    <string name="vpn_profile_bundle_type_ikev2_eap_value">IKEV2_EAP</string>
-    <string name="vpn_profile_bundle_type_ikev2_cert_value">IKEV2_CERT</string>
-    <string name="vpn_profile_bundle_type_ikev2_cert_eap_value">IKEV2_CERT_EAP</string>
-    <string name="vpn_profile_bundle_type_ikev2_eap_tls_value">IKEV2_EAP_TLS</string>
-    <string name="vpn_profile_bundle_type_ikev2_byod_eap_value">IKEV2_BYOD_EAP</string>
+    <string name="vpn_profile_bundle_type_ikev2_eap_value">ikev2-eap</string>
+    <string name="vpn_profile_bundle_type_ikev2_cert_value">ikev2-cert</string>
+    <string name="vpn_profile_bundle_type_ikev2_cert_eap_value">ikev2-cert-eap</string>
+    <string name="vpn_profile_bundle_type_ikev2_eap_tls_value">ikev2-eap-tls</string>
+    <string name="vpn_profile_bundle_type_ikev2_byod_eap_value">ikev2-byod-eap</string>
 
 </resources>
