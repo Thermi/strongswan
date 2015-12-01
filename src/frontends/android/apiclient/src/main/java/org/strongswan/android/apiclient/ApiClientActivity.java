@@ -211,8 +211,10 @@ public class ApiClientActivity extends RoboActivity {
         if(!TextUtils.isEmpty(vpnProfileIdEditText.getText())) {
             if (ipcType == MESSENGER_IPC_TYPE) {
                 try {
-                    sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_delete_message), Integer.parseInt
-                            (vpnProfileIdEditText.getText().toString()), "failed to " +
+                    Bundle bundle = new Bundle();
+                    bundle.putString(resources.getString(R.string.vpn_profile_bundle_name_key), vpnProfileIdEditText
+                            .getText().toString());
+                    sendViaMessenger(getResources().getInteger(R.integer.vpn_profile_delete_message), bundle, "failed to " +
                             "delete vpn profiles via messenger");
                 } catch (NumberFormatException e) {
                     logger.logAndToast(TAG, "Invalid value for id.");
@@ -221,7 +223,7 @@ public class ApiClientActivity extends RoboActivity {
             } else {
                 if (vpnServiceConnector.getService() != null) {
                     try {
-                        boolean result = vpnServiceConnector.getService().deleteVpnProfile(Long.parseLong(vpnProfileIdEditText.getText().toString()));
+                        boolean result = vpnServiceConnector.getService().deleteVpnProfile(vpnProfileIdEditText.getText().toString());
                         logger.logAndToast(TAG, "was any vpn profiles deleted? " + result);
                     } catch (RemoteException e) {
                         logger.logAndToast(TAG, "failed to delete vpn profiles via service", e);

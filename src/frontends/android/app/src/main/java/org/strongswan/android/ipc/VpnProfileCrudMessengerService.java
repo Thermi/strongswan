@@ -80,8 +80,8 @@ public class VpnProfileCrudMessengerService extends Service {
         }
 
         private void delete(Message msg) {
-            long id = msg.arg1;
-            boolean result = vpnProfileCrud.deleteVpnProfile(id);
+            String name = msg.getData().getString(getString(R.string.vpn_profile_bundle_name_key));
+            boolean result = vpnProfileCrud.deleteVpnProfile(name);
             reply(msg, result);
         }
 
@@ -128,7 +128,7 @@ public class VpnProfileCrudMessengerService extends Service {
         }
 
         private Message getReturnMessage(Message msg, boolean result) {
-            return Message.obtain(null, msg.what, msg.arg1, result ? 0 : 1);
+            return Message.obtain(null, result ? 1 : 0);
         }
 
         private void sendReturnMessage(Message returnMsg, Messenger replyTo) {

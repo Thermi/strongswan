@@ -18,6 +18,7 @@ import com.google.inject.Inject;
 public class ReturnMessenger {
     private static final String TAG = ReturnMessenger.class.getSimpleName();
     private static final int SUCCESS = 0;
+    private static final int SUCCESS = 1;
 
     @Inject
     Context context;
@@ -31,35 +32,18 @@ public class ReturnMessenger {
     private Messenger returnMessenger = new Messenger(new Handler() {
         @Override
         public void handleMessage(Message msg) {
-            if (msg.what == getInteger(R.integer.vpn_profile_create_message)) {
-                if (msg.arg2 == SUCCESS) {
-                    logger.logAndToast(TAG, "Vpn created successfully.");
-                } else {
-                    logger.logAndToast(TAG, "Vpn create failed.");
-                }
-            } else if (msg.what == getInteger(R.integer.vpn_profile_read_message)) {
-                // not used for now
-            } else if (msg.what == getInteger(R.integer.vpn_profile_read_all_message)) {
+            if(msg.what == SUCCESS) {
                 Bundle data = msg.getData();
-                long[] ids = data.getLongArray(context.getString(R.string.vpn_profile_bundle_ids_key));
-                if (ids.length == 0) {
-                    logger.logAndToast(TAG, "No vpn profiles");
-                    return;
+                if(data != null) {
+                    long[] ids = data.getLongArray(context.getString(R.string.vpn_profile_bundle_ids_key));
+                    if (ids != null) {
+                        logVpnProfiles(data, ids);
+                        return;
+                    }
                 }
-                logVpnProfiles(data, ids);
-            } else if (msg.what == getInteger(R.integer.vpn_profile_update_message)) {
-                logger.logAndToast(TAG, "Vpn updated successfully.");
-            } else if (msg.what == getInteger(R.integer.vpn_profile_delete_message)) {
-                if (msg.arg2 == SUCCESS) {
-                    logger.logAndToast(TAG, "Vpn deleted successfully.");
-                } else {
-                    logger.logAndToast(TAG, "Vpn delete failed.");
-                }
-            } else if (msg.what == getInteger(R.integer.vpn_profile_delete_all_message)) {
-                logger.logAndToast(TAG, "was any vpn profiles deleted via messenger? " + (msg.arg2 == 0));
+                logger.logAndToast(TAG, "Operation executed successfully.");
             } else {
-                logger.logAndToast(TAG,"Unknown message: " + msg);
-                super.handleMessage(msg);
+                logger.logAndToast(TAG, "Operation failed.");
             }
         }
     });

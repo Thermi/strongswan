@@ -10,7 +10,7 @@ interface VpnProfileCrudService {
 
     boolean updateVpnProfile(in Bundle profile);
 
-    boolean deleteVpnProfile(long profile);
+    boolean deleteVpnProfile(String profileName);
 
     boolean deleteVpnProfiles();
 
