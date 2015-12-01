@@ -64,8 +64,8 @@ public class VpnProfileCrudServiceImpl extends Service {
         }
 
         @Override
-        public boolean deleteVpnProfile(long l) throws RemoteException {
-            return vpnProfileCrud.deleteVpnProfile(l);
+        public boolean deleteVpnProfile(String name) throws RemoteException {
+            return vpnProfileCrud.deleteVpnProfile(name);
         }
 
         @Override

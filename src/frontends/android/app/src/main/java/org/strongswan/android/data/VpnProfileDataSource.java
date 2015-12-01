@@ -220,8 +220,8 @@ public class VpnProfileDataSource
 	 */
 	public boolean deleteVpnProfile(VpnProfile profile)
 	{
-		long id = profile.getId();
-		return mDatabase.delete(TABLE_VPNPROFILE, KEY_ID + " = " + id, null) > 0;
+		String name = profile.getName();
+		return mDatabase.delete(TABLE_VPNPROFILE, KEY_NAME + " = \"" + name + "\"", null) > 0;
 	}
 
 	/**
@@ -235,7 +235,7 @@ public class VpnProfileDataSource
 		Cursor cursor = null;
 		try {
 			cursor = mDatabase.query(TABLE_VPNPROFILE, ALL_COLUMNS,
-					KEY_NAME + "=" + name, null, null, null, null);
+					KEY_NAME + "=\"" + name + "\"", null, null, null, null);
 			if (cursor.moveToFirst()) {
 				profile = VpnProfileFromCursor(cursor);
 			}

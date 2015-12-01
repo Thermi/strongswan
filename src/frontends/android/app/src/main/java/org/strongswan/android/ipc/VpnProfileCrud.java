@@ -13,6 +13,7 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
+import com.android.server.connectivity.Vpn;
 import com.fancyfon.strongswan.R;
 import org.strongswan.android.data.VpnProfile;
 import org.strongswan.android.data.VpnProfileDataSource;
@@ -77,12 +78,11 @@ public class VpnProfileCrud {
         return installCertificatesFromBundle(vpnProfile) &&  source.updateVpnProfile(new VpnProfile(vpnProfile, context.getResources()));
     }
 
-    public boolean deleteVpnProfile(long id) {
-        VpnProfile profile = new VpnProfile();
-        profile.setId(id);
+    public boolean deleteVpnProfile(String name) {
+        VpnProfile profile = source.getVpnProfile(name);
         boolean result = source.deleteVpnProfile(profile);
         if(result) {
-            return deleteCertificate(readCertificateId(id));
+            return deleteCertificate(profile.getCertificateId());
         }
         return result;
     }
@@ -188,14 +188,5 @@ public class VpnProfileCrud {
         if(localKeystore == null) {
             localKeystore = new LocalKeystore();
         }
-    }
-
-    private String readCertificateId(long id) {
-        Bundle vpnProfile = readVpnProfile(id);
-        if (vpnProfile != null) {
-            return vpnProfile.getString(context.getResources().getString(R.string
-                    .vpn_profile_bundle_certificate_id_key));
-        }
-        return null;
     }
 }
