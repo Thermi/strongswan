@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.fancyfon.strongswan</groupId>
     <artifactId>strongswan-parent</artifactId>
-    <version>1.4.5</version>
+    <version>1.0.0</version>
     <packaging>pom</packaging>
 
     <name>strongSwan Parent</name>
@@ -17,7 +17,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
-        <strongswan.version>${version}</strongswan.version>
+        <strongswan.version>${project.version}</strongswan.version>
         <application.fileName>${project.artifactId}${application.fileName.connector}${project
         .version}${type}</application.fileName>
         <application.fileName.connector>_</application.fileName.connector>
