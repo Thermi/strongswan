@@ -17,7 +17,6 @@ import com.google.inject.Inject;
  */
 public class ReturnMessenger {
     private static final String TAG = ReturnMessenger.class.getSimpleName();
-    private static final int SUCCESS = 0;
     private static final int SUCCESS = 1;
 
     @Inject
