@@ -30,6 +30,7 @@ import android.security.KeyChain;
 import android.security.KeyChainAliasCallback;
 import android.security.KeyChainException;
 import android.text.Html;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.*;
 import android.view.View.OnClickListener;
@@ -56,6 +57,8 @@ public class VpnProfileDetailActivity extends Activity
 	private TrustedCertificateEntry mCertEntry;
 	private String mUserCertLoading;
 	private TrustedCertificateEntry mUserCertEntry;
+	private String mUserCertAlias;
+	private String mCaCertAlias;
 	private VpnType mVpnType = VpnType.IKEV2_EAP;
 	private VpnProfile mProfile;
 	private EditText mName;
@@ -287,31 +290,18 @@ public class VpnProfileDetailActivity extends Activity
 				((TextView)mSelectUserCert.findViewById(android.R.id.text1)).setText(mUserCertEntry.getAlias());
 				((TextView)mSelectUserCert.findViewById(android.R.id.text2)).setText(mUserCertEntry.getCertificate().getSubjectDN().toString());
 			}
+			else if (!TextUtils.isEmpty(mUserCertAlias))
+			{
+				((TextView)mSelectUserCert.findViewById(android.R.id.text1)).setError(null);
+				((TextView)mSelectUserCert.findViewById(android.R.id.text1)).setText(mUserCertAlias);
+				((TextView)mSelectUserCert.findViewById(android.R.id.text2)).setText("");
+			}
 			else
 			{
 				((TextView)mSelectUserCert.findViewById(android.R.id.text1)).setText(R.string.profile_user_select_certificate_label);
 				((TextView)mSelectUserCert.findViewById(android.R.id.text2)).setText(R.string.profile_user_select_certificate);
 			}
 		}
-	}
-
-	/**
-	 * Show an alert in case the previously selected certificate is not found anymore
-	 * or the user did not select a certificate in the spinner.
-	 */
-	private void showCertificateAlert()
-	{
-		AlertDialog.Builder adb = new AlertDialog.Builder(VpnProfileDetailActivity.this);
-		adb.setTitle(R.string.alert_text_nocertfound_title);
-		adb.setMessage(R.string.alert_text_nocertfound);
-		adb.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-			@Override
-			public void onClick(DialogInterface dialog, int id)
-			{
-				dialog.cancel();
-			}
-		});
-		adb.show();
 	}
 
 	/**
@@ -329,6 +319,11 @@ public class VpnProfileDetailActivity extends Activity
 			{
 				((TextView)mSelectCert.findViewById(android.R.id.text1)).setText(mCertEntry.getSubjectPrimary());
 				((TextView)mSelectCert.findViewById(android.R.id.text2)).setText(mCertEntry.getSubjectSecondary());
+			}
+			else if (!TextUtils.isEmpty(mCaCertAlias))
+			{
+				((TextView)mSelectCert.findViewById(android.R.id.text1)).setText(mCaCertAlias);
+				mCheckAuto.setVisibility(View.INVISIBLE);
 			}
 			else
 			{
@@ -394,7 +389,6 @@ public class VpnProfileDetailActivity extends Activity
 		}
 		if (!mCheckAuto.isChecked() && mCertEntry == null)
 		{
-			showCertificateAlert();
 			valid = false;
 		}
 		return valid;
@@ -446,6 +440,8 @@ public class VpnProfileDetailActivity extends Activity
 				mVpnType = mProfile.getVpnType();
 				mUsername.setText(mProfile.getUsername());
 				mPassword.setText(mProfile.getPassword());
+				mUserCertAlias = mProfile.getUserCertificateAlias();
+				mCaCertAlias = mProfile.getCertificateAlias();
 				useralias = mProfile.getUserCertificateAlias();
 				alias = mProfile.getCertificateAlias();
 				getActionBar().setTitle(mProfile.getName());
@@ -481,7 +477,6 @@ public class VpnProfileDetailActivity extends Activity
 			}
 			else
 			{	/* previously selected certificate is not here anymore */
-				showCertificateAlert();
 				mCertEntry = null;
 			}
 		}
