@@ -162,8 +162,7 @@ public class VpnProfileDetailActivity extends Activity
 
 		mTncNotice.setOnClickListener(new OnClickListener() {
 			@Override
-			public void onClick(View v)
-			{
+			public void onClick(View v) {
 				new TncNoticeDialog().show(VpnProfileDetailActivity.this.getFragmentManager(), "TncNotice");
 			}
 		});
@@ -455,6 +454,8 @@ public class VpnProfileDetailActivity extends Activity
 				alias = mProfile.getCertificateAlias();
 				if(!TextUtils.isEmpty(alias)) {
 					mCaCertCN = getCN(mProfile.getCertificateId(), alias);
+				}else{
+					findViewById(R.id.profile_ca_label).setVisibility(View.INVISIBLE);
 				}
 				getActionBar().setTitle(mProfile.getName());
 			}
