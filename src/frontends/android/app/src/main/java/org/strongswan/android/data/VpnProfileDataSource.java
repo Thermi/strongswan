@@ -219,7 +219,8 @@ public class VpnProfileDataSource
 	 * @return true if deleted, false otherwise
 	 */
 	public boolean deleteVpnProfile(VpnProfile profile)
-	{	if(profile == null){
+	{
+		if(profile == null){
 			return true;
 		}
 		String name = profile.getName();
