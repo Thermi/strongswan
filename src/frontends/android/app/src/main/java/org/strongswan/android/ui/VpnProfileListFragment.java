@@ -115,6 +115,16 @@ public class VpnProfileListFragment extends Fragment
 	}
 
 	@Override
+	public void onResume() {
+		super.onResume();
+		mVpnProfiles = mDataSource.getAllVpnProfiles();
+		mListAdapter = new VpnProfileAdapter(getActivity(), R.layout.profile_list_item, mVpnProfiles);
+		if(mListView != null){
+			mListView.invalidate();
+		}
+	}
+
+	@Override
 	public void onDestroy()
 	{
 		super.onDestroy();
