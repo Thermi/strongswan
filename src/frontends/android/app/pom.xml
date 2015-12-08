@@ -9,14 +9,14 @@
     <parent>
         <groupId>com.fancyfon.strongswan</groupId>
         <artifactId>strongswan-parent</artifactId>
-        <version>1.0.0</version>
+        <version>1.0.3</version>
     </parent>
 
     <dependencies>
         <dependency>
             <groupId>com.fancyfon.mobile.android.verification</groupId>
             <artifactId>Android_Caller_Verification_Library</artifactId>
-            <version>1.0.1</version>
+            <version>1.0.2</version>
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
