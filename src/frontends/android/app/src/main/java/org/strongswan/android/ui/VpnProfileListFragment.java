@@ -24,6 +24,7 @@ import android.content.Intent;
 import android.content.res.TypedArray;
 import android.os.Bundle;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.*;
 import android.widget.AbsListView.MultiChoiceModeListener;
 import android.widget.AdapterView;
@@ -113,6 +114,16 @@ public class VpnProfileListFragment extends Fragment
 
 		mListAdapter = new VpnProfileAdapter(context, R.layout.profile_list_item, mVpnProfiles);
 	}
+
+	@Override
+	public void onResume() {
+		super.onResume();
+		mVpnProfiles = mDataSource.getAllVpnProfiles();
+		mListAdapter = new VpnProfileAdapter(getActivity(), R.layout.profile_list_item, mVpnProfiles);
+		mListView.animate();
+	}
+
+
 
 	@Override
 	public void onDestroy()
