@@ -44,8 +44,10 @@ import org.strongswan.android.data.VpnProfileDataSource;
 import org.strongswan.android.data.VpnType;
 import org.strongswan.android.data.VpnType.VpnTypeFeature;
 import org.strongswan.android.logic.TrustedCertificateManager;
+import org.strongswan.android.security.LocalKeystore;
 import org.strongswan.android.security.TrustedCertificateEntry;
 
+import java.security.KeyStoreException;
 import java.security.cert.X509Certificate;
 
 public class VpnProfileDetailActivity extends Activity
@@ -58,7 +60,7 @@ public class VpnProfileDetailActivity extends Activity
 	private String mUserCertLoading;
 	private TrustedCertificateEntry mUserCertEntry;
 	private String mUserCertAlias;
-	private String mCaCertAlias;
+	private String mCaCertCN;
 	private VpnType mVpnType = VpnType.IKEV2_EAP;
 	private VpnProfile mProfile;
 	private EditText mName;
@@ -160,8 +162,7 @@ public class VpnProfileDetailActivity extends Activity
 
 		mTncNotice.setOnClickListener(new OnClickListener() {
 			@Override
-			public void onClick(View v)
-			{
+			public void onClick(View v) {
 				new TncNoticeDialog().show(VpnProfileDetailActivity.this.getFragmentManager(), "TncNotice");
 			}
 		});
@@ -320,23 +321,31 @@ public class VpnProfileDetailActivity extends Activity
 				((TextView)mSelectCert.findViewById(android.R.id.text1)).setText(mCertEntry.getSubjectPrimary());
 				((TextView)mSelectCert.findViewById(android.R.id.text2)).setText(mCertEntry.getSubjectSecondary());
 			}
-			else if (!TextUtils.isEmpty(mCaCertAlias))
+			else if (!TextUtils.isEmpty(mCaCertCN))
 			{
-				((TextView)mSelectCert.findViewById(android.R.id.text1)).setText(mCaCertAlias);
+				((TextView)mSelectCert.findViewById(android.R.id.text1)).setText(mCaCertCN);
 				mCheckAuto.setVisibility(View.INVISIBLE);
-			}
-			else
-			{
-				((TextView)mSelectCert.findViewById(android.R.id.text1)).setText(R.string.profile_ca_select_certificate_label);
-				((TextView)mSelectCert.findViewById(android.R.id.text2)).setText(R.string.profile_ca_select_certificate);
 			}
 		}
 		else
-		{
-			mSelectCert.setEnabled(false);
+		{	mSelectCert.setEnabled(false);
 			mSelectCert.setVisibility(View.GONE);
 		}
 	}
+
+
+
+	private String getCN(String id ,String alias){
+		X509Certificate certificate;
+		try {
+			LocalKeystore localKeystore = new LocalKeystore();
+			certificate = localKeystore.getCertificate(id,alias);
+		} catch (KeyStoreException e) {
+			return "";
+		}
+		return certificate.getSubjectDN().getName();
+	}
+
 
 	/**
 	 * Save or update the profile depending on whether we actually have a
@@ -441,9 +450,13 @@ public class VpnProfileDetailActivity extends Activity
 				mUsername.setText(mProfile.getUsername());
 				mPassword.setText(mProfile.getPassword());
 				mUserCertAlias = mProfile.getUserCertificateAlias();
-				mCaCertAlias = mProfile.getCertificateAlias();
 				useralias = mProfile.getUserCertificateAlias();
 				alias = mProfile.getCertificateAlias();
+				if(!TextUtils.isEmpty(alias)) {
+					mCaCertCN = getCN(mProfile.getCertificateId(), alias);
+				}else{
+					findViewById(R.id.profile_ca_label).setVisibility(View.INVISIBLE);
+				}
 				getActionBar().setTitle(mProfile.getName());
 			}
 			else
@@ -464,23 +477,9 @@ public class VpnProfileDetailActivity extends Activity
 			mUserCertLoading = useralias;
 			loader.execute();
 		}
-
-		/* check if the user selected a CA certificate previously */
-		alias = savedInstanceState == null ? alias : savedInstanceState.getString(VpnProfileDataSource.KEY_CERTIFICATE);
-		mCheckAuto.setChecked(alias == null);
-		if (alias != null)
-		{
-			X509Certificate certificate = TrustedCertificateManager.getInstance().getCACertificateFromAlias(alias);
-			if (certificate != null)
-			{
-				mCertEntry = new TrustedCertificateEntry(alias, certificate);
-			}
-			else
-			{	/* previously selected certificate is not here anymore */
-				mCertEntry = null;
-			}
-		}
 	}
+
+
 
 	private class SelectUserCertOnClickListener implements OnClickListener, KeyChainAliasCallback
 	{
