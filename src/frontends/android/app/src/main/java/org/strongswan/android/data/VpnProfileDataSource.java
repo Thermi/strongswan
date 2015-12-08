@@ -218,9 +218,9 @@ public class VpnProfileDataSource
 	 * @param profile the profile to delete
 	 * @return true if deleted, false otherwise
 	 */
-	public boolean deleteVpnProfile(VpnProfile profile){
-		if(profile == null) {
-		   return true;
+	public boolean deleteVpnProfile(VpnProfile profile)
+	{	if(profile == null){
+			return true;
 		}
 		String name = profile.getName();
 		return mDatabase.delete(TABLE_VPNPROFILE, KEY_NAME + " = \"" + name + "\"", null) > 0;
