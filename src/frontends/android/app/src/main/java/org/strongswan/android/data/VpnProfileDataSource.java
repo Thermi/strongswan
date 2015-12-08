@@ -220,6 +220,9 @@ public class VpnProfileDataSource
 	 */
 	public boolean deleteVpnProfile(VpnProfile profile)
 	{
+		if(profile == null){
+			return true;
+		}
 		String name = profile.getName();
 		return mDatabase.delete(TABLE_VPNPROFILE, KEY_NAME + " = \"" + name + "\"", null) > 0;
 	}
