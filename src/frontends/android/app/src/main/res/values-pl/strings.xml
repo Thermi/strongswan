@@ -71,7 +71,7 @@
     <string name="tnc_notice_title">EAP-TNC may affect your privacy</string>
     <string name="tnc_notice_subtitle">Device data is sent to the gateway operator</string>
     <string name="tnc_notice_details">&lt;p>Trusted Network Connect (TNC) allows gateway operators to assess the health of a client device.&lt;/p>&lt;p>For that purpose the gateway operator may request data such as a unique identifier, a list of installed packages, system settings, or cryptographic checksums of files.&lt;/p>&lt;b>Any data will be sent only after verifying the gateway\'s identity.&lt;/b></string>
-
+    <string name="certificate_absent">Brak certyfikatu</string>
     <!-- Trusted certificate selection -->
     <string name="trusted_certs_title">Certyfikaty CA</string>
     <string name="no_certificates">Brak certyfikatów</string>

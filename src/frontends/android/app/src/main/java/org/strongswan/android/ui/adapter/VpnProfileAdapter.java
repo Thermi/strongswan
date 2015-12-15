@@ -18,6 +18,7 @@
 package org.strongswan.android.ui.adapter;
 
 import android.content.Context;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -76,7 +77,8 @@ public class VpnProfileAdapter extends ArrayAdapter<VpnProfile>
 		tv = (TextView)vpnProfileView.findViewById(R.id.profile_item_certificate);
 		if (profile.getVpnType().has(VpnTypeFeature.CERTIFICATE))
 		{
-			tv.setText(getContext().getString(R.string.profile_user_certificate_label) + " " + profile.getUserCertificateAlias());
+            String certDisplayData = (TextUtils.isEmpty(profile.getUserCertificateAlias()) ? getContext().getString(R.string.certificate_absent) : profile.getUserCertificateAlias());
+			tv.setText(getContext().getString(R.string.profile_user_certificate_label) + " " + certDisplayData);
 			tv.setVisibility(View.VISIBLE);
 		}
 		else
