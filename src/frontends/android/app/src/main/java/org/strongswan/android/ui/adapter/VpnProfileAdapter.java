@@ -68,7 +68,8 @@ public class VpnProfileAdapter extends ArrayAdapter<VpnProfile>
 		if (profile.getVpnType().has(VpnTypeFeature.USER_PASS))
 		{	/* if the view is reused we make sure it is visible */
 			tv.setVisibility(View.VISIBLE);
-			tv.setText(getContext().getString(R.string.profile_username_label) + " " + profile.getUsername());
+            String userName = (profile.getUsername() == null ? getContext().getString(R.string.username_absent) : profile.getUsername());
+			tv.setText(getContext().getString(R.string.profile_username_label) + " " + userName);
 		}
 		else
 		{

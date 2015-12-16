@@ -345,9 +345,14 @@ public class VpnProfileDetailActivity extends Activity
 		try {
 			LocalKeystore localKeystore = new LocalKeystore();
 			certificate = localKeystore.getCertificate(id,alias);
-		} catch (KeyStoreException e) {
-			return "";
+		} catch (KeyStoreException e)
+        {
+            return getString(R.string.certificate_absent);
 		}
+        if(certificate == null || certificate.getSubjectDN() == null)
+        {
+            return getString(R.string.certificate_absent);
+        }
 		return certificate.getSubjectDN().getName();
 	}
 
