@@ -298,10 +298,10 @@ public class VpnProfileDetailActivity extends Activity
 				((TextView)mSelectUserCert.findViewById(android.R.id.text2)).setText("");
 			}
 			else
-			{
-				((TextView)mSelectUserCert.findViewById(android.R.id.text1)).setText(R.string.profile_user_select_certificate_label);
-				((TextView)mSelectUserCert.findViewById(android.R.id.text2)).setText(R.string.profile_user_select_certificate);
-			}
+            {
+                ((TextView) mSelectUserCert.findViewById(android.R.id.text1)).setError(null);
+                ((TextView) mSelectUserCert.findViewById(android.R.id.text1)).setText(getString(R.string.certificate_absent));
+            }
 		}
 	}
 
@@ -312,37 +312,47 @@ public class VpnProfileDetailActivity extends Activity
 	private void updateCertificateSelector()
 	{
 		if (!mCheckAuto.isChecked())
-		{
+        {
 			mSelectCert.setEnabled(true);
 			mSelectCert.setVisibility(View.VISIBLE);
 
 			if (mCertEntry != null)
-			{
+            {
 				((TextView)mSelectCert.findViewById(android.R.id.text1)).setText(mCertEntry.getSubjectPrimary());
 				((TextView)mSelectCert.findViewById(android.R.id.text2)).setText(mCertEntry.getSubjectSecondary());
 			}
-			else if (!TextUtils.isEmpty(mCaCertCN))
-			{
-				((TextView)mSelectCert.findViewById(android.R.id.text1)).setText(mCaCertCN);
-				mCheckAuto.setVisibility(View.INVISIBLE);
-			}
-		}
+			 else
+            {
+                setCaCertificateDescription();
+            }
+        }
 		else
 		{	mSelectCert.setEnabled(false);
 			mSelectCert.setVisibility(View.GONE);
 		}
 	}
 
+    private void setCaCertificateDescription()
+    {
+        String caCertDescription = TextUtils.isEmpty(mCaCertCN) ? getString(R.string.certificate_absent) : mCaCertCN;
+        ((TextView) mSelectCert.findViewById(android.R.id.text1)).setText(caCertDescription);
+        mCheckAuto.setVisibility(View.INVISIBLE);
+    }
 
-
-	private String getCN(String id ,String alias){
+    private String getCN(String id ,String alias)
+    {
 		X509Certificate certificate;
 		try {
 			LocalKeystore localKeystore = new LocalKeystore();
 			certificate = localKeystore.getCertificate(id,alias);
-		} catch (KeyStoreException e) {
-			return "";
+		} catch (KeyStoreException e)
+        {
+            return getString(R.string.certificate_absent);
 		}
+        if(certificate == null || certificate.getSubjectDN() == null)
+        {
+            return getString(R.string.certificate_absent);
+        }
 		return certificate.getSubjectDN().getName();
 	}
 
@@ -454,8 +464,6 @@ public class VpnProfileDetailActivity extends Activity
 				alias = mProfile.getCertificateAlias();
 				if(!TextUtils.isEmpty(alias)) {
 					mCaCertCN = getCN(mProfile.getCertificateId(), alias);
-				}else{
-					findViewById(R.id.profile_ca_label).setVisibility(View.INVISIBLE);
 				}
 				getActionBar().setTitle(mProfile.getName());
 			}
