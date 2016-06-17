@@ -18,34 +18,18 @@
 package org.strongswan.android.data;
 
 
-import java.util.UUID;
-
 public class VpnProfile implements Cloneable
 {
 	/* While storing this as EnumSet would be nicer this simplifies storing it in a database */
 	public static final int SPLIT_TUNNELING_BLOCK_IPV4 = 1;
 	public static final int SPLIT_TUNNELING_BLOCK_IPV6 = 2;
 
-	private String mName;
-    private String mGateway;
-    private String mUsername;
-    private String mPassword;
-    private String mCertificate;
-    private String mUserCertificate;
+	private String mName, mGateway, mUsername, mPassword, mCertificate, mUserCertificate;
 	private String mRemoteId, mLocalId;
 	private Integer mMTU, mPort, mSplitTunneling;
-    private String mCertificateId;
-	private ArrayList<String> allowedApplications = new ArrayList<String>();
 	private VpnType mVpnType;
-	private UUID mUUID;
 	private long mId = -1;
 
-	public VpnProfile()
-	{
-		this.mUUID = UUID.randomUUID();
-	}
-
-	public long getId()
     public VpnProfile() {
     }
 
@@ -61,16 +45,6 @@ public class VpnProfile implements Cloneable
 	public void setId(long id)
 	{
 		this.mId = id;
-	}
-
-	public void setUUID(UUID uuid)
-	{
-		this.mUUID = uuid;
-	}
-
-	public UUID getUUID()
-	{
-		return mUUID;
 	}
 
 	public String getName()
@@ -248,29 +222,29 @@ public class VpnProfile implements Cloneable
 
     public Bundle toBundle(Resources resources) {
         Bundle bundle = new Bundle();
-        bundle.putLong(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_id_key), getId());
-        bundle.putString(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_certificate_alias_key), getCertificateAlias());
-        bundle.putString(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_gateway_key), getGateway());
-        bundle.putString(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_name_key), getName());
-        bundle.putString(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_password_key), getPassword());
-        bundle.putString(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_type_key), getVpnType().name());
-        bundle.putString(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_user_certificate_alias_key), getUserCertificateAlias());
-        bundle.putString(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_username_key), getUsername());
-		bundle.putString(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_certificate_id_key), getCertificateId());
-		bundle.putStringArrayList(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_allowed_applications), getAllowedApplications());
+        bundle.putLong(resources.getString(R.string.vpn_profile_bundle_id_key), getId());
+        bundle.putString(resources.getString(R.string.vpn_profile_bundle_certificate_alias_key), getCertificateAlias());
+        bundle.putString(resources.getString(R.string.vpn_profile_bundle_gateway_key), getGateway());
+        bundle.putString(resources.getString(R.string.vpn_profile_bundle_name_key), getName());
+        bundle.putString(resources.getString(R.string.vpn_profile_bundle_password_key), getPassword());
+        bundle.putString(resources.getString(R.string.vpn_profile_bundle_type_key), getVpnType().name());
+        bundle.putString(resources.getString(R.string.vpn_profile_bundle_user_certificate_alias_key), getUserCertificateAlias());
+        bundle.putString(resources.getString(R.string.vpn_profile_bundle_username_key), getUsername());
+		bundle.putString(resources.getString(R.string.vpn_profile_bundle_certificate_id_key), getCertificateId());
+		bundle.putStringArrayList(resources.getString(R.string.vpn_profile_bundle_allowed_applications), getAllowedApplications());
         return bundle;
     }
 
     private void fromBundle(Bundle bundle, Resources resources) {
-        mId = bundle.getLong(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_id_key));
-        mCertificate = bundle.getString(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_certificate_alias_key));
-        mGateway = bundle.getString(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_gateway_key));
-        mName = bundle.getString(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_name_key));
-        mPassword = bundle.getString(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_password_key));
-        mVpnType = VpnType.fromIdentifier(bundle.getString(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_type_key)));
-        mUserCertificate = bundle.getString(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_user_certificate_alias_key));
-        mUsername = bundle.getString(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_username_key));
-		mCertificateId = bundle.getString(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_certificate_id_key));
- 		allowedApplications = bundle.getStringArrayList(resources.getString(com.fancyfon.strongswan.api.R.string.vpn_profile_bundle_allowed_applications));
+        mId = bundle.getLong(resources.getString(R.string.vpn_profile_bundle_id_key));
+        mCertificate = bundle.getString(resources.getString(R.string.vpn_profile_bundle_certificate_alias_key));
+        mGateway = bundle.getString(resources.getString(R.string.vpn_profile_bundle_gateway_key));
+        mName = bundle.getString(resources.getString(R.string.vpn_profile_bundle_name_key));
+        mPassword = bundle.getString(resources.getString(R.string.vpn_profile_bundle_password_key));
+        mVpnType = VpnType.fromIdentifier(bundle.getString(resources.getString(R.string.vpn_profile_bundle_type_key)));
+        mUserCertificate = bundle.getString(resources.getString(R.string.vpn_profile_bundle_user_certificate_alias_key));
+        mUsername = bundle.getString(resources.getString(R.string.vpn_profile_bundle_username_key));
+		mCertificateId = bundle.getString(resources.getString(R.string.vpn_profile_bundle_certificate_id_key));
+ 		allowedApplications = bundle.getStringArrayList(resources.getString(R.string.vpn_profile_bundle_allowed_applications));
     }
 }

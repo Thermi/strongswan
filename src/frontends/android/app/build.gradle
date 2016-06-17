@@ -23,6 +23,17 @@ android {
         }
     }
 
+    productFlavors {
+        strongswan {
+            applicationId "org.strongswan.android"
+            versionName "1.6.2"
+        }
+        fancyfon {
+            applicationId "com.fancyfon.strongswan"
+            versionName "1.0.6"
+        }
+    }
+
     sourceSets.main {
         jni.srcDirs = [] // disables the default ndk-build call (with on-the-fly Android.mk files)
         jniLibs.srcDir 'src/main/libs'

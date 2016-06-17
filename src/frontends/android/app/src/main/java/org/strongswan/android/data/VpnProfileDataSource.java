@@ -17,9 +17,6 @@
 
 package org.strongswan.android.data;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -34,13 +31,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 
-//import org.strongswan.android.data.VpnProfile;
-
-//fancyfon
-
 public class VpnProfileDataSource
 {
-	private static final String TAG = VpnProfileDataSource.class.getSimpleName();
+    private static final String TAG = VpnProfileDataSource.class.getSimpleName();
 	public static final String KEY_ID = "_id";
 	public static final String KEY_NAME = "name";
 	public static final String KEY_GATEWAY = "gateway";
@@ -54,10 +47,6 @@ public class VpnProfileDataSource
 	public static final String KEY_SPLIT_TUNNELING = "split_tunneling";
 	public static final String KEY_LOCAL_ID = "local_id";
 	public static final String KEY_REMOTE_ID = "remote_id";
-
-	//fancyfon
-    public static final String KEY_CERTIFICATE_ID = "id_certificate";
-	public static final String KEY_ALLOWED_APPLICATIONS = "allowed_applications";
 
 	private DatabaseHelper mDbHelper;
 	private SQLiteDatabase mDatabase;
@@ -105,10 +94,12 @@ public class VpnProfileDataSource
 								KEY_LOCAL_ID,
 								KEY_REMOTE_ID,
 
-								//fancyfon
+                                //fancyfon
                                 KEY_CERTIFICATE_ID,
-								KEY_ALLOWED_APPLICATIONS
+                                KEY_ALLOWED_APPLICATIONS
+	};
 							};
+
 
 	private static class DatabaseHelper extends SQLiteOpenHelper
 	{
@@ -145,36 +136,38 @@ public class VpnProfileDataSource
 			if (oldVersion < 5)
 			{
 				db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_MTU +
-						" INTEGER;");
+						   " INTEGER;");
 			}
 			if (oldVersion < 6)
-			{
+			{	fancyfonDatabaseUpdates(oldVersion,db);
 				db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_PORT +
-						" INTEGER;");
+						   " INTEGER;");
 			}
 			if (oldVersion < 7)
 			{
 				db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_SPLIT_TUNNELING +
-						" INTEGER;");
+						   " INTEGER;");
 			}
 			if (oldVersion < 8)
 			{
 				db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_LOCAL_ID +
-						" TEXT;");
+						   " TEXT;");
 				db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_REMOTE_ID +
-						" TEXT;");
+						   " TEXT;");
 			}
-			//fancyfon
+		}
+
+		private void fancyfonDatabaseUpdates(int oldVersion,SQLiteDatabase db){
 			if (oldVersion < 5)
 			{
 				db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_ALLOWED_APPLICATIONS +
 						" TEXT;");
 			}
-            if (oldVersion < 6)
-            {
-                db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_CERTIFICATE_ID +
-                        " TEXT;");
-            }
+			if (oldVersion < 6)
+			{
+				db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_CERTIFICATE_ID +
+						" TEXT;");
+			}
 		}
 
 		private void updateColumns(SQLiteDatabase db)
@@ -320,7 +313,6 @@ public class VpnProfileDataSource
 		} finally {
 			closeCursor(cursor);
 		}
-		cursor.close();
 		return profile;
 	}
 
@@ -344,6 +336,7 @@ public class VpnProfileDataSource
 		} finally {
 			closeCursor(cursor);
 		}
+		cursor.close();
 		return vpnProfiles;
 	}
 
@@ -363,12 +356,15 @@ public class VpnProfileDataSource
 		profile.setSplitTunneling(getInt(cursor, cursor.getColumnIndex(KEY_SPLIT_TUNNELING)));
 		profile.setLocalId(cursor.getString(cursor.getColumnIndex(KEY_LOCAL_ID)));
 		profile.setRemoteId(cursor.getString(cursor.getColumnIndex(KEY_REMOTE_ID)));
-
-		//ff fields
-        profile.setCertificateId(cursor.getString(cursor.getColumnIndex(KEY_CERTIFICATE_ID)));
-        profile.setAllowedApplications(convertFromString(cursor.getString(cursor.getColumnIndex(KEY_ALLOWED_APPLICATIONS))));
+        profile = setFancyFonValuesOnProfileFromCursor(profile,cursor);
 		return profile;
 	}
+
+    private VpnProfile setFancyFonValuesOnProfileFromCursor(VpnProfile profile, Cursor cursor){
+        profile.setCertificateId(cursor.getString(cursor.getColumnIndex(KEY_CERTIFICATE_ID)));
+        profile.setAllowedApplications(convertFromString(cursor.getString(cursor.getColumnIndex(KEY_ALLOWED_APPLICATIONS))));
+        return profile;
+    }
 
 	private ContentValues ContentValuesFromVpnProfile(VpnProfile profile)
 	{
@@ -381,20 +377,25 @@ public class VpnProfileDataSource
 		values.put(KEY_CERTIFICATE, profile.getCertificateAlias());
 		values.put(KEY_USER_CERTIFICATE, profile.getUserCertificateAlias());
 		//not implemented in ff
-		values.put(KEY_MTU,"");
-		values.put(KEY_PORT,"");
-		values.put(KEY_SPLIT_TUNNELING,"0");
-		values.put(KEY_LOCAL_ID,"");
-		values.put(KEY_REMOTE_ID,"");
-		//ff
+		values.put(KEY_MTU, EMPTY_STRING);
+		values.put(KEY_PORT, EMPTY_STRING);
+        values.put(KEY_SPLIT_TUNNELING, SPLIT_TUNNELING_DEFAULT_VALUE);
+		values.put(KEY_LOCAL_ID, EMPTY_STRING);
+		values.put(KEY_REMOTE_ID, EMPTY_STRING);
+		values = putFancyFonValues(values,profile);
+        return values;
+
+	}
+
+    private ContentValues putFancyFonValues(ContentValues values,VpnProfile profile){
         values.put(KEY_CERTIFICATE_ID, profile.getCertificateId());
         values.put(KEY_ALLOWED_APPLICATIONS, convertToString(profile.getAllowedApplications()));
-		return values;
-	}
+        return values;
+    }
 
 	private String convertToString(ArrayList<String> list) {
         if (list == null) {
-            return "";
+            return EMPTY_STRING;
         }
 		StringBuilder buffer = new StringBuilder(list.size() * 16);
 		Iterator<String> it = list.iterator();
