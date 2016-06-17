@@ -248,6 +248,7 @@ public class VpnProfileDetailActivity extends AppCompatActivity
 			}
 		});
 
+/* We not support this yet
 		mShowAdvanced.setOnCheckedChangeListener(new OnCheckedChangeListener() {
 			@Override
 			public void onCheckedChanged(CompoundButton buttonView, boolean isChecked)
@@ -255,6 +256,7 @@ public class VpnProfileDetailActivity extends AppCompatActivity
 				updateAdvancedSettings();
 			}
 		});
+*/
 
 		mId = savedInstanceState == null ? null : savedInstanceState.getLong(VpnProfileDataSource.KEY_ID);
 		if (mId == null)
@@ -267,7 +269,7 @@ public class VpnProfileDetailActivity extends AppCompatActivity
 
 		updateCredentialView();
 		updateCertificateSelector();
-		updateAdvancedSettings();
+		//updateAdvancedSettings();
 	}
 
 	@Override
@@ -429,6 +431,9 @@ public class VpnProfileDetailActivity extends AppCompatActivity
 	/**
 	 * Update the advanced settings UI depending on whether any advanced
 	 * settings have already been made.
+	 *
+	 * We comment out all usage of this method , cause we have not supported this functionality yet.
+	 * It will be enabled in future
 	 */
 	private void updateAdvancedSettings()
 	{
@@ -439,8 +444,8 @@ public class VpnProfileDetailActivity extends AppCompatActivity
 			show = mProfile.getRemoteId() != null || mProfile.getMTU() != null ||
 				   mProfile.getPort() != null || (st != null && st != 0);
 		}
-		mShowAdvanced.setVisibility(!show ? View.VISIBLE : View.GONE);
-		mAdvancedSettings.setVisibility(show ? View.VISIBLE : View.GONE);
+	  	mShowAdvanced.setVisibility(!show ? View.VISIBLE : View.GONE);
+	 	mAdvancedSettings.setVisibility(show ? View.VISIBLE : View.GONE);
 	}
 
 	/**
