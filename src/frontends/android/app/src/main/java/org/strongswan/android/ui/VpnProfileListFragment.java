@@ -39,6 +39,7 @@ import android.widget.AdapterView.OnItemClickListener;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import org.strongswan.android.BuildConfig;
 import org.strongswan.android.R;
 import org.strongswan.android.data.VpnProfile;
 import org.strongswan.android.data.VpnProfileDataSource;
@@ -183,7 +184,9 @@ public class VpnProfileListFragment extends Fragment
 	@Override
 	public void onCreateOptionsMenu(Menu menu, MenuInflater inflater)
 	{
-		inflater.inflate(R.menu.profile_list, menu);
+		if(BuildConfig.DEBUG) {
+			inflater.inflate(R.menu.profile_list, menu);
+		}
 	}
 
 	@Override
@@ -230,12 +233,31 @@ public class VpnProfileListFragment extends Fragment
 		@Override
 		public boolean onCreateActionMode(ActionMode mode, Menu menu)
 		{
-			MenuInflater inflater = mode.getMenuInflater();
+			/*MenuInflater inflater = mode.getMenuInflater();
 			inflater.inflate(R.menu.profile_list_context, menu);
+*/
+			if(BuildConfig.DEBUG) {
+				setDebugProfileView(mode,menu);
+			}else {
+				setProfileView(mode,menu);
+
+			}
 			mEditProfile = menu.findItem(R.id.edit_profile);
 			mSelected = new HashSet<>();
 			mode.setTitle(R.string.select_profiles);
 			return true;
+		}
+
+
+		private void setDebugProfileView(ActionMode mode, Menu menu){
+			MenuInflater inflater = mode.getMenuInflater();
+			inflater.inflate(R.menu.profile_list_context_debug, menu);
+			mode.setTitle(R.string.select_profiles);
+		}
+
+		private void setProfileView(ActionMode mode, Menu menu){
+			MenuInflater inflater = mode.getMenuInflater();
+			inflater.inflate(R.menu.profile_list_context, menu);
 		}
 
 		@Override
