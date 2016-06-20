@@ -676,7 +676,7 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 		{
 			VpnService.Builder builder = new CharonVpnService.Builder();
 			builder.setSession(mName);
-			builder = addFancyFonAllowedApplications(builder);
+			addFancyFonAllowedApplications(builder);
 			/* even though the option displayed in the system dialog says "Configure"
 			 * we just use our main Activity */
 			Context context = getApplicationContext();
@@ -687,7 +687,7 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 			return builder;
 		}
 
-        private VpnService.Builder addFancyFonAllowedApplications(VpnService.Builder builder){
+        private void addFancyFonAllowedApplications(VpnService.Builder builder){
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 ArrayList<String> allowedApplications = profile.getAllowedApplications();
                 for (String s : allowedApplications) {
@@ -698,7 +698,6 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
                     }
                 }
             }
-            return builder;
         }
 
 
