@@ -711,6 +711,7 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 			return true;
 		}
 
+
 		public synchronized boolean addDnsServer(String address)
 		{
 			try
