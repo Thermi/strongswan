@@ -12,16 +12,7 @@ android {
         versionName "1.8.0"
     }
 
-    productFlavors {
-        strongswan {
-            applicationId "org.strongswan.android"
-            versionName "1.6.2"
-        }
-        fancyfon {
-            applicationId "com.fancyfon.strongswan"
-            versionName "1.0.7"
-        }
-    }
+
 
     lintOptions {
         abortOnError false
@@ -35,7 +26,7 @@ android {
         }
         fancyfon {
             applicationId "com.fancyfon.strongswan"
-            versionName "1.0.6"
+            versionName "1.2.0"
         }
     }
 
