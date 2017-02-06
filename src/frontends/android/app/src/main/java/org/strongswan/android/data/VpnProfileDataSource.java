@@ -48,7 +48,15 @@ public class VpnProfileDataSource
 	public static final String KEY_LOCAL_ID = "local_id";
 	public static final String KEY_REMOTE_ID = "remote_id";
 
-	private DatabaseHelper mDbHelper;
+	//fancyfon
+    public static final String KEY_CERTIFICATE_ID = "id_certificate";
+	public static final String KEY_ALLOWED_APPLICATIONS = "allowed_applications";
+
+
+    private static final String EMPTY_STRING = "";
+    private static final String SPLIT_TUNNELING_DEFAULT_VALUE = "0";
+
+    private DatabaseHelper mDbHelper;
 	private SQLiteDatabase mDatabase;
 	private final Context mContext;
 
@@ -98,7 +106,7 @@ public class VpnProfileDataSource
                                 KEY_CERTIFICATE_ID,
                                 KEY_ALLOWED_APPLICATIONS
 	};
-							};
+
 
 
 	private static class DatabaseHelper extends SQLiteOpenHelper

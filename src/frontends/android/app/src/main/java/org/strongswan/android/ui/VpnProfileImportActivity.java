@@ -340,7 +340,7 @@ public class VpnProfileImportActivity extends AppCompatActivity
 			finish();
 			return;
 		}
-		mExisting = mDataSource.getVpnProfile(mProfile.getUUID());
+		//mExisting = mDataSource.getVpnProfile(mProfile.getUUID());
 		mExistsWarning.setVisibility(mExisting != null ? View.VISIBLE : View.GONE);
 
 		mBasicDataGroup.setVisibility(View.VISIBLE);
@@ -426,7 +426,7 @@ public class VpnProfileImportActivity extends AppCompatActivity
 		}
 		ParsedVpnProfile profile = new ParsedVpnProfile();
 
-		profile.setUUID(uuid);
+		//profile.setUUID(uuid);
 		profile.setName(obj.getString("name"));
 		VpnType type = VpnType.fromIdentifier(obj.getString("type"));
 		profile.setVpnType(type);

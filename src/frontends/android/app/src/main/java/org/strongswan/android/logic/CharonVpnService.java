@@ -47,6 +47,7 @@ import org.strongswan.android.logic.VpnStateService.ErrorState;
 import org.strongswan.android.logic.VpnStateService.State;
 import org.strongswan.android.logic.imc.ImcState;
 import org.strongswan.android.logic.imc.RemediationInstruction;
+import org.strongswan.android.security.LocalKeystore;
 import org.strongswan.android.ui.MainActivity;
 import org.strongswan.android.utils.SettingsWriter;
 
@@ -55,6 +56,7 @@ import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.security.KeyStoreException;
 import java.security.PrivateKey;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
@@ -233,7 +235,7 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 						mIsDisconnecting = false;
 
 						addNotification();
-						BuilderAdapter builder = new BuilderAdapter(mCurrentProfile.getName(), mCurrentProfile.getSplitTunneling());
+					//	BuilderAdapter builder = new BuilderAdapter(mCurrentProfile.getName(), mCurrentProfile.getSplitTunneling());
 						BuilderAdapter builder = new BuilderAdapter(mCurrentProfile);
 						if (initializeCharon(builder, mLogFile, mCurrentProfile.getVpnType().has(VpnTypeFeature.BYOD)))
 						{

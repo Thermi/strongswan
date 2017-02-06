@@ -303,27 +303,8 @@ public class VpnProfileDetailActivity extends AppCompatActivity
 			}
 		});
 */
-
-		mId = savedInstanceState == null ? null : savedInstanceState.getLong(VpnProfileDataSource.KEY_ID);
-		if (mId == null)
-		{
-			Bundle extras = getIntent().getExtras();
-			mId = extras == null ? null : extras.getLong(VpnProfileDataSource.KEY_ID);
-		}
-
-		loadProfileData(savedInstanceState);
-
-		updateCredentialView();
-		updateCertificateSelector();
-		//updateAdvancedSettings();
 	}
 
-	@Override
-	protected void onDestroy()
-	{
-		super.onDestroy();
-		mDataSource.close();
-	}
 
 	@Override
 	protected void onSaveInstanceState(Bundle outState)
@@ -545,9 +526,9 @@ public class VpnProfileDetailActivity extends AppCompatActivity
 			if (mProfile != null)
 			{
 				updateProfileData();
-				if (mProfile.getUUID() == null)
+			//	if (mProfile.getUUID() == null)
 				{
-					mProfile.setUUID(UUID.randomUUID());
+				//	mProfile.setUUID(UUID.randomUUID());
 				}
 				mDataSource.updateVpnProfile(mProfile);
 			}

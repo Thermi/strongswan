@@ -18,15 +18,30 @@
 package org.strongswan.android.data;
 
 
+import android.content.res.Resources;
+import android.os.Bundle;
+import org.strongswan.android.R;
+import java.util.ArrayList;
+
 public class VpnProfile implements Cloneable
 {
 	/* While storing this as EnumSet would be nicer this simplifies storing it in a database */
 	public static final int SPLIT_TUNNELING_BLOCK_IPV4 = 1;
 	public static final int SPLIT_TUNNELING_BLOCK_IPV6 = 2;
 
-	private String mName, mGateway, mUsername, mPassword, mCertificate, mUserCertificate;
-	private String mRemoteId, mLocalId;
-	private Integer mMTU, mPort, mSplitTunneling;
+	private String mName;
+	private String mGateway;
+	private String mUsername;
+	private String mPassword;
+	private String mCertificate;
+	private String mUserCertificate;
+	private String mRemoteId;
+	private String mLocalId;
+	private Integer mMTU;
+	private Integer mPort;
+	private Integer mSplitTunneling;
+	private String mCertificateId;
+	private ArrayList<String> allowedApplications = new ArrayList<String>();
 	private VpnType mVpnType;
 	private long mId = -1;
 
@@ -168,10 +183,6 @@ public class VpnProfile implements Cloneable
 	}
 
 
-	public void setUserCertificateAlias(String alias)
-	{
-		this.mUserCertificate = alias;
-	}
 
 	public ArrayList<String> getAllowedApplications() {
 		return allowedApplications;
