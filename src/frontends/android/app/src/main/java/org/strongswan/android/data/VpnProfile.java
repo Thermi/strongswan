@@ -17,6 +17,13 @@
 
 package org.strongswan.android.data;
 
+import android.content.res.Resources;
+import android.os.Bundle;
+
+import org.strongswan.android.R;
+
+import java.util.ArrayList;
+
 
 import android.content.res.Resources;
 import android.os.Bundle;
@@ -25,7 +32,6 @@ import java.util.ArrayList;
 
 public class VpnProfile implements Cloneable
 {
-	/* While storing this as EnumSet would be nicer this simplifies storing it in a database */
 	public static final int SPLIT_TUNNELING_BLOCK_IPV4 = 1;
 	public static final int SPLIT_TUNNELING_BLOCK_IPV6 = 2;
 
@@ -126,12 +132,6 @@ public class VpnProfile implements Cloneable
 	{
 		return mUserCertificate;
 	}
-
-	public void setUserCertificateAlias(String alias)
-	{
-		this.mUserCertificate = alias;
-	}
-
 	public String getLocalId()
 	{
 		return mLocalId;
@@ -181,7 +181,6 @@ public class VpnProfile implements Cloneable
 	{
 		this.mSplitTunneling = splitTunneling;
 	}
-
 
 
 	public ArrayList<String> getAllowedApplications() {
