@@ -235,7 +235,8 @@ public class VpnProfileListFragment extends Fragment
 		{
 			/*MenuInflater inflater = mode.getMenuInflater();
 			inflater.inflate(R.menu.profile_list_context, menu);
-*/	if(BuildConfig.DEBUG) {
+*/
+			if(BuildConfig.DEBUG) {
 				setDebugProfileView(mode,menu);
 			}else {
 				setProfileView(mode,menu);

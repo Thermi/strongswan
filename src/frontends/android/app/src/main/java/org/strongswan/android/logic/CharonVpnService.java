@@ -32,7 +32,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
-
+import android.security.KeyChain;
 import android.security.KeyChainException;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.ContextCompat;

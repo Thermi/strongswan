@@ -305,6 +305,7 @@ public class VpnProfileDetailActivity extends AppCompatActivity
 */
 	}
 
+
 	@Override
 	protected void onSaveInstanceState(Bundle outState)
 	{
