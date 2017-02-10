@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2007-2016 Tobias Brunner
  * Copyright (C) 2007-2011 Martin Willi
- * Hochschule fuer Technik Rapperswil
+ * HSR Hochschule fuer Technik Rapperswil
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -367,7 +367,7 @@ static status_t retransmit_packet(private_task_manager_t *this, uint32_t seqnr,
 	send_packets(this, packets);
 	lib->scheduler->schedule_job_ms(lib->scheduler, (job_t*)
 			retransmit_job_create(seqnr, this->ike_sa->get_id(this->ike_sa)), t);
-	return NEED_MORE;
+	return SUCCESS;
 }
 
 METHOD(task_manager_t, retransmit, status_t,
@@ -380,10 +380,9 @@ METHOD(task_manager_t, retransmit, status_t,
 	{
 		status = retransmit_packet(this, seqnr, this->initiating.mid,
 					this->initiating.retransmitted, this->initiating.packets);
-		if (status == NEED_MORE)
+		if (status == SUCCESS)
 		{
 			this->initiating.retransmitted++;
-			status = SUCCESS;
 		}
 	}
 	if (seqnr == this->responding.seqnr &&
@@ -391,10 +390,9 @@ METHOD(task_manager_t, retransmit, status_t,
 	{
 		status = retransmit_packet(this, seqnr, this->responding.mid,
 					this->responding.retransmitted, this->responding.packets);
-		if (status == NEED_MORE)
+		if (status == SUCCESS)
 		{
 			this->responding.retransmitted++;
-			status = SUCCESS;
 		}
 	}
 	return status;
@@ -515,13 +513,13 @@ METHOD(task_manager_t, initiate, status_t,
 					new_mid = TRUE;
 					break;
 				}
-				if (activate_task(this, TASK_ISAKMP_DELETE))
+				if (activate_task(this, TASK_QUICK_DELETE))
 				{
 					exchange = INFORMATIONAL_V1;
 					new_mid = TRUE;
 					break;
 				}
-				if (activate_task(this, TASK_QUICK_DELETE))
+				if (activate_task(this, TASK_ISAKMP_DELETE))
 				{
 					exchange = INFORMATIONAL_V1;
 					new_mid = TRUE;
@@ -541,6 +539,14 @@ METHOD(task_manager_t, initiate, status_t,
 					break;
 				}
 				if (activate_task(this, TASK_ISAKMP_DPD))
+				{
+					exchange = INFORMATIONAL_V1;
+					new_mid = TRUE;
+					break;
+				}
+				break;
+			case IKE_REKEYING:
+				if (activate_task(this, TASK_ISAKMP_DELETE))
 				{
 					exchange = INFORMATIONAL_V1;
 					new_mid = TRUE;
@@ -677,13 +683,9 @@ METHOD(task_manager_t, initiate, status_t,
 		message->destroy(message);
 		return retransmit(this, this->initiating.seqnr);
 	}
-	if (keep)
-	{	/* keep the packet for retransmission, the responder might request it */
-		send_packets(this, this->initiating.packets);
-	}
-	else
+	send_packets(this, this->initiating.packets);
+	if (!keep)
 	{
-		send_packets(this, this->initiating.packets);
 		clear_packets(this->initiating.packets);
 	}
 	message->destroy(message);
@@ -1181,7 +1183,7 @@ static status_t process_response(private_task_manager_t *this,
 	}
 	enumerator->destroy(enumerator);
 
-	if (this->initiating.retransmitted)
+	if (this->initiating.retransmitted > 1)
 	{
 		packet_t *packet = NULL;
 		array_get(this->initiating.packets, 0, &packet);
@@ -1513,8 +1515,8 @@ static bool has_queued(private_task_manager_t *this, task_type_t type)
 	return found;
 }
 
-METHOD(task_manager_t, queue_task, void,
-	private_task_manager_t *this, task_t *task)
+METHOD(task_manager_t, queue_task_delayed, void,
+	private_task_manager_t *this, task_t *task, uint32_t delay)
 {
 	task_type_t type = task->get_type(task);
 
@@ -1533,6 +1535,12 @@ METHOD(task_manager_t, queue_task, void,
 	}
 	DBG2(DBG_IKE, "queueing %N task", task_type_names, task->get_type(task));
 	this->queued_tasks->insert_last(this->queued_tasks, task);
+}
+
+METHOD(task_manager_t, queue_task, void,
+	private_task_manager_t *this, task_t *task)
+{
+	queue_task_delayed(this, task, 0);
 }
 
 METHOD(task_manager_t, queue_ike, void,
@@ -1654,6 +1662,9 @@ METHOD(task_manager_t, queue_ike_delete, void,
 {
 	enumerator_t *enumerator;
 	child_sa_t *child_sa;
+
+	/* cancel any currently active task to get the DELETE done quickly */
+	flush_queue(this, TASK_QUEUE_ACTIVE);
 
 	enumerator = this->ike_sa->create_child_sa_enumerator(this->ike_sa);
 	while (enumerator->enumerate(enumerator, &child_sa))
@@ -1975,6 +1986,7 @@ task_manager_v1_t *task_manager_v1_create(ike_sa_t *ike_sa)
 			.task_manager = {
 				.process_message = _process_message,
 				.queue_task = _queue_task,
+				.queue_task_delayed = _queue_task_delayed,
 				.queue_ike = _queue_ike,
 				.queue_ike_rekey = _queue_ike_rekey,
 				.queue_ike_reauth = _queue_ike_reauth,

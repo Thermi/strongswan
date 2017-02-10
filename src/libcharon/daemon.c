@@ -1,9 +1,9 @@
 /*
- * Copyright (C) 2006-2015 Tobias Brunner
+ * Copyright (C) 2006-2017 Tobias Brunner
  * Copyright (C) 2005-2009 Martin Willi
  * Copyright (C) 2006 Daniel Roethlisberger
  * Copyright (C) 2005 Jan Hutter
- * Hochschule fuer Technik Rapperswil
+ * HSR Hochschule fuer Technik Rapperswil
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -54,6 +54,7 @@
 #include <library.h>
 #include <bus/listeners/sys_logger.h>
 #include <bus/listeners/file_logger.h>
+#include <collections/array.h>
 #include <config/proposal.h>
 #include <plugins/plugin_feature.h>
 #include <kernel/kernel_handler.h>
@@ -84,6 +85,16 @@ struct private_daemon_t {
 	 * A list of installed loggers (as logger_entry_t*)
 	 */
 	linked_list_t *loggers;
+
+	/**
+	 * Cached log levels for default loggers
+	 */
+	level_t *levels;
+
+	/**
+	 * Whether to log to stdout/err by default
+	 */
+	bool to_stderr;
 
 	/**
 	 * Identifier used for syslog (in the openlog call)
@@ -531,7 +542,7 @@ static void load_custom_logger(private_daemon_t *this,
 }
 
 METHOD(daemon_t, load_loggers, void,
-	private_daemon_t *this, level_t levels[DBG_MAX], bool to_stderr)
+	private_daemon_t *this)
 {
 	enumerator_t *enumerator;
 	linked_list_t *current_loggers;
@@ -563,7 +574,7 @@ METHOD(daemon_t, load_loggers, void,
 		load_custom_logger(this, &custom_loggers[i], current_loggers);
 	}
 
-	if (!this->loggers->get_count(this->loggers) && levels)
+	if (!this->loggers->get_count(this->loggers) && this->levels)
 	{	/* setup legacy style default loggers configured via command-line */
 		file_logger_t *file_logger;
 		sys_logger_t *sys_logger;
@@ -577,11 +588,11 @@ METHOD(daemon_t, load_loggers, void,
 		{
 			if (sys_logger)
 			{
-				sys_logger->set_level(sys_logger, group, levels[group]);
+				sys_logger->set_level(sys_logger, group, this->levels[group]);
 			}
-			if (to_stderr)
+			if (this->to_stderr)
 			{
-				file_logger->set_level(file_logger, group, levels[group]);
+				file_logger->set_level(file_logger, group, this->levels[group]);
 			}
 		}
 		if (sys_logger)
@@ -603,13 +614,39 @@ METHOD(daemon_t, load_loggers, void,
 	this->mutex->unlock(this->mutex);
 }
 
+METHOD(daemon_t, set_default_loggers, void,
+	private_daemon_t *this, level_t levels[DBG_MAX], bool to_stderr)
+{
+	debug_t group;
+
+	this->mutex->lock(this->mutex);
+	if (!levels)
+	{
+		free(this->levels);
+		this->levels = NULL;
+	}
+	else
+	{
+		if (!this->levels)
+		{
+			this->levels = calloc(sizeof(level_t), DBG_MAX);
+		}
+		for (group = 0; group < DBG_MAX; group++)
+		{
+			this->levels[group] = levels[group];
+		}
+		this->to_stderr = to_stderr;
+	}
+	this->mutex->unlock(this->mutex);
+}
+
 METHOD(daemon_t, set_level, void,
 	private_daemon_t *this, debug_t group, level_t level)
 {
 	enumerator_t *enumerator;
 	logger_entry_t *entry;
 
-	/* we set the loglevel on ALL sys- and file-loggers */
+	/* we set the loglevel on ALL loggers */
 	this->mutex->lock(this->mutex);
 	enumerator = this->loggers->create_enumerator(this->loggers);
 	while (enumerator->enumerate(enumerator, &entry))
@@ -693,6 +730,7 @@ static void destroy(private_daemon_t *this)
 	DESTROY_IF(this->public.bus);
 	this->loggers->destroy_function(this->loggers, (void*)logger_entry_destroy);
 	this->mutex->destroy(this->mutex);
+	free(this->levels);
 	free(this);
 }
 
@@ -701,46 +739,68 @@ static void destroy(private_daemon_t *this)
  */
 static void run_scripts(private_daemon_t *this, char *verb)
 {
+	struct {
+		char *name;
+		char *path;
+	} *script;
+	array_t *scripts = NULL;
 	enumerator_t *enumerator;
 	char *key, *value, *pos, buf[1024];
 	FILE *cmd;
 
+	/* copy the scripts so we don't hold any locks while executing them */
 	enumerator = lib->settings->create_key_value_enumerator(lib->settings,
 												"%s.%s-scripts", lib->ns, verb);
 	while (enumerator->enumerate(enumerator, &key, &value))
 	{
-		DBG1(DBG_DMN, "executing %s script '%s' (%s):", verb, key, value);
-		cmd = popen(value, "r");
+		INIT(script,
+			.name = key,
+			.path = value,
+		);
+		array_insert_create(&scripts, ARRAY_TAIL, script);
+	}
+	enumerator->destroy(enumerator);
+
+	enumerator = array_create_enumerator(scripts);
+	while (enumerator->enumerate(enumerator, &script))
+	{
+		DBG1(DBG_DMN, "executing %s script '%s' (%s)", verb, script->name,
+			 script->path);
+		cmd = popen(script->path, "r");
 		if (!cmd)
 		{
 			DBG1(DBG_DMN, "executing %s script '%s' (%s) failed: %s",
-				 verb, key, value, strerror(errno));
-			continue;
+				 verb, script->name, script->path, strerror(errno));
 		}
-		while (TRUE)
+		else
 		{
-			if (!fgets(buf, sizeof(buf), cmd))
+			while (TRUE)
 			{
-				if (ferror(cmd))
+				if (!fgets(buf, sizeof(buf), cmd))
 				{
-					DBG1(DBG_DMN, "reading from %s script '%s' (%s) failed",
-						 verb, key, value);
+					if (ferror(cmd))
+					{
+						DBG1(DBG_DMN, "reading from %s script '%s' (%s) failed",
+							 verb, script->name, script->path);
+					}
+					break;
 				}
-				break;
-			}
-			else
-			{
-				pos = buf + strlen(buf);
-				if (pos > buf && pos[-1] == '\n')
+				else
 				{
-					pos[-1] = '\0';
+					pos = buf + strlen(buf);
+					if (pos > buf && pos[-1] == '\n')
+					{
+						pos[-1] = '\0';
+					}
+					DBG1(DBG_DMN, "%s: %s", script->name, buf);
 				}
-				DBG1(DBG_DMN, "%s: %s", key, buf);
 			}
+			pclose(cmd);
 		}
-		pclose(cmd);
+		free(script);
 	}
 	enumerator->destroy(enumerator);
+	array_destroy(scripts);
 }
 
 METHOD(daemon_t, start, void,
@@ -856,6 +916,7 @@ private_daemon_t *daemon_create()
 			.initialize = _initialize,
 			.start = _start,
 			.load_loggers = _load_loggers,
+			.set_default_loggers = _set_default_loggers,
 			.set_level = _set_level,
 			.bus = bus_create(),
 		},

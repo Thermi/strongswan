@@ -382,6 +382,9 @@
                 0x0C         "brainpoolP384t1"
                 0x0D         "brainpoolP512r1"
                 0x0E         "brainpoolP512t1"
+  0x65                       "Thawte"
+    0x70                     "id-Ed25519"				OID_ED25519
+    0x71                     "id-Ed448"					OID_ED448
   0x81                       ""
     0x04                     "Certicom"
       0x00                   "curve"
@@ -433,7 +436,7 @@
                 0x2A         "id-aes256-CBC"			OID_AES256_CBC
                 0x2E         "id-aes256-GCM"			OID_AES256_GCM
                 0x2F         "id-aes256-CCM"			OID_AES256_CCM
-              0x02           "hashalgs"
+              0x02           "hashAlgs"
                 0x01         "id-sha256"				OID_SHA256
                 0x02         "id-sha384"				OID_SHA384
                 0x03         "id-sha512"				OID_SHA512
@@ -446,6 +449,15 @@
                 0x0A         "id-sha3-512"				OID_SHA3_512
                 0x0B         "id-shake128"
                 0x0C         "id-shake256"
+              0x03           "sigAlgs"
+                0x09         "id-ecdsa-with-sha3-224"			OID_ECDSA_WITH_SHA3_224
+                0x0A         "id-ecdsa-with-sha3-256"			OID_ECDSA_WITH_SHA3_256
+                0x0B         "id-ecdsa-with-sha3-384"			OID_ECDSA_WITH_SHA3_384
+                0x0C         "id-ecdsa-with-sha3-512"			OID_ECDSA_WITH_SHA3_512
+                0x0D         "id-rsassa-pkcs1v15-with-sha3-224"	OID_RSASSA_PKCS1V15_WITH_SHA3_224
+                0x0E         "id-rsassa-pkcs1v15-with-sha3-256"	OID_RSASSA_PKCS1V15_WITH_SHA3_256
+                0x0F         "id-rsassa-pkcs1v15-with-sha3-384"	OID_RSASSA_PKCS1V15_WITH_SHA3_384
+                0x10         "id-rsassa-pkcs1v15-with-sha3-512"	OID_RSASSA_PKCS1V15_WITH_SHA3_512
         0x86                 ""
           0xf8               ""
             0x42             "netscape"

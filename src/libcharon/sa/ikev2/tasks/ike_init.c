@@ -159,6 +159,10 @@ static void send_supported_hash_algorithms(private_ike_init_t *this,
 	auth_cfg_t *auth;
 	auth_rule_t rule;
 	uintptr_t config;
+	int written;
+	size_t len = BUF_LEN;
+	char buf[len];
+	char *pos = buf;
 	char *plugin_name;
 
 	algos = hash_algorithm_set_create();
@@ -205,11 +209,23 @@ static void send_supported_hash_algorithms(private_ike_init_t *this,
 		while (enumerator->enumerate(enumerator, &hash))
 		{
 			writer->write_uint16(writer, hash);
+
+			/* generate debug output */
+			written = snprintf(pos, len, " %N", hash_algorithm_short_names,
+							   hash);
+			if (written > 0 && written < len)
+			{
+				pos += written;
+				len -= written;
+			}
 		}
 		enumerator->destroy(enumerator);
 		message->add_notify(message, FALSE, SIGNATURE_HASH_ALGORITHMS,
 							writer->get_buf(writer));
 		writer->destroy(writer);
+
+		*pos = '\0';
+		DBG2(DBG_CFG, "sending supported signature hash algorithms:%s", buf);
 	}
 	algos->destroy(algos);
 }
@@ -222,6 +238,10 @@ static void handle_supported_hash_algorithms(private_ike_init_t *this,
 {
 	bio_reader_t *reader;
 	uint16_t algo;
+	int written;
+	size_t len = BUF_LEN;
+	char buf[len];
+	char *pos = buf;
 	bool added = FALSE;
 
 	reader = bio_reader_create(notify->get_notification_data(notify));
@@ -231,9 +251,21 @@ static void handle_supported_hash_algorithms(private_ike_init_t *this,
 		{
 			this->keymat->add_hash_algorithm(this->keymat, algo);
 			added = TRUE;
+
+			/* generate debug output */
+			written = snprintf(pos, len, " %N", hash_algorithm_short_names,
+							   algo);
+			if (written > 0 && written < len)
+			{
+				pos += written;
+				len -= written;
+			}
 		}
 	}
 	reader->destroy(reader);
+
+	*pos = '\0';
+	DBG2(DBG_CFG, "received supported signature hash algorithms:%s", buf);
 
 	if (added)
 	{
@@ -373,13 +405,15 @@ static void process_payloads(private_ike_init_t *this, message_t *message)
 			{
 				sa_payload_t *sa_payload = (sa_payload_t*)payload;
 				linked_list_t *proposal_list;
-				bool private;
+				bool private, prefer_configured;
 
 				proposal_list = sa_payload->get_proposals(sa_payload);
 				private = this->ike_sa->supports_extension(this->ike_sa,
 														   EXT_STRONGSWAN);
+				prefer_configured = lib->settings->get_bool(lib->settings,
+							"%s.prefer_configured_proposals", TRUE, lib->ns);
 				this->proposal = this->config->select_proposal(this->config,
-														proposal_list, private);
+									proposal_list, private, prefer_configured);
 				if (!this->proposal)
 				{
 					charon->bus->alert(charon->bus, ALERT_PROPOSAL_MISMATCH_IKE,
@@ -454,6 +488,11 @@ static void process_payloads(private_ike_init_t *this, message_t *message)
 		}
 	}
 	enumerator->destroy(enumerator);
+
+	if (this->proposal)
+	{
+		this->ike_sa->set_proposal(this->ike_sa, this->proposal);
+	}
 
 	if (ke_payload && this->proposal &&
 		this->proposal->has_dh_group(this->proposal, this->dh_group))
@@ -612,7 +651,6 @@ METHOD(task_t, build_r, status_t,
 		message->add_notify(message, TRUE, NO_PROPOSAL_CHOSEN, chunk_empty);
 		return FAILED;
 	}
-	this->ike_sa->set_proposal(this->ike_sa, this->proposal);
 
 	/* check if we'd have to redirect the client */
 	if (!this->old_sa &&
@@ -649,6 +687,7 @@ METHOD(task_t, build_r, status_t,
 		else
 		{
 			DBG1(DBG_IKE, "no acceptable proposal found");
+			message->add_notify(message, TRUE, NO_PROPOSAL_CHOSEN, chunk_empty);
 		}
 		return FAILED;
 	}
@@ -847,7 +886,6 @@ METHOD(task_t, process_i, status_t,
 		DBG1(DBG_IKE, "peers proposal selection invalid");
 		return FAILED;
 	}
-	this->ike_sa->set_proposal(this->ike_sa, this->proposal);
 
 	if (this->dh == NULL ||
 		!this->proposal->has_dh_group(this->proposal, this->dh_group))

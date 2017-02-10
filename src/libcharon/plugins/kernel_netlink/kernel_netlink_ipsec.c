@@ -117,7 +117,7 @@ struct kernel_algorithm_t {
 	/**
 	 * Name of the algorithm in linux crypto API
 	 */
-	char *name;
+	const char *name;
 };
 
 ENUM(xfrm_msg_names, XFRM_MSG_NEWSA, XFRM_MSG_MAPPING,
@@ -221,6 +221,7 @@ static kernel_algorithm_t integrity_algs[] = {
 /*	{AUTH_DES_MAC,				"***"				}, */
 /*	{AUTH_KPDK_MD5,				"***"				}, */
 	{AUTH_AES_XCBC_96,			"xcbc(aes)"			},
+	{AUTH_AES_CMAC_96,			"cmac(aes)"			},
 };
 
 /**
@@ -236,7 +237,7 @@ static kernel_algorithm_t compression_algs[] = {
 /**
  * Look up a kernel algorithm name and its key size
  */
-static char* lookup_algorithm(transform_type_t type, int ikev2)
+static const char* lookup_algorithm(transform_type_t type, int ikev2)
 {
 	kernel_algorithm_t *list;
 	int i, count;
@@ -1245,7 +1246,7 @@ METHOD(kernel_ipsec_t, get_cpi, status_t,
  */
 static void format_mark(char *buf, int buflen, mark_t mark)
 {
-	if (mark.value)
+	if (mark.value | mark.mask)
 	{
 		snprintf(buf, buflen, " (mark %u/0x%08x)", mark.value, mark.mask);
 	}
@@ -1256,7 +1257,7 @@ static void format_mark(char *buf, int buflen, mark_t mark)
  */
 static bool add_mark(struct nlmsghdr *hdr, int buflen, mark_t mark)
 {
-	if (mark.value)
+	if (mark.value | mark.mask)
 	{
 		struct xfrm_mark *xmrk;
 
@@ -1276,7 +1277,8 @@ METHOD(kernel_ipsec_t, add_sa, status_t,
 	kernel_ipsec_add_sa_t *data)
 {
 	netlink_buf_t request;
-	char *alg_name, markstr[32] = "";
+	const char *alg_name;
+	char markstr[32] = "";
 	struct nlmsghdr *hdr;
 	struct xfrm_usersa_info *sa;
 	uint16_t icv_size = 64, ipcomp = data->ipcomp;
@@ -1366,6 +1368,11 @@ METHOD(kernel_ipsec_t, add_sa, status_t,
 			break;
 		default:
 			break;
+	}
+	if (id->proto == IPPROTO_AH && sa->family == AF_INET)
+	{	/* use alignment to 4 bytes for IPv4 instead of the incorrect 8 byte
+		 * alignment that's used by default but is only valid for IPv6 */
+		sa->flags |= XFRM_STATE_ALIGN4;
 	}
 
 	sa->reqid = data->reqid;
@@ -1587,6 +1594,12 @@ METHOD(kernel_ipsec_t, add_sa, status_t,
 
 	if (id->proto != IPPROTO_COMP)
 	{
+		/* generally, we don't need a replay window for outbound SAs, however,
+		 * when using ESN the kernel rejects the attribute if it is 0 */
+		if (!data->inbound && data->replay_window)
+		{
+			data->replay_window = data->esn ? 1 : 0;
+		}
 		if (data->replay_window != 0 && (data->esn || data->replay_window > 32))
 		{
 			/* for ESN or larger replay windows we need the new
@@ -2522,6 +2535,7 @@ METHOD(kernel_ipsec_t, add_policy, status_t,
 			 id->dir, markstr, cur_priority, use_count);
 		return SUCCESS;
 	}
+	policy->reqid = assigned_sa->sa->cfg.reqid;
 
 	if (this->policy_update)
 	{
@@ -2714,6 +2728,7 @@ METHOD(kernel_ipsec_t, del_policy, status_t,
 			return SUCCESS;
 		}
 		current->used_by->get_first(current->used_by, (void**)&mapping);
+		current->reqid = mapping->sa->cfg.reqid;
 
 		DBG2(DBG_KNL, "updating policy %R === %R %N%s [priority %u, "
 			 "refcount %d]", id->src_ts, id->dst_ts, policy_dir_names, id->dir,
@@ -3038,6 +3053,110 @@ METHOD(kernel_ipsec_t, destroy, void,
 	free(this);
 }
 
+/**
+ * Get the currently configured SPD hashing thresholds for an address family
+ */
+static bool get_spd_hash_thresh(private_kernel_netlink_ipsec_t *this,
+								int type, uint8_t *lbits, uint8_t *rbits)
+{
+	netlink_buf_t request;
+	struct nlmsghdr *hdr, *out;
+	struct xfrmu_spdhthresh *thresh;
+	struct rtattr *rta;
+	size_t len, rtasize;
+	bool success = FALSE;
+
+	memset(&request, 0, sizeof(request));
+
+	hdr = &request.hdr;
+	hdr->nlmsg_flags = NLM_F_REQUEST;
+	hdr->nlmsg_type = XFRM_MSG_GETSPDINFO;
+	hdr->nlmsg_len = NLMSG_LENGTH(sizeof(uint32_t));
+
+	if (this->socket_xfrm->send(this->socket_xfrm, hdr, &out, &len) == SUCCESS)
+	{
+		hdr = out;
+		while (NLMSG_OK(hdr, len))
+		{
+			switch (hdr->nlmsg_type)
+			{
+				case XFRM_MSG_NEWSPDINFO:
+				{
+					rta = XFRM_RTA(hdr, uint32_t);
+					rtasize = XFRM_PAYLOAD(hdr, uint32_t);
+					while (RTA_OK(rta, rtasize))
+					{
+						if (rta->rta_type == type &&
+							RTA_PAYLOAD(rta) == sizeof(*thresh))
+						{
+							thresh = RTA_DATA(rta);
+							*lbits = thresh->lbits;
+							*rbits = thresh->rbits;
+							success = TRUE;
+							break;
+						}
+						rta = RTA_NEXT(rta, rtasize);
+					}
+					break;
+				}
+				case NLMSG_ERROR:
+				{
+					struct nlmsgerr *err = NLMSG_DATA(hdr);
+					DBG1(DBG_KNL, "getting SPD hash threshold failed: %s (%d)",
+						 strerror(-err->error), -err->error);
+					break;
+				}
+				default:
+					hdr = NLMSG_NEXT(hdr, len);
+					continue;
+				case NLMSG_DONE:
+					break;
+			}
+			break;
+		}
+		free(out);
+	}
+	return success;
+}
+
+/**
+ * Configure SPD hashing threshold for an address family
+ */
+static void setup_spd_hash_thresh(private_kernel_netlink_ipsec_t *this,
+								  char *key, int type, uint8_t def)
+{
+	struct xfrmu_spdhthresh *thresh;
+	struct nlmsghdr *hdr;
+	netlink_buf_t request;
+	uint8_t lbits, rbits;
+
+	if (!get_spd_hash_thresh(this, type, &lbits, &rbits))
+	{
+		return;
+	}
+	memset(&request, 0, sizeof(request));
+
+	hdr = &request.hdr;
+	hdr->nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
+	hdr->nlmsg_type = XFRM_MSG_NEWSPDINFO;
+	hdr->nlmsg_len = NLMSG_LENGTH(sizeof(uint32_t));
+
+	thresh = netlink_reserve(hdr, sizeof(request), type, sizeof(*thresh));
+	thresh->lbits = lib->settings->get_int(lib->settings,
+							"%s.plugins.kernel-netlink.spdh_thresh.%s.lbits",
+							def, lib->ns, key);
+	thresh->rbits = lib->settings->get_int(lib->settings,
+							"%s.plugins.kernel-netlink.spdh_thresh.%s.rbits",
+							def, lib->ns, key);
+	if (thresh->lbits != lbits || thresh->rbits != rbits)
+	{
+		if (this->socket_xfrm->send_ack(this->socket_xfrm, hdr) != SUCCESS)
+		{
+			DBG1(DBG_KNL, "setting SPD hash threshold failed");
+		}
+	}
+}
+
 /*
  * Described in header.
  */
@@ -3107,6 +3226,9 @@ kernel_netlink_ipsec_t *kernel_netlink_ipsec_create()
 		destroy(this);
 		return NULL;
 	}
+
+	setup_spd_hash_thresh(this, "ipv4", XFRMA_SPD_IPV4_HTHRESH, 32);
+	setup_spd_hash_thresh(this, "ipv6", XFRMA_SPD_IPV6_HTHRESH, 128);
 
 	if (register_for_events)
 	{

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2015 Tobias Brunner
+ * Copyright (C) 2012-2016 Tobias Brunner
  * Copyright (C) 2005-2007 Martin Willi
  * Copyright (C) 2005 Jan Hutter
  * Hochschule fuer Technik Rapperswil
@@ -165,16 +165,17 @@ struct ike_cfg_t {
 	linked_list_t* (*get_proposals) (ike_cfg_t *this);
 
 	/**
-	 * Select a proposed from suggested proposals.
+	 * Select a proposal from a list of supplied proposals.
 	 *
 	 * Returned proposal must be destroyed after use.
 	 *
 	 * @param proposals		list of proposals to select from
 	 * @param private		accept algorithms from a private range
+	 * @param prefer_self	whether to prefer configured or supplied proposals
 	 * @return				selected proposal, or NULL if none matches.
 	 */
 	proposal_t *(*select_proposal) (ike_cfg_t *this, linked_list_t *proposals,
-									bool private);
+									bool private, bool prefer_self);
 
 	/**
 	 * Should we send a certificate request in IKE_SA_INIT?
@@ -255,7 +256,7 @@ ike_cfg_t *ike_cfg_create(ike_version_t version, bool certreq, bool force_encap,
 						  fragmentation_t fragmentation, uint8_t dscp);
 
 /**
- * Determine the address family of the local or remtoe address(es).  If multiple
+ * Determine the address family of the local or remote address(es).  If multiple
  * families are configured AF_UNSPEC is returned.  %any is ignored (%any4|6 are
  * not though).
  *

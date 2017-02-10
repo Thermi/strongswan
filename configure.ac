@@ -1,8 +1,8 @@
 #
 # Copyright (C) 2007-2015 Tobias Brunner
-# Copyright (C) 2006-2015 Andreas Steffen
+# Copyright (C) 2006-2016 Andreas Steffen
 # Copyright (C) 2006-2014 Martin Willi
-# Hochschule fuer Technik Rapperswil
+# HSR Hochschule fuer Technik Rapperswil
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by the
@@ -19,7 +19,7 @@
 #  initialize & set some vars
 # ============================
 
-AC_INIT([strongSwan],[5.4.1dr4])
+AC_INIT([strongSwan],[5.5.2dr4])
 AM_INIT_AUTOMAKE(m4_esyscmd([
 	echo tar-ustar
 	echo subdir-objects
@@ -62,8 +62,6 @@ ARG_WITH_SUBST([routing-table],      [220], [set routing table to use for IPsec 
 ARG_WITH_SUBST([routing-table-prio], [220], [set priority for IPsec routing table])
 ARG_WITH_SUBST([ipsec-script],       [ipsec], [change the name of the ipsec script])
 ARG_WITH_SUBST([fips-mode],          [0], [set openssl FIPS mode: disabled(0), enabled(1), Suite B enabled(2)])
-
-ARG_WITH_SET([tss],                  [no], [set implementation of the Trusted Computing Group's Software Stack (TSS). Currently the only supported value is "trousers"])
 ARG_WITH_SET([capabilities],         [no], [set capability dropping library. Currently supported values are "libcap" and "native"])
 ARG_WITH_SET([mpz_powm_sec],         [yes], [use the more side-channel resistant mpz_powm_sec in libgmp, if available])
 ARG_WITH_SET([dev-headers],          [no], [install strongSwan development headers to directory.])
@@ -135,9 +133,12 @@ ARG_DISBL_SET([fips-prf],       [disable FIPS PRF software implementation plugin
 ARG_ENABL_SET([gcm],            [enables the GCM AEAD wrapper crypto plugin.])
 ARG_ENABL_SET([gcrypt],         [enables the libgcrypt plugin.])
 ARG_DISBL_SET([gmp],            [disable GNU MP (libgmp) based crypto implementation plugin.])
+ARG_DISBL_SET([curve25519],     [disable Curve25519 Diffie-Hellman plugin.])
 ARG_DISBL_SET([hmac],           [disable HMAC crypto implementation plugin.])
 ARG_ENABL_SET([md4],            [enable MD4 software implementation plugin.])
 ARG_DISBL_SET([md5],            [disable MD5 software implementation plugin.])
+ARG_ENABL_SET([mgf1],           [enable the MGF1 software implementation plugin.])
+ARG_ENABL_SET([newhope],        [enable New Hope crypto plugin.])
 ARG_DISBL_SET([nonce],          [disable nonce generation plugin.])
 ARG_ENABL_SET([ntru],           [enables the NTRU crypto plugin.])
 ARG_ENABL_SET([openssl],        [enables the OpenSSL crypto plugin.])
@@ -263,13 +264,13 @@ ARG_ENABL_SET([ha],             [enable high availability cluster plugin.])
 ARG_ENABL_SET([led],            [enable plugin to control LEDs on IKEv2 activity using the Linux kernel LED subsystem.])
 ARG_ENABL_SET([load-tester],    [enable load testing plugin for IKEv2 daemon.])
 ARG_ENABL_SET([lookip],         [enable fast virtual IP lookup and notification plugin.])
-ARG_ENABL_SET([maemo],          [enable Maemo specific plugin.])
 ARG_ENABL_SET([radattr],        [enable plugin to inject and process custom RADIUS attributes as IKEv2 client.])
 ARG_ENABL_SET([systime-fix],    [enable plugin to handle cert lifetimes with invalid system time gracefully.])
 ARG_ENABL_SET([test-vectors],   [enable plugin providing crypto test vectors.])
 ARG_DISBL_SET([updown],         [disable updown firewall script plugin.])
 # programs/components
-ARG_ENABL_SET([aikgen],         [enable AIK generator.])
+ARG_ENABL_SET([aikgen],         [enable AIK generator for TPM 1.2.])
+ARG_ENABL_SET([aikpub2],        [enable AIK extractor for TPM 2.0.])
 ARG_DISBL_SET([charon],         [disable the IKEv1/IKEv2 keying daemon charon.])
 ARG_ENABL_SET([cmd],            [enable the command line IKE client charon-cmd.])
 ARG_ENABL_SET([conftest],       [enforce Suite B conformance test framework.])
@@ -302,6 +303,9 @@ ARG_ENABL_SET([python-eggs],    [enable build of provided python eggs.])
 ARG_ENABL_SET([python-eggs-install],[enable installation of provided python eggs.])
 ARG_ENABL_SET([perl-cpan],      [enable build of provided perl CPAN module.])
 ARG_ENABL_SET([perl-cpan-install],[enable installation of provided CPAN module.])
+ARG_ENABL_SET([tss-trousers],   [enable the use of the TrouSerS Trusted Software Stack])
+ARG_ENABL_SET([tss-tss2],       [enable the use of the TSS 2.0 Trusted Software Stack])
+
 # compile options
 ARG_ENABL_SET([coverage],       [enable lcov coverage report generation.])
 ARG_ENABL_SET([leak-detective], [enable malloc hooks to find memory leaks.])
@@ -455,6 +459,18 @@ if test x$perl_cpan_install = xtrue; then
 	perl_cpan=true
 fi
 
+if test x$aikgen = xtrue; then
+	tss_trousers=true
+fi
+
+if test x$aikpub2 = xtrue; then
+	tss_tss2=true
+fi
+
+if test x$ntru = xtrue -o x$bliss = xtrue; then
+	mgf1=true
+fi
+
 # ===========================================
 #  check required libraries and header files
 # ===========================================
@@ -490,9 +506,20 @@ LIBS=$DLLIB
 AC_SEARCH_LIBS(pthread_create, pthread, [PTHREADLIB=$LIBS])
 AC_SUBST(PTHREADLIB)
 
-# uClibc requires explicit -latomic for __atomic_* operations
+# Some architectures require explicit -latomic for __atomic_* operations
+# AC_SEARCH_LIBS() does not work when checking built-ins due to conflicting types
 LIBS=""
-AC_SEARCH_LIBS(__atomic_load, atomic, [ATOMICLIB=$LIBS])
+AC_MSG_CHECKING(for library containing __atomic_and_fetch)
+AC_LINK_IFELSE(
+	[AC_LANG_PROGRAM([[]], [[int x; __atomic_and_fetch(&x, 1, __ATOMIC_RELAXED);]])],
+	[AC_MSG_RESULT([none required])],
+	[LIBS="-latomic";
+	 AC_LINK_IFELSE(
+		[AC_LANG_PROGRAM([[]], [[int x; __atomic_and_fetch(&x, 1, __ATOMIC_RELAXED);]])],
+		[AC_MSG_RESULT([-latomic]); ATOMICLIB=$LIBS],
+		[AC_MSG_RESULT([no])])
+	]
+)
 AC_SUBST(ATOMICLIB)
 
 LIBS=$saved_LIBS
@@ -509,10 +536,10 @@ AC_COMPILE_IFELSE(
 	[AC_MSG_RESULT([no])]
 )
 
-# check if pthread_condattr_setclock(CLOCK_MONOTONE) is supported
+# check if pthread_condattr_setclock(CLOCK_MONOTONIC) is supported
 saved_LIBS=$LIBS
 LIBS=$PTHREADLIB
-AC_MSG_CHECKING([for pthread_condattr_setclock(CLOCK_MONOTONE)])
+AC_MSG_CHECKING([for pthread_condattr_setclock(CLOCK_MONOTONIC)])
 AC_RUN_IFELSE(
 	[AC_LANG_SOURCE(
 		[[#include <pthread.h>
@@ -607,7 +634,7 @@ AC_CHECK_FUNC([syslog], [
 ])
 AM_CONDITIONAL(USE_SYSLOG, [test "x$syslog" = xtrue])
 
-AC_CHECK_HEADERS(sys/sockio.h sys/syscall.h glob.h net/if_tun.h)
+AC_CHECK_HEADERS(sys/sockio.h sys/syscall.h sys/param.h glob.h net/if_tun.h)
 AC_CHECK_HEADERS(net/pfkeyv2.h netipsec/ipsec.h netinet6/ipsec.h linux/udp.h)
 AC_CHECK_HEADERS([netinet/ip6.h linux/fib_rules.h], [], [],
 [
@@ -872,7 +899,7 @@ AC_COMPILE_IFELSE(
 AM_CONDITIONAL(USE_X86X64, [test "x$x86x64" = xtrue])
 
 if test x$printf_hooks = xvstr; then
-	AC_CHECK_LIB([vstr],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([Vstr string library not found])],[])
+	AC_CHECK_LIB([vstr],[vstr_init],[LIBS="$LIBS"],[AC_MSG_ERROR([Vstr string library not found])],[])
 	AC_DEFINE([USE_VSTR], [], [use Vstr string library for printf hooks])
 fi
 
@@ -882,7 +909,7 @@ fi
 
 if test x$gmp = xtrue; then
 	saved_LIBS=$LIBS
-	AC_CHECK_LIB([gmp],[main],[],[AC_MSG_ERROR([GNU Multi Precision library gmp not found])],[])
+	AC_CHECK_LIB([gmp],[__gmpz_init],[],[AC_MSG_ERROR([GNU Multi Precision library gmp not found])],[])
 	AC_MSG_CHECKING([mpz_powm_sec])
 	if test x$mpz_powm_sec = xyes; then
 		AC_COMPILE_IFELSE(
@@ -911,20 +938,20 @@ if test x$gmp = xtrue; then
 fi
 
 if test x$ldap = xtrue; then
-	AC_CHECK_LIB([ldap],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([LDAP library ldap not found])],[])
-	AC_CHECK_LIB([lber],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([LDAP library lber not found])],[])
+	AC_CHECK_LIB([ldap],[ldap_init],[LIBS="$LIBS"],[AC_MSG_ERROR([LDAP library ldap not found])],[])
+	AC_CHECK_LIB([lber],[ber_free],[LIBS="$LIBS"],[AC_MSG_ERROR([LDAP library lber not found])],[])
 	AC_CHECK_HEADER([ldap.h],,[AC_MSG_ERROR([LDAP header ldap.h not found!])])
 fi
 
 if test x$curl = xtrue; then
-	AC_CHECK_LIB([curl],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([CURL library curl not found])],[])
+	AC_CHECK_LIB([curl],[curl_global_init],[LIBS="$LIBS"],[AC_MSG_ERROR([CURL library curl not found])],[])
 	AC_CHECK_HEADER([curl/curl.h],,[AC_MSG_ERROR([CURL header curl/curl.h not found!])])
 fi
 
 if test x$unbound = xtrue; then
-	AC_CHECK_LIB([ldns],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([UNBOUND library ldns not found])],[])
+	AC_CHECK_LIB([ldns],[ldns_rr_get_type],[LIBS="$LIBS"],[AC_MSG_ERROR([UNBOUND library ldns not found])],[])
 	AC_CHECK_HEADER([ldns/ldns.h],,[AC_MSG_ERROR([UNBOUND header ldns/ldns.h not found!])])
-	AC_CHECK_LIB([unbound],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([UNBOUND library libunbound not found])],[])
+	AC_CHECK_LIB([unbound],[ub_ctx_create],[LIBS="$LIBS"],[AC_MSG_ERROR([UNBOUND library libunbound not found])],[])
 	AC_CHECK_HEADER([unbound.h],,[AC_MSG_ERROR([UNBOUND header unbound.h not found!])])
 fi
 
@@ -960,10 +987,16 @@ if test x$systemd = xtrue; then
 	)
 fi
 
-if test x$tss = xtrousers; then
-	AC_CHECK_LIB([tspi],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([TrouSerS library libtspi not found])],[])
+if test x$tss_trousers = xtrue; then
+	AC_CHECK_LIB([tspi],[Tspi_Context_Create],[LIBS="$LIBS"],[AC_MSG_ERROR([TrouSerS library libtspi not found])],[])
 	AC_CHECK_HEADER([trousers/tss.h],,[AC_MSG_ERROR([TrouSerS header trousers/tss.h not found!])])
-	AC_DEFINE([TSS_TROUSERS], [], [use TrouSerS library libtspi as TSS implementation])
+	AC_DEFINE([TSS_TROUSERS], [], [use TrouSerS library libtspi])
+fi
+
+if test x$tss_tss2 = xtrue; then
+	PKG_CHECK_MODULES(tss2, [tcti-socket], [AC_DEFINE([TSS_TSS2], [], [use TSS 2.0 libraries])])
+	AC_SUBST(tss2_CFLAGS)
+	AC_SUBST(tss2_LIBS)
 fi
 
 if test x$imv_swid = xtrue; then
@@ -1014,34 +1047,39 @@ if test x$dumm = xtrue; then
 fi
 
 if test x$fast = xtrue; then
-	AC_CHECK_LIB([neo_cgi],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([ClearSilver library neo_cgi not found!])],[])
-	AC_CHECK_LIB([neo_utl],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([ClearSilver library neo_utl not found!])],[])
-	AC_MSG_CHECKING([ClearSilver requires zlib])
+	AC_CHECK_LIB([neo_utl],[hdf_init],[LIBS="$LIBS"],[AC_MSG_ERROR([ClearSilver library neo_utl not found!])],[])
+	AC_MSG_CHECKING([for -lneo_cgi and dependencies])
 	saved_CFLAGS=$CFLAGS
 	saved_LIBS=$LIBS
 	LIBS="-lneo_cgi -lneo_cs -lneo_utl"
 	CFLAGS="-I/usr/include/ClearSilver"
 	AC_LINK_IFELSE(
 		[AC_LANG_PROGRAM(
-			[[#include <ClearSilver.h>]],
+			[[#include <cgi/cgi.h>]],
 			[[NEOERR *err = cgi_display(NULL, NULL);]])],
-		[AC_MSG_RESULT([no]); clearsilver_LIBS="$LIBS"],
-		[AC_MSG_RESULT([yes]); clearsilver_LIBS="$LIBS -lz"]
+		[AC_MSG_RESULT([yes])],
+		[LIBS="$LIBS -lz";
+		 AC_LINK_IFELSE(
+			[AC_LANG_PROGRAM(
+				[[#include <cgi/cgi.h>]],
+				[[NEOERR *err = cgi_display(NULL, NULL);]])],
+			[AC_MSG_RESULT([yes, zlib required])],
+			[AC_MSG_ERROR([not found])]
+		 )]
 	)
+	clearsilver_LIBS="$LIBS"
 	AC_SUBST(clearsilver_LIBS)
 	LIBS=$saved_LIBS
 	CFLAGS=$saved_CFLAGS
-# autoconf does not like CamelCase!? How to fix this?
-#	AC_CHECK_HEADER([ClearSilver/ClearSilver.h],,[AC_MSG_ERROR([ClearSilver header file ClearSilver/ClearSilver.h not found!])])
 
-	AC_CHECK_LIB([fcgi],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([FastCGI library fcgi not found!])],[])
+	AC_CHECK_LIB([fcgi],[FCGX_Init],[LIBS="$LIBS"],[AC_MSG_ERROR([FastCGI library fcgi not found!])],[])
 	AC_CHECK_HEADER([fcgiapp.h],,[AC_MSG_ERROR([FastCGI header file fcgiapp.h not found!])])
 fi
 
 if test x$mysql = xtrue; then
 	if test "x$windows" = xtrue; then
 		AC_CHECK_HEADER([mysql.h],,[AC_MSG_ERROR([MySQL header file mysql.h not found!])])
-		AC_CHECK_LIB([mysql],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([MySQL library not found!])],[])
+		AC_CHECK_LIB([mysql],[mysql_database_init],[LIBS="$LIBS"],[AC_MSG_ERROR([MySQL library not found!])],[])
 		AC_SUBST(MYSQLLIB, -lmysql)
 	else
 		AC_PATH_PROG([MYSQLCONFIG], [mysql_config], [], [$PATH:/bin:/usr/bin:/usr/local/bin])
@@ -1054,7 +1092,7 @@ if test x$mysql = xtrue; then
 fi
 
 if test x$sqlite = xtrue; then
-	AC_CHECK_LIB([sqlite3],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([SQLite library sqlite3 not found])],[])
+	AC_CHECK_LIB([sqlite3],[sqlite3_open],[LIBS="$LIBS"],[AC_MSG_ERROR([SQLite library sqlite3 not found])],[])
 	AC_CHECK_HEADER([sqlite3.h],,[AC_MSG_ERROR([SQLite header sqlite3.h not found!])])
 	AC_MSG_CHECKING([sqlite3_prepare_v2])
 	AC_COMPILE_IFELSE(
@@ -1079,13 +1117,13 @@ if test x$sqlite = xtrue; then
 fi
 
 if test x$openssl = xtrue; then
-	AC_CHECK_LIB([$openssl_lib],[main],[LIBS="$LIBS"],
+	AC_CHECK_LIB([$openssl_lib],[EVP_CIPHER_CTX_new],[LIBS="$LIBS"],
 				 [AC_MSG_ERROR([OpenSSL lib$openssl_lib not found])],[$DLLIB])
 	AC_CHECK_HEADER([openssl/evp.h],,[AC_MSG_ERROR([OpenSSL header openssl/evp.h not found!])])
 fi
 
 if test x$gcrypt = xtrue; then
-	AC_CHECK_LIB([gcrypt],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([gcrypt library not found])],[-lgpg-error])
+	AC_CHECK_LIB([gcrypt],[gcry_control],[LIBS="$LIBS"],[AC_MSG_ERROR([gcrypt library not found])],[-lgpg-error])
 	AC_CHECK_HEADER([gcrypt.h],,[AC_MSG_ERROR([gcrypt header gcrypt.h not found!])])
 	AC_MSG_CHECKING([gcrypt CAMELLIA cipher])
 	AC_COMPILE_IFELSE(
@@ -1099,25 +1137,17 @@ if test x$gcrypt = xtrue; then
 fi
 
 if test x$uci = xtrue; then
-	AC_CHECK_LIB([uci],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([UCI library libuci not found])],[])
+	AC_CHECK_LIB([uci],[uci_alloc_context],[LIBS="$LIBS"],[AC_MSG_ERROR([UCI library libuci not found])],[])
 	AC_CHECK_HEADER([uci.h],,[AC_MSG_ERROR([UCI header uci.h not found!])])
 fi
 
 if test x$android_dns = xtrue; then
-	AC_CHECK_LIB([cutils],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([Android library libcutils not found])],[])
+	AC_CHECK_LIB([cutils],[property_get],[LIBS="$LIBS"],[AC_MSG_ERROR([Android library libcutils not found])],[])
 	AC_CHECK_HEADER([cutils/properties.h],,[AC_MSG_ERROR([Android header cutils/properties.h not found!])])
 	# we have to force the use of libdl here because the autodetection
 	# above does not work correctly when cross-compiling for android.
 	DLLIB="-ldl"
 	AC_SUBST(DLLIB)
-fi
-
-if test x$maemo = xtrue; then
-	PKG_CHECK_MODULES(maemo, [glib-2.0 gthread-2.0 libosso osso-af-settings])
-	AC_SUBST(maemo_CFLAGS)
-	AC_SUBST(maemo_LIBS)
-	dbusservicedir="/usr/share/dbus-1/system-services"
-	AC_SUBST(dbusservicedir)
 fi
 
 if test x$eap_sim_pcsc = xtrue; then
@@ -1136,7 +1166,7 @@ if test x$nm = xtrue; then
 fi
 
 if test x$xauth_pam = xtrue; then
-	AC_CHECK_LIB([pam],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([PAM library not found])],[])
+	AC_CHECK_LIB([pam],[pam_start],[LIBS="$LIBS"],[AC_MSG_ERROR([PAM library not found])],[])
 	AC_CHECK_HEADER([security/pam_appl.h],,[AC_MSG_ERROR([PAM header security/pam_appl.h not found!])])
 fi
 
@@ -1156,7 +1186,7 @@ if test x$capabilities = xnative; then
 fi
 
 if test x$capabilities = xlibcap; then
-	AC_CHECK_LIB([cap],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([libcap library not found])],[])
+	AC_CHECK_LIB([cap],[cap_init],[LIBS="$LIBS"],[AC_MSG_ERROR([libcap library not found])],[])
 	AC_CHECK_HEADER([sys/capability.h],
 		[AC_DEFINE([HAVE_SYS_CAPABILITY_H], [], [have sys/capability.h])],
 		[AC_MSG_ERROR([libcap header sys/capability.h not found!])])
@@ -1187,7 +1217,7 @@ if test x$integrity_test = xtrue; then
 fi
 
 if test x$bfd_backtraces = xtrue; then
-	AC_CHECK_LIB([bfd],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([binutils libbfd not found!])],[])
+	AC_CHECK_LIB([bfd],[bfd_init],[LIBS="$LIBS"],[AC_MSG_ERROR([binutils libbfd not found!])],[])
 	AC_CHECK_HEADER([bfd.h],[AC_DEFINE([HAVE_BFD_H],,[have binutils bfd.h])],
 		[AC_MSG_ERROR([binutils bfd.h header not found!])])
 	BFDLIB="-lbfd"
@@ -1195,7 +1225,7 @@ if test x$bfd_backtraces = xtrue; then
 fi
 
 if test x$unwind_backtraces = xtrue; then
-	AC_CHECK_LIB([unwind],[main],[LIBS="$LIBS"],[AC_MSG_ERROR([libunwind not found!])],[])
+	AC_CHECK_LIB([unwind],[unw_getcontext],[LIBS="$LIBS"],[AC_MSG_ERROR([libunwind not found!])],[])
 	AC_CHECK_HEADER([libunwind.h],[AC_DEFINE([HAVE_LIBUNWIND_H],,[have libunwind.h])],
 		[AC_MSG_ERROR([libunwind.h header not found!])])
 	UNWINDLIB="-lunwind"
@@ -1308,6 +1338,7 @@ ADD_PLUGIN([sha3],                 [s charon scepclient pki scripts medsrv attes
 ADD_PLUGIN([sha1],                 [s charon scepclient pki scripts manager medsrv attest nm cmd aikgen])
 ADD_PLUGIN([md4],                  [s charon scepclient pki nm cmd])
 ADD_PLUGIN([md5],                  [s charon scepclient pki scripts attest nm cmd aikgen])
+ADD_PLUGIN([mgf1],                 [s charon scepclient pki scripts medsrv attest nm cmd aikgen])
 ADD_PLUGIN([rdrand],               [s charon scepclient pki scripts medsrv attest nm cmd aikgen])
 ADD_PLUGIN([random],               [s charon scepclient pki scripts manager medsrv attest nm cmd aikgen])
 ADD_PLUGIN([nonce],                [s charon nm cmd aikgen])
@@ -1332,6 +1363,7 @@ ADD_PLUGIN([gcrypt],               [s charon scepclient pki scripts manager meds
 ADD_PLUGIN([af-alg],               [s charon scepclient pki scripts medsrv attest nm cmd aikgen])
 ADD_PLUGIN([fips-prf],             [s charon nm cmd])
 ADD_PLUGIN([gmp],                  [s charon scepclient pki scripts manager medsrv attest nm cmd aikgen])
+ADD_PLUGIN([curve25519],           [s charon scripts nm cmd])
 ADD_PLUGIN([agent],                [s charon nm cmd])
 ADD_PLUGIN([keychain],             [s charon cmd])
 ADD_PLUGIN([chapoly],              [s charon scripts nm cmd])
@@ -1342,6 +1374,7 @@ ADD_PLUGIN([ctr],                  [s charon scripts nm cmd])
 ADD_PLUGIN([ccm],                  [s charon scripts nm cmd])
 ADD_PLUGIN([gcm],                  [s charon scripts nm cmd])
 ADD_PLUGIN([ntru],                 [s charon scripts nm cmd])
+ADD_PLUGIN([newhope],              [s charon scripts nm cmd])
 ADD_PLUGIN([bliss],                [s charon pki scripts nm cmd])
 ADD_PLUGIN([curl],                 [s charon scepclient pki scripts nm cmd])
 ADD_PLUGIN([files],                [s charon scepclient pki scripts nm cmd])
@@ -1418,7 +1451,6 @@ ADD_PLUGIN([led],                  [c charon])
 ADD_PLUGIN([duplicheck],           [c charon])
 ADD_PLUGIN([coupling],             [c charon])
 ADD_PLUGIN([radattr],              [c charon])
-ADD_PLUGIN([maemo],                [c charon])
 ADD_PLUGIN([uci],                  [c charon])
 ADD_PLUGIN([addrblock],            [c charon])
 ADD_PLUGIN([unity],                [c charon])
@@ -1463,8 +1495,10 @@ AM_CONDITIONAL(USE_MD5, test x$md5 = xtrue)
 AM_CONDITIONAL(USE_SHA1, test x$sha1 = xtrue)
 AM_CONDITIONAL(USE_SHA2, test x$sha2 = xtrue)
 AM_CONDITIONAL(USE_SHA3, test x$sha3 = xtrue)
+AM_CONDITIONAL(USE_MGF1, test x$mgf1 = xtrue)
 AM_CONDITIONAL(USE_FIPS_PRF, test x$fips_prf = xtrue)
 AM_CONDITIONAL(USE_GMP, test x$gmp = xtrue)
+AM_CONDITIONAL(USE_CURVE25519, test x$curve25519 = xtrue)
 AM_CONDITIONAL(USE_RDRAND, test x$rdrand = xtrue)
 AM_CONDITIONAL(USE_AESNI, test x$aesni = xtrue)
 AM_CONDITIONAL(USE_RANDOM, test x$random = xtrue)
@@ -1499,6 +1533,7 @@ AM_CONDITIONAL(USE_CCM, test x$ccm = xtrue)
 AM_CONDITIONAL(USE_GCM, test x$gcm = xtrue)
 AM_CONDITIONAL(USE_AF_ALG, test x$af_alg = xtrue)
 AM_CONDITIONAL(USE_NTRU, test x$ntru = xtrue)
+AM_CONDITIONAL(USE_NEWHOPE, test x$newhope = xtrue)
 AM_CONDITIONAL(USE_BLISS, test x$bliss = xtrue)
 
 #  charon plugins
@@ -1512,7 +1547,6 @@ AM_CONDITIONAL(USE_OSX_ATTR, test x$osx_attr = xtrue)
 AM_CONDITIONAL(USE_P_CSCF, test x$p_cscf = xtrue)
 AM_CONDITIONAL(USE_ANDROID_DNS, test x$android_dns = xtrue)
 AM_CONDITIONAL(USE_ANDROID_LOG, test x$android_log = xtrue)
-AM_CONDITIONAL(USE_MAEMO, test x$maemo = xtrue)
 AM_CONDITIONAL(USE_SMP, test x$smp = xtrue)
 AM_CONDITIONAL(USE_SQL, test x$sql = xtrue)
 AM_CONDITIONAL(USE_DNSCERT, test x$dnscert = xtrue)
@@ -1611,12 +1645,14 @@ AM_CONDITIONAL(USE_PKI, test x$pki = xtrue)
 AM_CONDITIONAL(USE_SCEPCLIENT, test x$scepclient = xtrue)
 AM_CONDITIONAL(USE_SCRIPTS, test x$scripts = xtrue)
 AM_CONDITIONAL(USE_CONFTEST, test x$conftest = xtrue)
-AM_CONDITIONAL(USE_LIBSTRONGSWAN, test x$charon = xtrue -o x$pki = xtrue -o x$scepclient = xtrue -o x$conftest = xtrue -o x$fast = xtrue -o x$imcv = xtrue -o x$nm = xtrue -o x$tkm = xtrue -o x$cmd = xtrue -o x$tls = xtrue -o x$tnc_tnccs = xtrue -o x$aikgen = xtrue -o x$svc = xtrue -o x$systemd = xtrue)
+AM_CONDITIONAL(USE_LIBSTRONGSWAN, test x$charon = xtrue -o x$pki = xtrue -o x$scepclient = xtrue -o x$conftest = xtrue -o x$fast = xtrue -o x$imcv = xtrue -o x$nm = xtrue -o x$tkm = xtrue -o x$cmd = xtrue -o x$tls = xtrue -o x$tnc_tnccs = xtrue -o x$aikgen = xtrue -o x$aikpub2 = xtrue -o x$svc = xtrue -o x$systemd = xtrue)
 AM_CONDITIONAL(USE_LIBCHARON, test x$charon = xtrue -o x$conftest = xtrue -o x$nm = xtrue -o x$tkm = xtrue -o x$cmd = xtrue -o x$svc = xtrue -o x$systemd = xtrue)
 AM_CONDITIONAL(USE_LIBIPSEC, test x$libipsec = xtrue)
+AM_CONDITIONAL(USE_LIBNTTFFT, test x$bliss = xtrue -o x$newhope = xtrue)
 AM_CONDITIONAL(USE_LIBTNCIF, test x$tnc_tnccs = xtrue -o x$imcv = xtrue)
 AM_CONDITIONAL(USE_LIBTNCCS, test x$tnc_tnccs = xtrue)
 AM_CONDITIONAL(USE_LIBPTTLS, test x$tnc_tnccs = xtrue)
+AM_CONDITIONAL(USE_LIBTPMTSS, test x$tss_trousers = xtrue -o x$tss_tss2 = xtrue -o x$aikgen = xtrue -o x$aikpub2 = xtrue -o x$imcv = xtrue)
 AM_CONDITIONAL(USE_FILE_CONFIG, test x$stroke = xtrue)
 AM_CONDITIONAL(USE_IPSEC_SCRIPT, test x$stroke = xtrue -o x$scepclient = xtrue -o x$conftest = xtrue)
 AM_CONDITIONAL(USE_LIBCAP, test x$capabilities = xlibcap)
@@ -1626,7 +1662,8 @@ AM_CONDITIONAL(USE_SIMAKA, test x$simaka = xtrue)
 AM_CONDITIONAL(USE_TLS, test x$tls = xtrue)
 AM_CONDITIONAL(USE_RADIUS, test x$radius = xtrue)
 AM_CONDITIONAL(USE_IMCV, test x$imcv = xtrue)
-AM_CONDITIONAL(USE_TROUSERS, test x$tss = xtrousers -o x$aikgen = xtrue)
+AM_CONDITIONAL(USE_TROUSERS, test x$tss_trousers = xtrue)
+AM_CONDITIONAL(USE_TSS2, test x$tss_tss2 = xtrue)
 AM_CONDITIONAL(MONOLITHIC, test x$monolithic = xtrue)
 AM_CONDITIONAL(USE_SILENT_RULES, test x$enable_silent_rules = xyes)
 AM_CONDITIONAL(COVERAGE, test x$coverage = xtrue)
@@ -1634,6 +1671,7 @@ AM_CONDITIONAL(USE_DBGHELP, test x$dbghelp_backtraces = xtrue)
 AM_CONDITIONAL(USE_TKM, test x$tkm = xtrue)
 AM_CONDITIONAL(USE_CMD, test x$cmd = xtrue)
 AM_CONDITIONAL(USE_AIKGEN, test x$aikgen = xtrue)
+AM_CONDITIONAL(USE_AIKPUB2, test x$aikpub2 = xtrue)
 AM_CONDITIONAL(USE_SWANCTL, test x$swanctl = xtrue)
 AM_CONDITIONAL(USE_SVC, test x$svc = xtrue)
 AM_CONDITIONAL(USE_SYSTEMD, test x$systemd = xtrue)
@@ -1673,6 +1711,7 @@ fi
 strongswan_options=
 
 AM_COND_IF([USE_AIKGEN], [strongswan_options=${strongswan_options}" aikgen"])
+AM_COND_IF([USE_AIKPUB2], [strongswan_options=${strongswan_options}" aikpub2"])
 AM_COND_IF([USE_ATTR_SQL], [strongswan_options=${strongswan_options}" pool"])
 AM_COND_IF([USE_CHARON], [strongswan_options=${strongswan_options}" charon charon-logging"])
 AM_COND_IF([USE_FILE_CONFIG], [strongswan_options=${strongswan_options}" starter"])
@@ -1702,6 +1741,8 @@ AC_CONFIG_FILES([
 	src/Makefile
 	src/include/Makefile
 	src/libstrongswan/Makefile
+	src/libstrongswan/math/libnttfft/Makefile
+	src/libstrongswan/math/libnttfft/tests/Makefile
 	src/libstrongswan/plugins/aes/Makefile
 	src/libstrongswan/plugins/cmac/Makefile
 	src/libstrongswan/plugins/des/Makefile
@@ -1712,8 +1753,10 @@ AC_CONFIG_FILES([
 	src/libstrongswan/plugins/sha1/Makefile
 	src/libstrongswan/plugins/sha2/Makefile
 	src/libstrongswan/plugins/sha3/Makefile
+	src/libstrongswan/plugins/mgf1/Makefile
 	src/libstrongswan/plugins/fips_prf/Makefile
 	src/libstrongswan/plugins/gmp/Makefile
+	src/libstrongswan/plugins/curve25519/Makefile
 	src/libstrongswan/plugins/rdrand/Makefile
 	src/libstrongswan/plugins/aesni/Makefile
 	src/libstrongswan/plugins/random/Makefile
@@ -1755,6 +1798,8 @@ AC_CONFIG_FILES([
 	src/libstrongswan/plugins/ntru/Makefile
 	src/libstrongswan/plugins/bliss/Makefile
 	src/libstrongswan/plugins/bliss/tests/Makefile
+	src/libstrongswan/plugins/newhope/Makefile
+	src/libstrongswan/plugins/newhope/tests/Makefile
 	src/libstrongswan/plugins/test_vectors/Makefile
 	src/libstrongswan/tests/Makefile
 	src/libipsec/Makefile
@@ -1852,7 +1897,6 @@ AC_CONFIG_FILES([
 	src/libcharon/plugins/p_cscf/Makefile
 	src/libcharon/plugins/android_dns/Makefile
 	src/libcharon/plugins/android_log/Makefile
-	src/libcharon/plugins/maemo/Makefile
 	src/libcharon/plugins/stroke/Makefile
 	src/libcharon/plugins/vici/Makefile
 	src/libcharon/plugins/vici/ruby/Makefile
@@ -1865,6 +1909,7 @@ AC_CONFIG_FILES([
 	src/libcharon/plugins/attr/Makefile
 	src/libcharon/plugins/attr_sql/Makefile
 	src/libcharon/tests/Makefile
+	src/libtpmtss/Makefile
 	src/stroke/Makefile
 	src/ipsec/Makefile
 	src/starter/Makefile
@@ -1873,6 +1918,7 @@ AC_CONFIG_FILES([
 	src/_copyright/Makefile
 	src/scepclient/Makefile
 	src/aikgen/Makefile
+	src/aikpub2/Makefile
 	src/pki/Makefile
 	src/pki/man/Makefile
 	src/pool/Makefile

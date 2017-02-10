@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2015 Tobias Brunner
  * Copyright (C) 2007 Martin Willi
- * Copyright (C) 2014-2015 Andreas Steffen
+ * Copyright (C) 2014-2016 Andreas Steffen
  * HSR Hochschule fuer Technik Rapperswil
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -37,16 +37,19 @@ typedef enum encryption_scheme_t encryption_scheme_t;
  */
 enum key_type_t {
 	/** key type wildcard */
-	KEY_ANY   = 0,
+	KEY_ANY     = 0,
 	/** RSA crypto system as in PKCS#1 */
-	KEY_RSA   = 1,
+	KEY_RSA     = 1,
 	/** ECDSA as in ANSI X9.62 */
-	KEY_ECDSA = 2,
+	KEY_ECDSA   = 2,
 	/** DSA */
-	KEY_DSA   = 3,
+	KEY_DSA     = 3,
+	/** Ed25519 PureEdDSA instance as in draft-irtf-cfrg-eddsa */
+	KEY_ED25519 = 4,
+	/** Ed448   PureEdDSA instance as in draft-irtf-cfrg-eddsa */
+	KEY_ED448   = 5,
 	/** BLISS */
-	KEY_BLISS = 4,
-	/** ElGamal, ... */
+	KEY_BLISS = 6,
 };
 
 /**
@@ -70,14 +73,22 @@ enum signature_scheme_t {
 	SIGN_RSA_EMSA_PKCS1_MD5,
 	/** EMSA-PKCS1_v1.5 signature as in PKCS#1 using RSA and SHA-1     */
 	SIGN_RSA_EMSA_PKCS1_SHA1,
-	/** EMSA-PKCS1_v1.5 signature as in PKCS#1 using RSA and SHA-224   */
-	SIGN_RSA_EMSA_PKCS1_SHA224,
-	/** EMSA-PKCS1_v1.5 signature as in PKCS#1 using RSA and SHA-256   */
-	SIGN_RSA_EMSA_PKCS1_SHA256,
-	/** EMSA-PKCS1_v1.5 signature as in PKCS#1 using RSA and SHA-384   */
-	SIGN_RSA_EMSA_PKCS1_SHA384,
-	/** EMSA-PKCS1_v1.5 signature as in PKCS#1 using RSA and SHA-512   */
-	SIGN_RSA_EMSA_PKCS1_SHA512,
+	/** EMSA-PKCS1_v1.5 signature as in PKCS#1 using RSA and SHA-2_224 */
+	SIGN_RSA_EMSA_PKCS1_SHA2_224,
+	/** EMSA-PKCS1_v1.5 signature as in PKCS#1 using RSA and SHA-2_256 */
+	SIGN_RSA_EMSA_PKCS1_SHA2_256,
+	/** EMSA-PKCS1_v1.5 signature as in PKCS#1 using RSA and SHA-2_384 */
+	SIGN_RSA_EMSA_PKCS1_SHA2_384,
+	/** EMSA-PKCS1_v1.5 signature as in PKCS#1 using RSA and SHA-2_512 */
+	SIGN_RSA_EMSA_PKCS1_SHA2_512,
+	/** EMSA-PKCS1_v1.5 signature as in PKCS#1 using RSA and SHA-3_224 */
+	SIGN_RSA_EMSA_PKCS1_SHA3_224,
+	/** EMSA-PKCS1_v1.5 signature as in PKCS#1 using RSA and SHA-3_256 */
+	SIGN_RSA_EMSA_PKCS1_SHA3_256,
+	/** EMSA-PKCS1_v1.5 signature as in PKCS#1 using RSA and SHA-3_384 */
+	SIGN_RSA_EMSA_PKCS1_SHA3_384,
+	/** EMSA-PKCS1_v1.5 signature as in PKCS#1 using RSA and SHA-3_512 */
+	SIGN_RSA_EMSA_PKCS1_SHA3_512,
 	/** ECDSA with SHA-1 using DER encoding as in RFC 3279             */
 	SIGN_ECDSA_WITH_SHA1_DER,
 	/** ECDSA with SHA-256 using DER encoding as in RFC 3279           */
@@ -94,6 +105,10 @@ enum signature_scheme_t {
 	SIGN_ECDSA_384,
 	/** ECDSA on the P-521 curve with SHA-512 as in RFC 4754           */
 	SIGN_ECDSA_521,
+	/** PureEdDSA on Curve25519 as in draft-ietf-curdle-pkix           */
+	SIGN_ED25519,
+	/** PureEdDSA on Curve448 as in draft-ietf-curdle-pkix             */
+	SIGN_ED448,
 	/** BLISS with SHA-2_256                                           */
 	SIGN_BLISS_WITH_SHA2_256,
 	/** BLISS with SHA-2_384                                           */

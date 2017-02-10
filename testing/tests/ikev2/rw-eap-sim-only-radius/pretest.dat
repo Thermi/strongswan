@@ -1,3 +1,6 @@
+moon::rm /etc/ipsec.d/cacerts/*
+carol::rm /etc/ipsec.d/cacerts/*
+dave::rm /etc/ipsec.d/cacerts/*
 moon::iptables-restore < /etc/iptables.rules
 carol::iptables-restore < /etc/iptables.rules
 dave::iptables-restore < /etc/iptables.rules
@@ -11,6 +14,7 @@ alice::radiusd
 moon::ipsec start
 carol::ipsec start
 dave::ipsec start
+moon::expect-connection rw-eap
 carol::expect-connection home
 carol::ipsec up home
 dave::expect-connection home

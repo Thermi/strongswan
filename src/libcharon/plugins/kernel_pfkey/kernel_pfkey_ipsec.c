@@ -1717,6 +1717,7 @@ METHOD(kernel_ipsec_t, add_sa, status_t,
 	sa->sadb_sa_exttype = SADB_EXT_SA;
 	sa->sadb_sa_len = PFKEY_LEN(len);
 	sa->sadb_sa_spi = id->spi;
+	sa->sadb_sa_state = SADB_SASTATE_MATURE;
 	if (id->proto == IPPROTO_COMP)
 	{
 		sa->sadb_sa_encrypt = lookup_algorithm(COMPRESSION_ALGORITHM,
@@ -1725,12 +1726,17 @@ METHOD(kernel_ipsec_t, add_sa, status_t,
 	else
 	{
 		/* Linux interprets sadb_sa_replay as number of packets/bits in the
-		 * replay window, whereas on BSD it's the size of the window in bytes */
+		 * replay window, whereas on BSD it's the size of the window in bytes.
+		 * Only set for the inbound SA as it's not relevant for the outbound
+		 * SA and might waste memory with large windows. */
+		if (data->inbound)
+		{
 #ifdef __linux__
-		sa->sadb_sa_replay = min(data->replay_window, 32);
+			sa->sadb_sa_replay = min(data->replay_window, 32);
 #else
-		sa->sadb_sa_replay = (data->replay_window + 7) / 8;
+			sa->sadb_sa_replay = (data->replay_window + 7) / 8;
 #endif
+		}
 		sa->sadb_sa_auth = lookup_algorithm(INTEGRITY_ALGORITHM, data->int_alg);
 		sa->sadb_sa_encrypt = lookup_algorithm(ENCRYPTION_ALGORITHM,
 											   data->enc_alg);
@@ -1884,6 +1890,7 @@ METHOD(kernel_ipsec_t, update_sa, status_t,
 	sa->sadb_sa_exttype = SADB_EXT_SA;
 	sa->sadb_sa_len = PFKEY_LEN(sizeof(struct sadb_sa));
 	sa->sadb_sa_spi = id->spi;
+	sa->sadb_sa_state = SADB_SASTATE_MATURE;
 	PFKEY_EXT_ADD(msg, sa);
 
 	/* the kernel wants a SADB_EXT_ADDRESS_SRC to be present even though

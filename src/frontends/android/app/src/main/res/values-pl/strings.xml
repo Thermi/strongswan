@@ -48,21 +48,37 @@
 
     <!-- VPN profile details -->
     <string name="profile_edit_save">Zapisz</string>
+    <string name="profile_edit_import">Import</string>
     <string name="profile_edit_cancel">Anuluj</string>
-    <string name="profile_name_label">Nazwa profilu:</string>
-    <string name="profile_name_hint">(użyj adresu bramki)</string>
-    <string name="profile_gateway_label">Bramka:</string>
-    <string name="profile_vpn_type_label">Typ:</string>
-    <string name="profile_username_label">Użytkownik:</string>
-    <string name="profile_password_label">Hasło:</string>
-    <string name="profile_password_hint">(w razie potrzeby zapromptuj)</string>
-    <string name="profile_user_certificate_label">Certyfikat użytkownika:</string>
+    <string name="profile_name_label">Nazwa profilu (opcjonalny)</string>
+    <string name="profile_name_label_simple">Nazwa profilu</string>
+    <string name="profile_name_hint">Defaults to the configured server</string>
+    <string name="profile_name_hint_gateway">Defaults to \"%1$s\"</string>
+    <string name="profile_gateway_label">Serwer</string>
+    <string name="profile_gateway_hint">IP address or hostname of the VPN server</string>
+    <string name="profile_vpn_type_label">Typ VPN</string>
+    <string name="profile_username_label">Użytkownik</string>
+    <string name="profile_password_label">Hasło (opcjonalny)</string>
+    <string name="profile_password_hint">Leave blank to get prompted on demand</string>
+    <string name="profile_user_certificate_label">Certyfikat użytkownika</string>
     <string name="profile_user_select_certificate_label">Wybierz certyfikat użytkownika</string>
     <string name="profile_user_select_certificate">>Wybierz określony certyfikat użytkownika</string>
     <string name="profile_ca_label">Certyfikat CA:</string>
     <string name="profile_ca_auto_label">Wybierz automatycznie</string>
     <string name="profile_ca_select_certificate_label">Wybierz certyfikat CA</string>
     <string name="profile_ca_select_certificate">Wybierz określony certyfikat CA</string>
+    <string name="profile_advanced_label">Advanced settings</string>
+    <string name="profile_show_advanced_label">Show advanced settings</string>
+    <string name="profile_remote_id_label">Server identity</string>
+    <string name="profile_remote_id_hint">Defaults to the configured server. Custom values are explicitly sent to the server and enforced during authentication</string>
+    <string name="profile_remote_id_hint_gateway">Defaults to \"%1$s\". Custom values are explicitly sent to the server and enforced during authentication</string>
+    <string name="profile_mtu_label">MTU of the VPN tunnel device</string>
+    <string name="profile_mtu_hint">In case the default value is unsuitable for a particular network</string>
+    <string name="profile_port_label">Server port</string>
+    <string name="profile_port_hint">UDP port to connect to, if different from the default</string>
+    <string name="profile_split_tunneling_label">Split tunneling</string>
+    <string name="profile_split_tunnelingv4_title">Block IPv4 traffic not destined for the VPN</string>
+    <string name="profile_split_tunnelingv6_title">Block IPv6 traffic not destined for the VPN</string>
     <!-- Warnings/Notifications in the details view -->
     <string name="alert_text_no_input_gateway">Wprowadź adres bramki</string>
     <string name="alert_text_no_input_username">Wprowadź swoją nazwę użytkownika</string>
@@ -107,6 +123,8 @@
 
     <!-- Dialogs -->
     <string name="login_title">Wprowadż hasło</string>
+    <string name="login_username">Użytkownik</string>
+    <string name="login_password">Hasło</string>
     <string name="login_confirm">Połącz</string>
     <string name="error_introduction">Nie udało się utworzyć tunelu VPN:</string>
     <string name="error_lookup_failed">Nie znaleziono adresu bramki</string>

@@ -6,7 +6,7 @@ include $(CLEAR_VARS)
 strongswan_USE_BYOD := true
 
 strongswan_CHARON_PLUGINS := android-log openssl fips-prf random nonce pubkey \
-	pkcs1 pkcs8 pem xcbc hmac socket-default \
+	chapoly curve25519 pkcs1 pkcs8 pem xcbc hmac socket-default \
 	eap-identity eap-mschapv2 eap-md5 eap-gtc eap-tls
 
 ifneq ($(strongswan_USE_BYOD),)
@@ -77,7 +77,8 @@ ifneq ($(strongswan_USE_BYOD),)
 strongswan_BUILD += \
 	$(strongswan_DIR)/src/libtnccs \
 	$(strongswan_DIR)/src/libtncif \
-	$(strongswan_DIR)/src/libimcv
+	$(strongswan_DIR)/src/libimcv \
+	$(strongswan_DIR)/src/libtpmtss
 endif
 
 include $(addprefix $(LOCAL_PATH)/,$(addsuffix /Android.mk, \

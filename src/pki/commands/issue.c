@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2009 Martin Willi
- * Copyright (C) 2015 Andreas Steffen
+ * Copyright (C) 2015-2016 Andreas Steffen
  * HSR Hochschule fuer Technik Rapperswil
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -112,10 +112,20 @@ static int issue()
 					type = CRED_PRIVATE_KEY;
 					subtype = KEY_ECDSA;
 				}
+				else if (streq(arg, "ed25519"))
+				{
+					type = CRED_PRIVATE_KEY;
+					subtype = KEY_ED25519;
+				}
 				else if (streq(arg, "bliss"))
 				{
 					type = CRED_PRIVATE_KEY;
 					subtype = KEY_BLISS;
+				}
+				else if (streq(arg, "priv"))
+				{
+					type = CRED_PRIVATE_KEY;
+					subtype = KEY_ANY;
 				}
 				else if (!streq(arg, "pub"))
 				{
@@ -580,7 +590,7 @@ static void __attribute__ ((constructor))reg()
 	command_register((command_t) {
 		issue, 'i', "issue",
 		"issue a certificate using a CA certificate and key",
-		{"[--in file] [--type pub|pkcs10|rsa|ecdsa|bliss] --cakey file|--cakeyid hex",
+		{"[--in file] [--type pub|pkcs10|priv|rsa|ecdsa|ed25519|bliss] --cakey file|--cakeyid hex",
 		 " --cacert file [--dn subject-dn] [--san subjectAltName]+",
 		 "[--lifetime days] [--serial hex] [--ca] [--pathlen len]",
 		 "[--flag serverAuth|clientAuth|crlSign|ocspSigning|msSmartcardLogon]+",

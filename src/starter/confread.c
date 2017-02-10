@@ -40,7 +40,7 @@
 #define SA_REPLACEMENT_RETRIES_DEFAULT   3
 #define SA_REPLAY_WINDOW_DEFAULT        -1 /* use charon.replay_window */
 
-static const char ike_defaults[] = "aes128-sha256-modp3072";
+static const char ike_defaults[] = "aes128-sha256-curve25519";
 static const char esp_defaults[] = "aes128-sha256";
 
 static const char firewall_defaults[] = IPSEC_SCRIPT " _updown iptables";
@@ -222,6 +222,7 @@ static void conn_defaults(starter_conn_t *conn)
 	conn->dpd_delay             =  30; /* seconds */
 	conn->dpd_timeout           = 150; /* seconds */
 	conn->replay_window         = SA_REPLAY_WINDOW_DEFAULT;
+	conn->fragmentation         = FRAGMENTATION_YES;
 
 	conn->left.sendcert = CERT_SEND_IF_ASKED;
 	conn->right.sendcert = CERT_SEND_IF_ASKED;

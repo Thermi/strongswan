@@ -22,16 +22,16 @@ static u_int key_size[] = { 1, 3, 4};
 START_TEST(test_bliss_sampler_gaussian)
 {
 	bliss_sampler_t *sampler;
-	bliss_param_set_t *set;
+	const bliss_param_set_t *set;
 	int i, k, count;
 	uint32_t hist[8], sign[3];
 	int32_t z;
-	hash_algorithm_t alg;
+	ext_out_function_t alg;
 	size_t seed_len;
 	chunk_t seed;
 
 	set = bliss_param_set_get_by_id(key_size[_i]);
-	alg = HASH_SHA256;
+	alg = XOF_MGF1_SHA256;
 	seed_len = 32;
 	count = 10000000;
 
@@ -70,7 +70,7 @@ START_TEST(test_bliss_sampler_gaussian)
 	sampler->destroy(sampler);
 	free(seed.ptr);
 
-	DBG1(DBG_LIB, "histogram");	
+	DBG1(DBG_LIB, "histogram");
 	for (k = 0; k < 8; k++)
 	{
 		DBG1(DBG_LIB, "%d %7d", k, hist[k]);
@@ -89,7 +89,7 @@ Suite *bliss_sampler_suite_create()
 	s = suite_create("bliss_sampler");
 
 	tc = tcase_create("sampler_gaussian");
-	tcase_set_timeout(tc, 10);
+	tcase_set_timeout(tc, 30);
 	tcase_add_loop_test(tc, test_bliss_sampler_gaussian, 0, countof(key_size));
 	suite_add_tcase(s, tc);
 
