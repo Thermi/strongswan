@@ -8,8 +8,8 @@ android {
         applicationId "org.strongswan.android"
         minSdkVersion 15
         targetSdkVersion 22
-        versionCode 32
-        versionName "1.6.2"
+        versionCode 42
+        versionName "1.8.2"
     }
 
     lintOptions {
@@ -61,8 +61,6 @@ android {
         }
     }
 }
-
-
 
 dependencies {
     compile 'com.android.support:appcompat-v7:23.3.0'
