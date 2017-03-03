@@ -552,6 +552,12 @@ METHOD(task_manager_t, initiate, status_t,
 					new_mid = TRUE;
 					break;
 				}
+				if (activate_task(this, TASK_ISAKMP_DPD))
+				{
+					exchange = INFORMATIONAL_V1;
+					new_mid = TRUE;
+					break;
+				}
 				break;
 			default:
 				break;
@@ -1896,6 +1902,12 @@ METHOD(task_manager_t, incr_mid, void,
 {
 }
 
+METHOD(task_manager_t, get_mid, uint32_t,
+	private_task_manager_t *this, bool initiate)
+{
+	return initiate ? this->initiating.mid : this->responding.mid;
+}
+
 METHOD(task_manager_t, reset, void,
 	private_task_manager_t *this, uint32_t initiate, uint32_t respond)
 {
@@ -1999,6 +2011,7 @@ task_manager_v1_t *task_manager_v1_create(ike_sa_t *ike_sa)
 				.initiate = _initiate,
 				.retransmit = _retransmit,
 				.incr_mid = _incr_mid,
+				.get_mid = _get_mid,
 				.reset = _reset,
 				.adopt_tasks = _adopt_tasks,
 				.adopt_child_tasks = _adopt_child_tasks,

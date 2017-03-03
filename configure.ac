@@ -19,7 +19,7 @@
 #  initialize & set some vars
 # ============================
 
-AC_INIT([strongSwan],[5.5.2dr4])
+AC_INIT([strongSwan],[5.5.2dr5])
 AM_INIT_AUTOMAKE(m4_esyscmd([
 	echo tar-ustar
 	echo subdir-objects
@@ -201,6 +201,7 @@ ARG_ENABL_SET([ext-auth],       [enable plugin calling an external authorization
 ARG_ENABL_SET([ipseckey],       [enable IPSECKEY authentication plugin.])
 ARG_ENABL_SET([keychain],       [enables OS X Keychain Services credential set.])
 ARG_ENABL_SET([pkcs11],         [enables the PKCS11 token support plugin.])
+ARG_ENABL_SET([tpm],            [enables the TPM plugin.])
 ARG_DISBL_SET([revocation],     [disable X509 CRL/OCSP revocation check plugin.])
 ARG_ENABL_SET([whitelist],      [enable peer identity whitelisting plugin.])
 ARG_DISBL_SET([xauth-generic],  [disable generic XAuth backend.])
@@ -254,6 +255,7 @@ ARG_ENABL_SET([tnccs-20],       [enable TNCCS 2.0 protocol module.])
 ARG_ENABL_SET([tnccs-dynamic],  [enable dynamic TNCCS protocol discovery module.])
 # misc plugins
 ARG_ENABL_SET([android-log],    [enable Android specific logger plugin.])
+ARG_ENABL_SET([bypass-lan],     [enable plugin to install bypass policies for local subnets.])
 ARG_ENABL_SET([certexpire],     [enable CSV export of expiration dates of used certificates.])
 ARG_ENABL_SET([connmark],       [enable connmark plugin using conntrack based marks to select return path SA.])
 ARG_ENABL_SET([forecast],       [enable forecast plugin forwarding broadcast/multicast messages.])
@@ -1319,15 +1321,17 @@ cmd_plugins=
 aikgen_plugins=
 
 # location specific lists for checksumming,
-# for src/libcharon, src/libstrongswan and src/libtnccs
+# for src/libcharon, src/libstrongswan, src/libtnccs and src/libtpmtss
 c_plugins=
 s_plugins=
 t_plugins=
+p_plugins=
 
 ADD_PLUGIN([test-vectors],         [s charon scepclient pki])
 ADD_PLUGIN([unbound],              [s charon scripts])
 ADD_PLUGIN([ldap],                 [s charon scepclient scripts nm cmd])
 ADD_PLUGIN([pkcs11],               [s charon pki nm cmd])
+ADD_PLUGIN([tpm],                  [p charon pki nm cmd])
 ADD_PLUGIN([aesni],                [s charon scepclient pki scripts medsrv attest nm cmd aikgen])
 ADD_PLUGIN([aes],                  [s charon scepclient pki scripts nm cmd])
 ADD_PLUGIN([des],                  [s charon scepclient pki scripts nm cmd])
@@ -1395,6 +1399,7 @@ ADD_PLUGIN([resolve],              [c charon cmd])
 ADD_PLUGIN([socket-default],       [c charon nm cmd])
 ADD_PLUGIN([socket-dynamic],       [c charon cmd])
 ADD_PLUGIN([socket-win],           [c charon])
+ADD_PLUGIN([bypass-lan],           [c charon nm cmd])
 ADD_PLUGIN([connmark],             [c charon])
 ADD_PLUGIN([forecast],             [c charon])
 ADD_PLUGIN([farp],                 [c charon])
@@ -1469,7 +1474,7 @@ AC_SUBST(cmd_plugins)
 AC_SUBST(aikgen_plugins)
 
 AC_SUBST(c_plugins)
-AC_SUBST(h_plugins)
+AC_SUBST(p_plugins)
 AC_SUBST(s_plugins)
 AC_SUBST(t_plugins)
 
@@ -1527,6 +1532,7 @@ AM_CONDITIONAL(USE_GCRYPT, test x$gcrypt = xtrue)
 AM_CONDITIONAL(USE_AGENT, test x$agent = xtrue)
 AM_CONDITIONAL(USE_KEYCHAIN, test x$keychain = xtrue)
 AM_CONDITIONAL(USE_PKCS11, test x$pkcs11 = xtrue)
+AM_CONDITIONAL(USE_TPM, test x$tpm = xtrue)
 AM_CONDITIONAL(USE_CHAPOLY, test x$chapoly = xtrue)
 AM_CONDITIONAL(USE_CTR, test x$ctr = xtrue)
 AM_CONDITIONAL(USE_CCM, test x$ccm = xtrue)
@@ -1616,6 +1622,7 @@ AM_CONDITIONAL(USE_IMV_HCD, test x$imv_hcd = xtrue)
 AM_CONDITIONAL(USE_SOCKET_DEFAULT, test x$socket_default = xtrue)
 AM_CONDITIONAL(USE_SOCKET_DYNAMIC, test x$socket_dynamic = xtrue)
 AM_CONDITIONAL(USE_SOCKET_WIN, test x$socket_win = xtrue)
+AM_CONDITIONAL(USE_BYPASS_LAN, test x$bypass_lan = xtrue)
 AM_CONDITIONAL(USE_CONNMARK, test x$connmark = xtrue)
 AM_CONDITIONAL(USE_FORECAST, test x$forecast = xtrue)
 AM_CONDITIONAL(USE_FARP, test x$farp = xtrue)
@@ -1652,7 +1659,7 @@ AM_CONDITIONAL(USE_LIBNTTFFT, test x$bliss = xtrue -o x$newhope = xtrue)
 AM_CONDITIONAL(USE_LIBTNCIF, test x$tnc_tnccs = xtrue -o x$imcv = xtrue)
 AM_CONDITIONAL(USE_LIBTNCCS, test x$tnc_tnccs = xtrue)
 AM_CONDITIONAL(USE_LIBPTTLS, test x$tnc_tnccs = xtrue)
-AM_CONDITIONAL(USE_LIBTPMTSS, test x$tss_trousers = xtrue -o x$tss_tss2 = xtrue -o x$aikgen = xtrue -o x$aikpub2 = xtrue -o x$imcv = xtrue)
+AM_CONDITIONAL(USE_LIBTPMTSS, test x$tss_trousers = xtrue -o x$tss_tss2 = xtrue -o x$tpm -o x$aikgen = xtrue -o x$aikpub2 = xtrue -o x$imcv = xtrue)
 AM_CONDITIONAL(USE_FILE_CONFIG, test x$stroke = xtrue)
 AM_CONDITIONAL(USE_IPSEC_SCRIPT, test x$stroke = xtrue -o x$scepclient = xtrue -o x$conftest = xtrue)
 AM_CONDITIONAL(USE_LIBCAP, test x$capabilities = xlibcap)
@@ -1864,6 +1871,7 @@ AC_CONFIG_FILES([
 	src/libcharon/plugins/socket_default/Makefile
 	src/libcharon/plugins/socket_dynamic/Makefile
 	src/libcharon/plugins/socket_win/Makefile
+	src/libcharon/plugins/bypass_lan/Makefile
 	src/libcharon/plugins/connmark/Makefile
 	src/libcharon/plugins/forecast/Makefile
 	src/libcharon/plugins/farp/Makefile
@@ -1910,6 +1918,7 @@ AC_CONFIG_FILES([
 	src/libcharon/plugins/attr_sql/Makefile
 	src/libcharon/tests/Makefile
 	src/libtpmtss/Makefile
+	src/libtpmtss/plugins/tpm/Makefile
 	src/stroke/Makefile
 	src/ipsec/Makefile
 	src/starter/Makefile
@@ -1977,4 +1986,5 @@ AC_MSG_RESULT([-----------------------------------------------------])
 AC_MSG_RESULT([libstrongswan:$s_plugins])
 AC_MSG_RESULT([libcharon:    $c_plugins])
 AC_MSG_RESULT([libtnccs:     $t_plugins])
+AC_MSG_RESULT([libtpmtss:    $p_plugins])
 AC_MSG_RESULT([])
