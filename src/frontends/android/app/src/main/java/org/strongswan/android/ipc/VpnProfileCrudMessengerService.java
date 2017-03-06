@@ -15,6 +15,9 @@ import org.strongswan.android.ipc.verification.StrongswanCallerVerificator;
 
 import java.util.List;
 
+import static org.strongswan.android.utils.Constants.VPN_PROFILES_CHANGED_FROM_REMOTE_SERVICE;
+import static org.strongswan.android.utils.Constants.VPN_PROFILES_CHANGED_FROM_REMOTE_SERVICE_PERMISSION;
+
 /**
  * @author Piotr Soróbka <piotr.sorobka@fancyfon.com>
  */
@@ -63,6 +66,7 @@ public class VpnProfileCrudMessengerService extends Service {
         private void deleteAll(Message msg) {
             boolean result = vpnProfileCrud.deleteVpnProfiles();
             reply(msg, result);
+            refreshMainViewIfProfileDatabaseChanged(result);
         }
 
         private void readAll(Message msg) {
@@ -83,11 +87,13 @@ public class VpnProfileCrudMessengerService extends Service {
             String name = msg.getData().getString(getString(R.string.vpn_profile_bundle_name_key));
             boolean result = vpnProfileCrud.deleteVpnProfile(name);
             reply(msg, result);
+            refreshMainViewIfProfileDatabaseChanged(result);
         }
 
         private void update(Message msg) {
             boolean result = vpnProfileCrud.updateVpnProfile(msg.getData());
             reply(msg, result);
+            refreshMainViewIfProfileDatabaseChanged(result);
         }
 
         private void read(Message msg) {
@@ -104,6 +110,7 @@ public class VpnProfileCrudMessengerService extends Service {
         private void create(Message msg) {
             boolean result = vpnProfileCrud.createVpnProfile(msg.getData());
             reply(msg, result);
+            refreshMainViewIfProfileDatabaseChanged(result);
         }
 
         private void deleteCertificate(Message msg) {
@@ -162,5 +169,10 @@ public class VpnProfileCrudMessengerService extends Service {
         return getResources().getInteger(id);
     }
 
+    private void refreshMainViewIfProfileDatabaseChanged(boolean changed){
+        if(changed) {
+            sendBroadcast(new Intent(VPN_PROFILES_CHANGED_FROM_REMOTE_SERVICE),VPN_PROFILES_CHANGED_FROM_REMOTE_SERVICE_PERMISSION);
+        }
+    }
 
 }

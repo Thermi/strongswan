@@ -37,4 +37,10 @@ public final class Constants
 	 */
 	public static final int MTU_MAX = 1500;
 	public static final int MTU_MIN = 1280;
+
+	/**
+	 * Fancyfon constans
+	 */
+	public static final String VPN_PROFILES_CHANGED_FROM_REMOTE_SERVICE = "org.strongswan.android.VPN_PROFILES_REMOTE_CHANGE";
+	public static final String VPN_PROFILES_CHANGED_FROM_REMOTE_SERVICE_PERMISSION = "org.strongswan.android.permission.VPN_PROFILE_CHANGED_FROM_REMOTE";
 }
