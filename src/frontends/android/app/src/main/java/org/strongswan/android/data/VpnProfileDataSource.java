@@ -26,6 +26,8 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteQueryBuilder;
 import android.util.Log;
 
+import org.apache.commons.lang3.StringUtils;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -356,7 +358,7 @@ public class VpnProfileDataSource
 		profile.setVpnType(VpnType.fromIdentifier(cursor.getString(cursor.getColumnIndex(KEY_VPN_TYPE))));
 		profile.setUsername(cursor.getString(cursor.getColumnIndex(KEY_USERNAME)));
 		String password = cursor.getString(cursor.getColumnIndex(KEY_PASSWORD));
-		if(password != null && !password.equals(EMPTY_STRING)) {
+		if(StringUtils.isNotEmpty(password)) {
 			profile.setPassword(password);
 		}
 		profile.setCertificateAlias(cursor.getString(cursor.getColumnIndex(KEY_CERTIFICATE)));
