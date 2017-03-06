@@ -231,8 +231,9 @@ public class VpnProfileListFragment extends Fragment
 	private void refreshView() {
 		mDataSource.open();
 		mVpnProfiles = mDataSource.getAllVpnProfiles();
-		mListAdapter = new VpnProfileAdapter(getActivity(), R.layout.profile_list_item, mVpnProfiles);
-		mListView.setAdapter(mListAdapter);
+		mListAdapter.clear();
+		mListAdapter.addAll(mVpnProfiles);
+		mListAdapter.notifyDataSetChanged();
 	}
 
 	private final MultiChoiceModeListener mVpnProfileSelected = new MultiChoiceModeListener() {
