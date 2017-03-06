@@ -355,7 +355,10 @@ public class VpnProfileDataSource
 		profile.setGateway(cursor.getString(cursor.getColumnIndex(KEY_GATEWAY)));
 		profile.setVpnType(VpnType.fromIdentifier(cursor.getString(cursor.getColumnIndex(KEY_VPN_TYPE))));
 		profile.setUsername(cursor.getString(cursor.getColumnIndex(KEY_USERNAME)));
-		profile.setPassword(cursor.getString(cursor.getColumnIndex(KEY_PASSWORD)));
+		String password = cursor.getString(cursor.getColumnIndex(KEY_PASSWORD));
+		if(password != null && !password.equals(EMPTY_STRING)) {
+			profile.setPassword(null);
+		}
 		profile.setCertificateAlias(cursor.getString(cursor.getColumnIndex(KEY_CERTIFICATE)));
 		profile.setUserCertificateAlias(cursor.getString(cursor.getColumnIndex(KEY_USER_CERTIFICATE)));
 		profile.setMTU(getInt(cursor, cursor.getColumnIndex(KEY_MTU)));
