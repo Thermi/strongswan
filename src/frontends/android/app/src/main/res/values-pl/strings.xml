@@ -142,4 +142,9 @@
     <string name="replaces_active_connection">To zastąpi aktywne połączenie VPN!</string>
     <string name="connect">Połącz</string>
 
+    <!-- simple logging -->
+    <string name="simple_log_no_network_access">Brak dostępu do sieci</string>
+    <string name="simple_log_connected">Połączono z serwerem</string>
+    <string name="simple_log_disconnected">Rozłączono z serwerem</string>
+    <string name="simple_log_auth_failed">Błąd autoryzacji użytkownika</string>
 </resources>

@@ -217,7 +217,7 @@ public class LocalCertificateStore
 		MessageDigest md;
 		try
 		{
-			md = java.security.MessageDigest.getInstance("SHA1");
+			md = MessageDigest.getInstance("SHA1");
 			byte[] hash = md.digest(cert.getPublicKey().getEncoded());
 			return Utils.bytesToHex(hash);
 		}

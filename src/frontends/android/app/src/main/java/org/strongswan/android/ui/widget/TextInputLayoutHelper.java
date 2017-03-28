@@ -35,10 +35,10 @@ import org.strongswan.android.R;
 
 
 /**
- * Layout that extends {@link android.support.design.widget.TextInputLayout} with a helper text
+ * Layout that extends {@link TextInputLayout} with a helper text
  * displayed below the text field when it receives the focus. Also, any error message shown with
  * {@link #setError(CharSequence)} is hidden when the text field is changed (this mirrors the
- * behavior of {@link android.widget.EditText}).
+ * behavior of {@link EditText}).
  */
 public class TextInputLayoutHelper extends TextInputLayout
 {

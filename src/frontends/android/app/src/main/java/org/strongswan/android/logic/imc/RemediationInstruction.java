@@ -50,7 +50,7 @@ public class RemediationInstruction implements Parcelable
 		dest.writeStringList(mItems);
 	}
 
-	public static final Parcelable.Creator<RemediationInstruction> CREATOR = new Creator<RemediationInstruction>() {
+	public static final Creator<RemediationInstruction> CREATOR = new Creator<RemediationInstruction>() {
 
 		@Override
 		public RemediationInstruction[] newArray(int size)
