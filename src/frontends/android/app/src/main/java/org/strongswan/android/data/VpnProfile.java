@@ -45,7 +45,7 @@ public class VpnProfile implements Cloneable
 	private ArrayList<String> allowedApplications = new ArrayList<String>();
 	private VpnType mVpnType;
 	private long mId = -1;
-	private Integer mLoggingLevel;
+	private int mLoggingLevel;
 
 
     public VpnProfile() {
@@ -204,11 +204,11 @@ public class VpnProfile implements Cloneable
     }
 
 
-	public Integer getLoggingLevel() {
+	public int getLoggingLevel() {
 		return mLoggingLevel;
 	}
 
-	public void setLoggingLevel(Integer mLoggingLevel) {
+	public void setLoggingLevel(int mLoggingLevel) {
 		this.mLoggingLevel = mLoggingLevel;
 	}
 
@@ -269,6 +269,6 @@ public class VpnProfile implements Cloneable
         mUsername = bundle.getString(resources.getString(R.string.vpn_profile_bundle_username_key));
 		mCertificateId = bundle.getString(resources.getString(R.string.vpn_profile_bundle_certificate_id_key));
  		allowedApplications = bundle.getStringArrayList(resources.getString(R.string.vpn_profile_bundle_allowed_applications));
-		mLoggingLevel = Integer.valueOf(bundle.getInt(resources.getString(R.string.vpn_profile_bundle_logging_level), DEFAULT_LOGGING_LEVEL));
+		mLoggingLevel = bundle.getInt(resources.getString(R.string.vpn_profile_bundle_logging_level), DEFAULT_LOGGING_LEVEL);
     }
 }
