@@ -447,10 +447,10 @@ static bool charonservice_register(plugin_t *plugin, plugin_feature_t *feature,
 /**
  * Set strongswan.conf options
  */
-static void set_options(char *logfile)
+static void set_options(char *logfile,int loglevel )
 {
 	lib->settings->set_int(lib->settings,
-					"charon.plugins.android_log.loglevel", ANDROID_DEBUG_LEVEL);
+					"charon.plugins.android_log.loglevel", loglevel);
 	/* setup file logger */
 	lib->settings->set_str(lib->settings,
 					"charon.filelog.%s.time_format", "%b %e %T", logfile);
@@ -588,7 +588,7 @@ static void segv_handler(int signal)
  * Initialize charon and the libraries via JNI
  */
 JNI_METHOD(CharonVpnService, initializeCharon, jboolean,
-	jobject builder, jstring jlogfile, jboolean byod)
+	jobject builder, jstring jlogfile, jboolean byod, jint loglevel)
 {
 	struct sigaction action;
 	struct utsname utsname;
@@ -606,7 +606,7 @@ JNI_METHOD(CharonVpnService, initializeCharon, jboolean,
 
 	/* set options before initializing other libraries that might read them */
 	logfile = androidjni_convert_jstring(env, jlogfile);
-	set_options(logfile);
+	set_options(logfile,loglevel);
 	free(logfile);
 
 	if (!libipsec_init())

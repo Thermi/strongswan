@@ -237,7 +237,7 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 						addNotification();
 					//	BuilderAdapter builder = new BuilderAdapter(mCurrentProfile.getName(), mCurrentProfile.getSplitTunneling());
 						BuilderAdapter builder = new BuilderAdapter(mCurrentProfile);
-						if (initializeCharon(builder, mLogFile, mCurrentProfile.getVpnType().has(VpnTypeFeature.BYOD)))
+						if (initializeCharon(builder, mLogFile, mCurrentProfile.getVpnType().has(VpnTypeFeature.BYOD),1))
 						{
 							Log.i(TAG, "charon started");
 							SettingsWriter writer = new SettingsWriter();
@@ -640,7 +640,7 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 	 * @param boyd enable BYOD features
 	 * @return TRUE if initialization was successful
 	 */
-	public native boolean initializeCharon(BuilderAdapter builder, String logfile, boolean byod);
+	public native boolean initializeCharon(BuilderAdapter builder, String logfile, boolean byod, int loglevel);
 
 	/**
 	 * Deinitialize charon, provided by libandroidbridge.so
