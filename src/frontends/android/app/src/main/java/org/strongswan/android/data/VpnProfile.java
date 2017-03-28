@@ -28,6 +28,7 @@ public class VpnProfile implements Cloneable
 	/* While storing this as EnumSet would be nicer this simplifies storing it in a database */
 	public static final int SPLIT_TUNNELING_BLOCK_IPV4 = 1;
 	public static final int SPLIT_TUNNELING_BLOCK_IPV6 = 2;
+	public static final int DEFAULT_LOGGING_LEVEL = 1;
 
 	private String mName;
 	private String mGateway;
@@ -44,6 +45,8 @@ public class VpnProfile implements Cloneable
 	private ArrayList<String> allowedApplications = new ArrayList<String>();
 	private VpnType mVpnType;
 	private long mId = -1;
+	private Integer mLoggingLevel;
+
 
     public VpnProfile() {
     }
@@ -201,6 +204,14 @@ public class VpnProfile implements Cloneable
     }
 
 
+	public Integer getLoggingLevel() {
+		return mLoggingLevel;
+	}
+
+	public void setLoggingLevel(Integer mLoggingLevel) {
+		this.mLoggingLevel = mLoggingLevel;
+	}
+
     @Override
 	public String toString()
 	{
@@ -243,6 +254,7 @@ public class VpnProfile implements Cloneable
         bundle.putString(resources.getString(R.string.vpn_profile_bundle_username_key), getUsername());
 		bundle.putString(resources.getString(R.string.vpn_profile_bundle_certificate_id_key), getCertificateId());
 		bundle.putStringArrayList(resources.getString(R.string.vpn_profile_bundle_allowed_applications), getAllowedApplications());
+		bundle.putInt(resources.getString(R.string.vpn_profile_bundle_logging_level),getLoggingLevel());
         return bundle;
     }
 
@@ -257,5 +269,6 @@ public class VpnProfile implements Cloneable
         mUsername = bundle.getString(resources.getString(R.string.vpn_profile_bundle_username_key));
 		mCertificateId = bundle.getString(resources.getString(R.string.vpn_profile_bundle_certificate_id_key));
  		allowedApplications = bundle.getStringArrayList(resources.getString(R.string.vpn_profile_bundle_allowed_applications));
+		mLoggingLevel = Integer.valueOf(bundle.getInt(resources.getString(R.string.vpn_profile_bundle_logging_level), DEFAULT_LOGGING_LEVEL));
     }
 }

@@ -30,6 +30,7 @@ All rights reserved.
     <string name="vpn_profile_bundle_user_certificate_password_key">user_certificate_password</string>
     <string name="vpn_profile_bundle_certificate_key">certificate</string>
     <string name="vpn_profile_bundle_allowed_applications">allowed_applications</string>
+    <string name="vpn_profile_bundle_logging_level">logging_level</string>
     <string name="vpn_profile_bundle_type_key">type</string>
     <string name="vpn_profile_bundle_type_ikev2_eap_value">ikev2-eap</string>
     <string name="vpn_profile_bundle_type_ikev2_cert_value">ikev2-cert</string>

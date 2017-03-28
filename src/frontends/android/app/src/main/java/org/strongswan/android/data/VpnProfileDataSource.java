@@ -64,8 +64,9 @@ public class VpnProfileDataSource
 
 	private static final String DATABASE_NAME = "strongswan.db";
 	private static final String TABLE_VPNPROFILE = "vpnprofile";
+	public static final String KEY_LOGGING_LEVEL="logging_level";
 
-	private static final int DATABASE_VERSION = 9;
+	private static final int DATABASE_VERSION = 10;
 
 
 	public static final String DATABASE_CREATE =
@@ -86,28 +87,31 @@ public class VpnProfileDataSource
 
 					//fancyfon
 					KEY_CERTIFICATE_ID + " TEXT," +
-					KEY_ALLOWED_APPLICATIONS + " TEXT" +
+					KEY_ALLOWED_APPLICATIONS + " TEXT," +
+					KEY_LOGGING_LEVEL + " INTEGER"+
 					");";
 
 	private static final String[] ALL_COLUMNS = new String[] {
-								KEY_ID,
-								KEY_NAME,
-								KEY_GATEWAY,
-								KEY_VPN_TYPE,
-								KEY_USERNAME,
-								KEY_PASSWORD,
-								KEY_CERTIFICATE,
-								KEY_USER_CERTIFICATE,
-								KEY_MTU,
-								KEY_PORT,
-								KEY_SPLIT_TUNNELING,
-								KEY_LOCAL_ID,
-								KEY_REMOTE_ID,
+			KEY_ID,
+			KEY_NAME,
+			KEY_GATEWAY,
+			KEY_VPN_TYPE,
+			KEY_USERNAME,
+			KEY_PASSWORD,
+			KEY_CERTIFICATE,
+			KEY_USER_CERTIFICATE,
+			KEY_MTU,
+			KEY_PORT,
+			KEY_SPLIT_TUNNELING,
+			KEY_LOCAL_ID,
+			KEY_REMOTE_ID,
 
-                                //fancyfon
-                                KEY_CERTIFICATE_ID,
-                                KEY_ALLOWED_APPLICATIONS
+			//fancyfon
+			KEY_CERTIFICATE_ID,
+			KEY_ALLOWED_APPLICATIONS,
+			KEY_LOGGING_LEVEL
 	};
+
 
 
 
@@ -128,16 +132,16 @@ public class VpnProfileDataSource
 		public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion)
 		{
 			Log.w(TAG, "Upgrading database from version " + oldVersion +
-				  " to " + newVersion);
+					" to " + newVersion);
 			if (oldVersion < 2)
 			{
 				db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_USER_CERTIFICATE +
-						   " TEXT;");
+						" TEXT;");
 			}
 			if (oldVersion < 3)
 			{
 				db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_VPN_TYPE +
-						   " TEXT DEFAULT '';");
+						" TEXT DEFAULT '';");
 			}
 			if (oldVersion < 4)
 			{	/* remove NOT NULL constraint from username column */
@@ -145,28 +149,33 @@ public class VpnProfileDataSource
 			}
 			if (oldVersion < 5)
 			{
-                fancyfonDatabaseUpdateVersion5(db);
+				fancyfonDatabaseUpdateVersion5(db);
 				db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_MTU +
-						   " INTEGER;");
+						" INTEGER;");
 			}
 			if (oldVersion < 6)
 			{
-                fancyfonDatabaseUpdateVersion6(db);
+				fancyfonDatabaseUpdateVersion6(db);
 				db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_PORT +
-						   " INTEGER;");
+						" INTEGER;");
 			}
 			if (oldVersion < 7)
 			{
 				db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_SPLIT_TUNNELING +
-						   " INTEGER;");
+						" INTEGER;");
 			}
 			if (oldVersion < 8)
 			{
 				db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_LOCAL_ID +
-						   " TEXT;");
+						" TEXT;");
 				db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_REMOTE_ID +
-						   " TEXT;");
+						" TEXT;");
 			}
+			if (oldVersion < 10)
+			{
+				fancyfonDatabaseUpdateVersion10(db);
+			}
+
 		}
 
 
@@ -179,6 +188,11 @@ public class VpnProfileDataSource
                 db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_CERTIFICATE_ID +
                         " TEXT;");
         }
+
+		private void fancyfonDatabaseUpdateVersion10(SQLiteDatabase db){
+			db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_LOGGING_LEVEL +
+					" INTEGER DEFAULT 1;");
+		}
 
 		private void updateColumns(SQLiteDatabase db)
 		{
@@ -375,6 +389,7 @@ public class VpnProfileDataSource
     private VpnProfile setFancyFonValuesOnProfileFromCursor(VpnProfile profile, Cursor cursor){
         profile.setCertificateId(cursor.getString(cursor.getColumnIndex(KEY_CERTIFICATE_ID)));
         profile.setAllowedApplications(convertFromString(cursor.getString(cursor.getColumnIndex(KEY_ALLOWED_APPLICATIONS))));
+		profile.setLoggingLevel(cursor.getInt(cursor.getColumnIndex(KEY_LOGGING_LEVEL)));
         return profile;
     }
 
@@ -402,6 +417,10 @@ public class VpnProfileDataSource
     private ContentValues putFancyFonValues(ContentValues values,VpnProfile profile){
         values.put(KEY_CERTIFICATE_ID, profile.getCertificateId());
         values.put(KEY_ALLOWED_APPLICATIONS, convertToString(profile.getAllowedApplications()));
+		if(profile.getLoggingLevel() == 0) {
+			profile.setLoggingLevel(1);
+		}
+		values.put(KEY_LOGGING_LEVEL, profile.getLoggingLevel());
         return values;
     }
 
