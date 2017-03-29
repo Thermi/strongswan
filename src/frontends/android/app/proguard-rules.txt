@@ -4,3 +4,10 @@
 -keep public class org.strongswan.android.logic.NetworkManager**{
     *;
 }
+-keepattributes *Annotation*
+
+-keepclassmembers class ** {
+    @org.greenrobot.eventbus.Subscribe <methods>;
+}
+
+-keep enum org.greenrobot.eventbus.ThreadMode { *; }

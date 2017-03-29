@@ -45,7 +45,7 @@ android {
        }*/
 
     tasks.withType(JavaCompile) {
-        //    compileTask -> compileTask.dependsOn buildNative
+//        compileTask -> compileTask.dependsOn buildNative
         options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
     }
 
@@ -65,6 +65,7 @@ dependencies {
     compile 'com.android.support:appcompat-v7:23.3.0'
     compile 'com.android.support:design:23.3.0'
     compile 'org.apache.commons:commons-lang3:3.5'
+    compile 'org.greenrobot:eventbus:3.0.0'
     testCompile 'junit:junit:4.12'
 
     //fancyfon libs

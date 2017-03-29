@@ -157,4 +157,10 @@
     <string name="replaces_active_connection">This will replace your active VPN connection!</string>
     <string name="connect">Connect</string>
 
+    <!-- simple logging -->
+    <string name="simple_log_no_network_access">No Internet access</string>
+    <string name="simple_log_connected">Connected to server</string>
+    <string name="simple_log_disconnected">Disconnected from server</string>
+    <string name="simple_log_auth_failed">User authentication failed</string>
+
 </resources>

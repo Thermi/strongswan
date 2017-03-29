@@ -32,17 +32,22 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
-import android.security.KeyChain;
 import android.security.KeyChainException;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.ContextCompat;
 import android.system.OsConstants;
 import android.util.Log;
 
+import org.greenrobot.eventbus.EventBus;
 import org.strongswan.android.R;
 import org.strongswan.android.data.VpnProfile;
 import org.strongswan.android.data.VpnProfileDataSource;
 import org.strongswan.android.data.VpnType.VpnTypeFeature;
+import org.strongswan.android.logging.LogFileController;
+import org.strongswan.android.logging.LoggingLevelManager;
+import org.strongswan.android.logging.SimpleLogEventSaver;
+import org.strongswan.android.logging.event.LoggingEntryEvent;
+import org.strongswan.android.logging.event.LoggingFileSelectEvent;
 import org.strongswan.android.logic.VpnStateService.ErrorState;
 import org.strongswan.android.logic.VpnStateService.State;
 import org.strongswan.android.logic.imc.ImcState;
@@ -62,12 +67,12 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 public class CharonVpnService extends VpnService implements Runnable, VpnStateService.VpnStateListener
 {
 	private static final String TAG = CharonVpnService.class.getSimpleName();
 	public static final String LOG_FILE = "charon.log";
+	public static final String SIMPLE_LOG_FILE = "simple.log";
 	public static final int VPN_STATE_NOTIFICATION_ID = 1;
 
 	private String mLogFile;
@@ -82,6 +87,8 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 	private volatile boolean mTerminate;
 	private volatile boolean mIsDisconnecting;
 	private volatile boolean mShowNotification;
+	private SimpleLogEventSaver logEventSaver;
+	private LogFileController logFileController;
 	private VpnStateService mService;
 	private final Object mServiceLock = new Object();
 	private final ServiceConnection mServiceConnection = new ServiceConnection() {
@@ -146,11 +153,19 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 
 		mDataSource = new VpnProfileDataSource(this);
 		mDataSource.open();
+		createAndRegisterEventBusSubscribers();
 		/* use a separate thread as main thread for charon */
 		mConnectionHandler = new Thread(this);
 		/* the thread is started when the service is bound */
 		bindService(new Intent(this, VpnStateService.class),
 					mServiceConnection, Service.BIND_AUTO_CREATE);
+	}
+
+	private void createAndRegisterEventBusSubscribers() {
+		logEventSaver = new SimpleLogEventSaver(this);
+		logFileController = new LogFileController(this);
+		EventBus.getDefault().register(logEventSaver);
+		EventBus.getDefault().register(logFileController);
 	}
 
 	@Override
@@ -215,6 +230,7 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 					if (mNextProfile == null)
 					{
 						setState(State.DISABLED);
+						EventBus.getDefault().post(State.DISABLED);
 						if (mTerminate)
 						{
 							break;
@@ -237,7 +253,8 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 						addNotification();
 					//	BuilderAdapter builder = new BuilderAdapter(mCurrentProfile.getName(), mCurrentProfile.getSplitTunneling());
 						BuilderAdapter builder = new BuilderAdapter(mCurrentProfile);
-						if (initializeCharon(builder, mLogFile, mCurrentProfile.getVpnType().has(VpnTypeFeature.BYOD),mCurrentProfile.getLoggingLevel()))
+						int loggingLevel = new LoggingLevelManager().getStrongSwanLoggingLevel(mCurrentProfile.getLoggingLevel());
+						if (initializeCharon(builder, mLogFile, mCurrentProfile.getVpnType().has(VpnTypeFeature.BYOD),loggingLevel))
 						{
 							Log.i(TAG, "charon started");
 							SettingsWriter writer = new SettingsWriter();
@@ -251,6 +268,7 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 					//		writer.setValue("connection.local_id", mCurrentProfile.getLocalId());
 					//		writer.setValue("connection.remote_id", mCurrentProfile.getRemoteId());
 							initiate(writer.serialize());
+							EventBus.getDefault().post(new LoggingFileSelectEvent(mCurrentProfile.getLoggingLevel()));
 						}
 						else
 						{
@@ -322,7 +340,7 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 		{
 			name = profile.getName();
 		}
-		android.support.v4.app.NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
+		NotificationCompat.Builder builder = new NotificationCompat.Builder(this)
 				.setSmallIcon(R.drawable.ic_notification)
 				.setCategory(NotificationCompat.CATEGORY_SERVICE)
 				.setVisibility(publicVersion ? NotificationCompat.VISIBILITY_PUBLIC
@@ -478,6 +496,7 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 				if (!mIsDisconnecting)
 				{
 					setState(State.CONNECTING);
+					EventBus.getDefault().post(new LoggingEntryEvent(SimpleLogEventSaver.LogEventType.DISCONNECTED));
 				}
 				break;
 			case STATE_CHILD_SA_UP:
@@ -485,12 +504,14 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 				break;
 			case STATE_AUTH_ERROR:
 				setErrorDisconnect(ErrorState.AUTH_FAILED);
+				EventBus.getDefault().post(new LoggingEntryEvent(SimpleLogEventSaver.LogEventType.AUTHORIZATION_FAILED));
 				break;
 			case STATE_PEER_AUTH_ERROR:
 				setErrorDisconnect(ErrorState.PEER_AUTH_FAILED);
 				break;
 			case STATE_LOOKUP_ERROR:
 				setErrorDisconnect(ErrorState.LOOKUP_FAILED);
+				EventBus.getDefault().post(new LoggingEntryEvent(SimpleLogEventSaver.LogEventType.NO_INTERNET_ACCESS));
 				break;
 			case STATE_UNREACHABLE_ERROR:
 				setErrorDisconnect(ErrorState.UNREACHABLE);
@@ -660,7 +681,7 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 	{
 		private final String mName;
 		private final Integer mSplitTunneling;
-		private VpnService.Builder mBuilder;
+		private Builder mBuilder;
 		private BuilderCache mCache;
 		private BuilderCache mEstablishedCache;
 		private final VpnProfile profile;
@@ -674,9 +695,9 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 			mCache = new BuilderCache(mSplitTunneling);
 		}
 
-		private VpnService.Builder createBuilder()
+		private Builder createBuilder()
 		{
-			VpnService.Builder builder = new CharonVpnService.Builder();
+			Builder builder = new Builder();
 			builder.setSession(mName);
 			addFancyFonAllowedApplications(builder);
 			/* even though the option displayed in the system dialog says "Configure"
@@ -689,7 +710,7 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 			return builder;
 		}
 
-        private void addFancyFonAllowedApplications(VpnService.Builder builder){
+        private void addFancyFonAllowedApplications(Builder builder){
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 ArrayList<String> allowedApplications = profile.getAllowedApplications();
                 for (String s : allowedApplications) {
@@ -890,7 +911,7 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 		}
 
 		@TargetApi(Build.VERSION_CODES.LOLLIPOP)
-		public void applyData(VpnService.Builder builder)
+		public void applyData(Builder builder)
 		{
 			for (PrefixedAddress address : mAddresses)
 			{
@@ -965,6 +986,18 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 			}
 		}
 	}
+	@Override
+	public boolean stopService(Intent name) {
+		unregisterEventBusSubscribers();
+		return super.stopService(name);
+	}
+
+	private void unregisterEventBusSubscribers(){
+		EventBus.getDefault().unregister(logEventSaver);
+		EventBus.getDefault().unregister(logFileController);
+	}
+
+
 
 	/*
 	 * The libraries are extracted to /data/data/org.strongswan.android/...
