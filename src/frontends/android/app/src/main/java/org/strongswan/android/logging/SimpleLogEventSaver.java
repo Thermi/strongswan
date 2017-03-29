@@ -8,6 +8,7 @@ import org.strongswan.android.logging.event.LoggingEntryEvent;
 import org.strongswan.android.logic.CharonVpnService;
 
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -38,13 +39,25 @@ public class SimpleLogEventSaver {
         if(!isSimpleLoggingLevelActive){
             return;
         }
+        FileOutputStream outputStream = null;
         try {
-            FileOutputStream outputStream = context.openFileOutput(CharonVpnService.SIMPLE_LOG_FILE,Context.MODE_APPEND);
+            outputStream = context.openFileOutput(CharonVpnService.SIMPLE_LOG_FILE,Context.MODE_APPEND);
             String logEntry = convertToLogFormat(event.getLogEventType());
             outputStream.write(logEntry.getBytes());
-            outputStream.close();
         } catch (Exception e) {
 
+        }finally {
+            closeFileOutputStream(outputStream);
+        }
+    }
+
+    private void closeFileOutputStream(FileOutputStream outputStream){
+        if(outputStream != null) {
+            try {
+                outputStream.close();
+            } catch (IOException e) {
+
+            }
         }
     }
 

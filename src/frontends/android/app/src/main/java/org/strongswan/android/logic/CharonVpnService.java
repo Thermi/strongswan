@@ -253,7 +253,7 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 						addNotification();
 					//	BuilderAdapter builder = new BuilderAdapter(mCurrentProfile.getName(), mCurrentProfile.getSplitTunneling());
 						BuilderAdapter builder = new BuilderAdapter(mCurrentProfile);
-						int loggingLevel = new LoggingLevelManager(this).getStrongSwanLoggingLevel(mCurrentProfile.getLoggingLevel());
+						int loggingLevel = new LoggingLevelManager().getStrongSwanLoggingLevel(mCurrentProfile.getLoggingLevel());
 						if (initializeCharon(builder, mLogFile, mCurrentProfile.getVpnType().has(VpnTypeFeature.BYOD),loggingLevel))
 						{
 							Log.i(TAG, "charon started");
