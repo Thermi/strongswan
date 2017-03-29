@@ -25,6 +25,7 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import org.strongswan.android.R;
+import org.strongswan.android.logging.LogFileController;
 import org.strongswan.android.logic.CharonVpnService;
 
 import java.io.BufferedReader;
@@ -43,13 +44,15 @@ public class LogFragment extends Fragment implements Runnable
 	private Thread mThread;
 	private volatile boolean mRunning;
 	private FileObserver mDirectoryObserver;
+	private String mLogFileName;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState)
 	{
 		super.onCreate(savedInstanceState);
 
-		mLogFilePath = getActivity().getFilesDir() + File.separator + CharonVpnService.LOG_FILE;
+		mLogFileName = new LogFileController(getActivity()).getActiveLoggingFile();
+		mLogFilePath = getActivity().getFilesDir() + File.separator + mLogFileName;
 		/* use a handler to update the log view */
 		mLogHandler = new Handler();
 
@@ -130,7 +133,11 @@ public class LogFragment extends Fragment implements Runnable
 			public void run()
 			{
 				/* strip off prefix (month=3, day=2, time=8, thread=2, spaces=3) */
-				mLogView.append((line.length() > 18 ? line.substring(18) : line) + '\n');
+				if(mLogFileName.equals(CharonVpnService.LOG_FILE)) {
+					mLogView.append((line.length() > 18 ? line.substring(18) : line) + '\n');
+				}else {
+					mLogView.append(line + '\n');
+				}
 				/* calling autoScroll() directly does not work, probably because content
 				 * is not yet updated, so we post this to be done later */
 				mScrollView.post(new Runnable() {

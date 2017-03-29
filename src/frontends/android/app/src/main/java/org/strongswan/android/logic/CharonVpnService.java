@@ -391,6 +391,9 @@ public class CharonVpnService extends VpnService implements Runnable, VpnStateSe
 		{
 			NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 			manager.notify(VPN_STATE_NOTIFICATION_ID, buildNotification(false));
+			if (mService.getState() == State.CONNECTED) {
+				EventBus.getDefault().post(new LoggingEntryEvent(SimpleLogEventSaver.LogEventType.CONNECTED));
+			}
 		}
 	}
 
