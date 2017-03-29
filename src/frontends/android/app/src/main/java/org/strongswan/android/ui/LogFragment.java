@@ -36,6 +36,7 @@ import java.io.StringReader;
 
 public class LogFragment extends Fragment implements Runnable
 {
+	public static final int MAX_LINE_LENGTH = 18;
 	private String mLogFilePath;
 	private Handler mLogHandler;
 	private TextView mLogView;
@@ -134,7 +135,7 @@ public class LogFragment extends Fragment implements Runnable
 			{
 				/* strip off prefix (month=3, day=2, time=8, thread=2, spaces=3) */
 				if(mLogFileName.equals(CharonVpnService.LOG_FILE)) {
-					mLogView.append((line.length() > 18 ? line.substring(18) : line) + '\n');
+					mLogView.append((line.length() > MAX_LINE_LENGTH ? line.substring(MAX_LINE_LENGTH) : line) + '\n');
 				}else {
 					mLogView.append(line + '\n');
 				}
