@@ -36,8 +36,11 @@ import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import org.greenrobot.eventbus.EventBus;
 import org.strongswan.android.R;
 import org.strongswan.android.data.VpnProfile;
+import org.strongswan.android.logging.SimpleLogEventSaver;
+import org.strongswan.android.logging.event.LoggingEntryEvent;
 import org.strongswan.android.logic.VpnStateService;
 import org.strongswan.android.logic.VpnStateService.ErrorState;
 import org.strongswan.android.logic.VpnStateService.State;
@@ -128,6 +131,7 @@ public class VpnStateFragment extends Fragment implements VpnStateListener
 				if (mService != null)
 				{
 					mService.disconnect();
+					EventBus.getDefault().post(new LoggingEntryEvent(SimpleLogEventSaver.LogEventType.DISCONNECTED));
 				}
 			}
 		});
