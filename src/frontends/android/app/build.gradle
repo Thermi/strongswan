@@ -35,21 +35,28 @@ android {
         jniLibs.srcDir 'src/main/libs'
     }
 
-    /*   task buildNative(type: Exec) {
+       task buildNative(type: Exec) {
            workingDir 'src/main/jni'
            commandLine "${android.ndkDirectory}/ndk-build", '-j', Runtime.runtime.availableProcessors()
+
        }
        task cleanNative(type: Exec) {
            workingDir 'src/main/jni'
            commandLine "${android.ndkDirectory}/ndk-build", 'clean'
-       }*/
+       }
 
     tasks.withType(JavaCompile) {
-//        compileTask -> compileTask.dependsOn buildNative
+        compileTask ->
+            if(!project.hasProperty("native-disabled")) {
+                compileTask.dependsOn buildNative
+            }
         options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+
     }
 
-    //clean.dependsOn 'cleanNative'
+    if(!project.hasProperty("native-disabled")) {
+        clean.dependsOn 'cleanNative'
+    }
 
     buildTypes {
         release {
@@ -60,6 +67,8 @@ android {
         }
     }
 }
+
+
 
 dependencies {
     compile 'com.android.support:appcompat-v7:23.3.0'
