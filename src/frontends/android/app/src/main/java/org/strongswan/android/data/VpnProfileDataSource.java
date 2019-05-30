@@ -418,6 +418,18 @@ public class VpnProfileDataSource
 		}
 	}
 
+	public VpnProfile getVpnProfileByName(String profileName) {
+		VpnProfile profile = null;
+		Cursor cursor = mDatabase.query(TABLE_VPNPROFILE, ALL_COLUMNS,
+				KEY_NAME + "='" + profileName + "'", null, null, null, null);
+		if (cursor.moveToFirst())
+		{
+			profile = VpnProfileFromCursor(cursor);
+		}
+		cursor.close();
+		return profile;
+	}
+
 	/**
 	 * Get a list of all VPN profiles stored in the database.
 	 * @return list of VPN profiles
