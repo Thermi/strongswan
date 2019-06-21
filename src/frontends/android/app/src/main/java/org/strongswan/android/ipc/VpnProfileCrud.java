@@ -80,6 +80,9 @@ public class VpnProfileCrud {
 
     public boolean deleteVpnProfile(String name) {
         VpnProfile profile = source.getVpnProfileByName(name);
+        if (profile == null) {
+            return false;
+        }
         boolean result = source.deleteVpnProfile(profile);
         if(result && profile != null) {
             return deleteCertificate(profile.getCertificateId());
