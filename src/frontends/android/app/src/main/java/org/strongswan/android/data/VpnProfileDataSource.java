@@ -65,6 +65,7 @@ public class VpnProfileDataSource
 	public static final String KEY_ALLOWED_APPLICATIONS = "allowed_applications";
 	private static final String EMPTY_STRING = "";
 	private static final String SPLIT_TUNNELING_DEFAULT_VALUE = "0";
+	private static final String KEY_YUBIKEY = "yubikey";
 
 	private DatabaseHelper mDbHelper;
 	private SQLiteDatabase mDatabase;
@@ -103,6 +104,7 @@ public class VpnProfileDataSource
 			new DbColumn(KEY_CERTIFICATE_ID, "TEXT", 15),
 			new DbColumn(KEY_ALLOWED_APPLICATIONS, "TEXT", 15),
 			new DbColumn(KEY_LOGGING_LEVEL, "INTEGER", 15),
+			new DbColumn(KEY_YUBIKEY, "INTEGER", 16),
 	};
 
 	private static final String[] ALL_COLUMNS = getColumns(DATABASE_VERSION);
@@ -258,6 +260,10 @@ public class VpnProfileDataSource
 					db.endTransaction();
 				}
 			}
+			if (oldVersion < 19) {
+				db.execSQL("ALTER TABLE " + TABLE_VPNPROFILE + " ADD " + KEY_YUBIKEY +
+						" INTEGER;");
+			}
 		}
 
 		private void updateColumns(SQLiteDatabase db, int version)
@@ -347,6 +353,26 @@ public class VpnProfileDataSource
 		long id = profile.getId();
 		ContentValues values = ContentValuesFromVpnProfile(profile);
 		return mDatabase.update(TABLE_VPNPROFILE, values, KEY_ID + " = " + id, null) > 0;
+	}
+
+	public List<VpnProfile> getYubikeyProfiles() {
+		List<VpnProfile> profiles = new ArrayList<>();
+		Cursor cursor = null;
+		try {
+			cursor = mDatabase.query(TABLE_VPNPROFILE, ALL_COLUMNS,
+					KEY_YUBIKEY + "= ?",
+					new String[]{"1"},
+					null, null, null, null);
+			while (cursor.moveToNext()) {
+				VpnProfile profile = VpnProfileFromCursor(cursor);
+				profiles.add(profile);
+			}
+		} finally {
+			if (cursor != null) {
+				cursor.close();
+			}
+		}
+		return profiles;
 	}
 
 	/**
@@ -487,6 +513,7 @@ public class VpnProfileDataSource
 		profile.setCertificateId(cursor.getString(cursor.getColumnIndex(KEY_CERTIFICATE_ID)));
 		profile.setAllowedApplications(convertFromString(cursor.getString(cursor.getColumnIndex(KEY_ALLOWED_APPLICATIONS))));
 		profile.setLoggingLevel(cursor.getInt(cursor.getColumnIndex(KEY_LOGGING_LEVEL)));
+		profile.setByYubikey(cursor.getInt(cursor.getColumnIndex(KEY_YUBIKEY))==1);
 		return profile;
 	}
 
@@ -538,6 +565,7 @@ public class VpnProfileDataSource
 			profile.setLoggingLevel(1);
 		}
 		values.put(KEY_LOGGING_LEVEL, profile.getLoggingLevel());
+		values.put(KEY_YUBIKEY, profile.isByYubikey() ? 1 : 0);
 		return values;
 	}
 
