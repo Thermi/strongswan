@@ -256,9 +256,6 @@ public class VpnProfileControlActivity extends AppCompatActivity
 		if (isConnected())
 		{
 			if (mService.getProfile().getUUID().equals(profile.getUUID())) {
-				if (profile.isByYubikey()) {
-					startVpnProfile(profileInfo);
-				}
 				return;
 			}
 			profileInfo.putBoolean(PROFILE_RECONNECT, mService.getProfile().getUUID().equals(profile.getUUID()));
