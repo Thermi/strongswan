@@ -75,7 +75,7 @@ public class VpnProfileDataSource
 	private static final String TABLE_VPNPROFILE = "vpnprofile";
 	public static final String KEY_LOGGING_LEVEL="logging_level";
 
-	private static final int DATABASE_VERSION = 16;
+	private static final int DATABASE_VERSION = 17;
 
 	public static final DbColumn[] COLUMNS = new DbColumn[] {
 			new DbColumn(KEY_ID, "INTEGER PRIMARY KEY AUTOINCREMENT", 1),
@@ -104,7 +104,7 @@ public class VpnProfileDataSource
 			new DbColumn(KEY_CERTIFICATE_ID, "TEXT", 15),
 			new DbColumn(KEY_ALLOWED_APPLICATIONS, "TEXT", 15),
 			new DbColumn(KEY_LOGGING_LEVEL, "INTEGER", 15),
-			new DbColumn(KEY_YUBIKEY, "INTEGER", 16),
+			new DbColumn(KEY_YUBIKEY, "INTEGER", 17),
 	};
 
 	private static final String[] ALL_COLUMNS = getColumns(DATABASE_VERSION);
