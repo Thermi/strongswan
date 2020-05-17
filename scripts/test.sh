@@ -5,7 +5,7 @@ set -x
 build_botan()
 {
 	# same revision used in the build recipe of the testing environment
-	BOTAN_REV=0881f2c33ff7 # 2.13.0 + amalgamation patch
+	BOTAN_REV=2.14.0
 	BOTAN_DIR=$DEPS_BUILD_DIR/botan
 
 	if test -d "$BOTAN_DIR"; then
@@ -44,7 +44,7 @@ build_botan()
 
 build_wolfssl()
 {
-	WOLFSSL_REV=87859f9e810b # v4.3.0-stable + IBM Z patch
+	WOLFSSL_REV=v4.4.0-stable
 	WOLFSSL_DIR=$DEPS_BUILD_DIR/wolfssl
 
 	if test -d "$WOLFSSL_DIR"; then
@@ -58,13 +58,7 @@ build_wolfssl()
 						--enable-aesctr --enable-des3 --enable-camellia
 						--enable-curve25519 --enable-ed25519"
 
-		git clone https://github.com/wolfSSL/wolfssl.git $WOLFSSL_DIR &&
-		cd $WOLFSSL_DIR &&
-		git checkout -qf $WOLFSSL_REV &&
-		./autogen.sh &&
-		./configure C_EXTRA_FLAGS="$WOLFSSL_CFLAGS" $WOLFSSL_CONFIG &&
-		make -j4 >/dev/null		
-	fi
+
 
 	ret=$?
 	if [ $ret != 0 ]
@@ -192,10 +186,7 @@ gcrypt)
 botan)
 	CONFIG="--disable-defaults --enable-pki --enable-botan --enable-pem"
 	export TESTS_PLUGINS="test-vectors pem botan!"
-	# we can't use the old package that comes with Ubuntu so we build from
-	# the current master until 2.8.0 is released and then probably switch to
-	# that unless we need newer features (at least 2.7.0 plus PKCS#1 patch is
-	# currently required)
+
 	if test "$1" = "deps"; then
 		install_deps
 		build_botan
@@ -232,6 +223,10 @@ all|coverage|sonarcloud)
 		# not actually required but configure checks for it
 		DEPS="$DEPS lcov"
 	fi
+	# Botan requires GCC 5.0, so disable it on Ubuntu 16.04
+	if test -n "$UBUNTU_XENIAL"; then
+		CONFIG="$CONFIG --disable-botan"
+	fi
 	DEPS="$DEPS libcurl4-gnutls-dev libsoup2.4-dev libunbound-dev libldns-dev
 		  libmariadbclient-dev libsqlite3-dev clearsilver-dev libfcgi-dev
 		  libpcsclite-dev libpam0g-dev binutils-dev libnm-dev libgcrypt20-dev
@@ -240,8 +235,7 @@ all|coverage|sonarcloud)
 		  python-setuptools"
 	PYDEPS="tox"
 	if test "$1" = "deps"; then
-		install_deps
-		build_botan
+
 		build_wolfssl
 		build_tss2
 	fi

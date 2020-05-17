@@ -605,7 +605,6 @@ static gboolean connect_(NMVpnServicePlugin *plugin, NMConnection *connection,
 	traffic_selector_t *ts;
 	ike_sa_t *ike_sa;
 	auth_cfg_t *auth;
-	auth_class_t auth_class = AUTH_CLASS_EAP;
 	certificate_t *cert = NULL;
 	x509_t *x509;
 	bool loose_gateway_id = FALSE;
@@ -799,7 +798,7 @@ static gboolean connect_(NMVpnServicePlugin *plugin, NMConnection *connection,
 	}
 
 	auth = auth_cfg_create();
-	if (auth_class == AUTH_CLASS_PSK)
+	if (streq(method, "psk"))
 	{
 		auth->add(auth, AUTH_RULE_AUTH_CLASS, AUTH_CLASS_PSK);
 	}
@@ -975,6 +974,11 @@ static gboolean do_disconnect(gpointer plugin)
 			enumerator->destroy(enumerator);
 			charon->controller->terminate_ike(charon->controller, id, FALSE,
 											  controller_cb_empty, NULL, 0);
+
+			/* clear secrets as we are asked for new secrets (where we'd find
+			 * the cached secrets from earlier connections) before we clear
+			 * them in connect() */
+			priv->creds->clear(priv->creds);
 			return FALSE;
 		}
 	}
