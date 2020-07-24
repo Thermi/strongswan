@@ -450,14 +450,28 @@ lgtm)
 	;;
 esac
 
-if [ "$1" = "deps" ]; then
-	install_deps
-	fix_timezone
-	exit 0
-fi
-
-
-if test "$1" = "pydeps"; then
+case "$1" in
+deps)
+	case "$TRAVIS_OS_NAME" in
+	linux)
+		sudo apt-get update -qq && \
+		sudo apt-get install -qq bison flex gperf gettext $DEPS
+		install_deps
+		fix_timezone
+		exit 0
+		;;
+	osx)
+		brew update && \
+		brew install $DEPS
+		;;
+	freebsd)
+		pkg install -y automake autoconf libtool pkgconf && \
+		pkg install -y bison flex gperf gettext $DEPS
+		;;
+	esac
+	exit $?
+	;;
+pydeps)
 	test -z "$PYDEPS" || pip -q install --user $PYDEPS
 	exit $?
 	;;
