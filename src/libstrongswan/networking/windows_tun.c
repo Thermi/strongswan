@@ -30,6 +30,7 @@
 #include "../collections/linked_list.h"
 
 #include "windows_tun.h"
+#include "wintun_support.h"
 
 /* Stub. */
 struct private_openvpn_tun_device_t {
