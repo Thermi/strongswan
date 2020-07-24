@@ -19,7 +19,7 @@
 #  initialize & set some vars
 # ============================
 
-AC_INIT([strongSwan],[5.8.4])
+AC_INIT([strongSwan],[5.9.0rc1])
 AM_INIT_AUTOMAKE(m4_esyscmd([
 	echo tar-ustar
 	echo subdir-objects
@@ -326,6 +326,7 @@ ARG_ENABL_SET([tss-tss2],       [enable the use of the TSS 2.0 Trusted Software 
 
 # compile options
 ARG_ENABL_SET([coverage],       [enable lcov coverage report generation.])
+ARG_ENABL_SET([git-version],    [use output of 'git describe' as version information in executables.])
 ARG_ENABL_SET([leak-detective], [enable malloc hooks to find memory leaks.])
 ARG_ENABL_SET([lock-profiler],  [enable lock/mutex profiling code.])
 ARG_ENABL_SET([log-thread-ids], [use thread ID, if available, instead of an incremented value starting from 1, to identify threads.])
@@ -663,7 +664,7 @@ AC_CHECK_FUNC(
 	]
 )
 
-AC_CHECK_FUNCS(prctl mallinfo getpass closefrom getpwnam_r getgrnam_r getpwuid_r)
+AC_CHECK_FUNCS(prctl mallinfo getpass closefrom getpwnam_r getgrnam_r getpwuid_r chown)
 AC_CHECK_FUNCS(fmemopen funopen mmap memrchr setlinebuf strptime dirfd sigwaitinfo explicit_bzero)
 
 AC_CHECK_FUNC([syslog], [
@@ -1383,6 +1384,24 @@ if test "x$ss_cv_static_plugin_constructors" = xyes; then
 	if test "$PYTHON" = ":"; then
 		AC_MSG_FAILURE([Python is required to resolve plugin constructors statically])
 	fi
+fi
+
+AC_MSG_CHECKING([version from Git repository])
+AC_SUBST(GIT_VERSION, [$($srcdir/scripts/git-version "$srcdir")])
+case "$GIT_VERSION" in
+	"$PACKAGE_VERSION"*)
+		AC_MSG_RESULT([$GIT_VERSION])
+		;;
+	UNKNOWN)
+		AC_MSG_RESULT([$GIT_VERSION (could be due to insufficient clone depth)])
+		;;
+	*)
+		AC_MSG_ERROR([$PACKAGE_VERSION is not a prefix of $GIT_VERSION, tag missing?])
+		;;
+esac
+
+if test x$git_version = xtrue -a "$GIT_VERSION" != "UNKNOWN"; then
+	AC_DEFINE_UNQUOTED(VERSION, ["$GIT_VERSION"])
 fi
 
 # ===============================================

@@ -307,22 +307,12 @@ METHOD(listener_t, child_updown, bool,
 	NMStrongswanPluginPrivate *this, ike_sa_t *ike_sa, child_sa_t *child_sa,
 	bool up)
 {
-	if (this->ike_sa == ike_sa)
+	if (this->ike_sa == ike_sa && up)
 	{
-		if (up)
-		{	/* disable initiate-failure-detection hooks */
-			this->listener.ike_state_change = NULL;
-			this->listener.child_state_change = NULL;
-			signal_ip_config(this->plugin, ike_sa, child_sa);
-		}
-		else
-		{
-			if (ike_sa->has_condition(ike_sa, COND_REAUTHENTICATING))
-			{	/* we ignore this during reauthentication */
-				return TRUE;
-			}
-			signal_failure(this->plugin, NM_VPN_PLUGIN_FAILURE_CONNECT_FAILED);
-		}
+		/* disable initiate-failure-detection hooks */
+		this->listener.ike_state_change = NULL;
+		this->listener.child_state_change = NULL;
+		signal_ip_config(this->plugin, ike_sa, child_sa);
 	}
 	return TRUE;
 }
@@ -618,7 +608,6 @@ static gboolean connect_(NMVpnServicePlugin *plugin, NMConnection *connection,
 	peer_cfg_create_t peer = {
 		.cert_policy = CERT_SEND_IF_ASKED,
 		.unique = UNIQUE_REPLACE,
-		.keyingtries = 1,
 		.rekey_time = 36000, /* 10h */
 		.jitter_time = 600, /* 10min */
 		.over_time = 600, /* 10min */
@@ -632,6 +621,8 @@ static gboolean connect_(NMVpnServicePlugin *plugin, NMConnection *connection,
 			},
 		},
 		.mode = MODE_TUNNEL,
+		.dpd_action = ACTION_RESTART,
+		.close_action = ACTION_RESTART,
 	};
 
 	/**
@@ -834,15 +825,39 @@ static gboolean connect_(NMVpnServicePlugin *plugin, NMConnection *connection,
 	}
 	else
 	{
-		child_cfg->add_proposal(child_cfg, proposal_create_default(PROTO_ESP));
 		child_cfg->add_proposal(child_cfg, proposal_create_default_aead(PROTO_ESP));
+		child_cfg->add_proposal(child_cfg, proposal_create_default(PROTO_ESP));
 	}
 	ts = traffic_selector_create_dynamic(0, 0, 65535);
 	child_cfg->add_traffic_selector(child_cfg, TRUE, ts);
-	ts = traffic_selector_create_from_cidr("0.0.0.0/0", 0, 0, 65535);
-	child_cfg->add_traffic_selector(child_cfg, FALSE, ts);
-	ts = traffic_selector_create_from_cidr("::/0", 0, 0, 65535);
-	child_cfg->add_traffic_selector(child_cfg, FALSE, ts);
+	str = nm_setting_vpn_get_data_item(vpn, "remote-ts");
+	if (str && strlen(str))
+	{
+		enumerator = enumerator_create_token(str, ";", "");
+		while (enumerator->enumerate(enumerator, &str))
+		{
+			ts = traffic_selector_create_from_cidr((char*)str, 0, 0, 65535);
+			if (!ts)
+			{
+				g_set_error(err, NM_VPN_PLUGIN_ERROR,
+							NM_VPN_PLUGIN_ERROR_LAUNCH_FAILED,
+							"Invalid remote traffic selector.");
+				enumerator->destroy(enumerator);
+				child_cfg->destroy(child_cfg);
+				peer_cfg->destroy(peer_cfg);
+				return FALSE;
+			}
+			child_cfg->add_traffic_selector(child_cfg, FALSE, ts);
+		}
+		enumerator->destroy(enumerator);
+	}
+	else
+	{
+		ts = traffic_selector_create_from_cidr("0.0.0.0/0", 0, 0, 65535);
+		child_cfg->add_traffic_selector(child_cfg, FALSE, ts);
+		ts = traffic_selector_create_from_cidr("::/0", 0, 0, 65535);
+		child_cfg->add_traffic_selector(child_cfg, FALSE, ts);
+	}
 	peer_cfg->add_child_cfg(peer_cfg, child_cfg);
 
 	/**
@@ -974,6 +989,11 @@ static gboolean do_disconnect(gpointer plugin)
 			enumerator->destroy(enumerator);
 			charon->controller->terminate_ike(charon->controller, id, FALSE,
 											  controller_cb_empty, NULL, 0);
+
+			/* clear secrets as we are asked for new secrets (where we'd find
+			 * the cached secrets from earlier connections) before we clear
+			 * them in connect() */
+			priv->creds->clear(priv->creds);
 			return FALSE;
 		}
 	}
