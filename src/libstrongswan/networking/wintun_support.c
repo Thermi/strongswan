@@ -972,8 +972,8 @@ char *search_interfaces(GUID *GUID)
 
 bool configure_wintun(private_windows_wintun_device_t *this, const char *name_tmpl)
 {
-	char buf[512], *interfaces, guid_string[512];
-	for(int i;i<2;i++) {
+	char buf[512], *interfaces = NULL, guid_string[512];
+	for(int i=0;i<2;i++) {
 	    interfaces = search_interfaces((GUID *) &GUID_WINTUN_STRONGSWAN);
 	    if(!interfaces)
 	    {
