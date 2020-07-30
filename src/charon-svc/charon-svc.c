@@ -16,6 +16,8 @@
 #include <library.h>
 #include <daemon.h>
 
+#include <getopt.h>
+
 #include <utils/backtrace.h>
 #include <threading/thread.h>
 
@@ -198,6 +200,80 @@ static void __attribute__ ((constructor))register_namespace()
 }
 
 /**
+ * print command line usage and exit
+ */
+static void usage(const char *msg)
+{
+	if (msg != NULL && *msg != '\0')
+	{
+		fprintf(stderr, "%s\n", msg);
+	}
+	fprintf(stderr, "Usage: charon-svc.exe\n"
+					"         [--help]\n"
+					"         [--version]\n"
+					"         [--debug-<type> <level>]\n"
+					"           <type>:  log context type (dmn|mgr|ike|chd|job|cfg|knl|net|asn|enc|tnc|imc|imv|pts|tls|esp|lib)\n"
+					"           <level>: log verbosity (-1 = silent, 0 = audit, 1 = control,\n"
+					"                                    2 = controlmore, 3 = raw, 4 = private)\n"
+					"\n"
+		   );
+}
+
+bool parse_args(DWORD dwArgc, LPSTR *lpszArgv, level_t *levels, size_t levels_length)
+{
+	int group;
+
+	/* handle arguments */
+	for (;;)
+	{
+		struct option long_opts[] = {
+			{ "help", no_argument, NULL, 'h' },
+			{ "version", no_argument, NULL, 'v' },
+			/* TODO: handle "debug-all" */
+			{ "debug-dmn", required_argument, &group, DBG_DMN },
+			{ "debug-mgr", required_argument, &group, DBG_MGR },
+			{ "debug-ike", required_argument, &group, DBG_IKE },
+			{ "debug-chd", required_argument, &group, DBG_CHD },
+			{ "debug-job", required_argument, &group, DBG_JOB },
+			{ "debug-cfg", required_argument, &group, DBG_CFG },
+			{ "debug-knl", required_argument, &group, DBG_KNL },
+			{ "debug-net", required_argument, &group, DBG_NET },
+			{ "debug-asn", required_argument, &group, DBG_ASN },
+			{ "debug-enc", required_argument, &group, DBG_ENC },
+			{ "debug-tnc", required_argument, &group, DBG_TNC },
+			{ "debug-imc", required_argument, &group, DBG_IMC },
+			{ "debug-imv", required_argument, &group, DBG_IMV },
+			{ "debug-pts", required_argument, &group, DBG_PTS },
+			{ "debug-tls", required_argument, &group, DBG_TLS },
+			{ "debug-esp", required_argument, &group, DBG_ESP },
+			{ "debug-lib", required_argument, &group, DBG_LIB },
+			{ 0,0,0,0 }
+		};
+
+		int c = getopt_long(dwArgc, lpszArgv, "", long_opts, NULL);
+		switch (c)
+		{
+			case EOF:
+				break;
+			case 'h':
+				usage(NULL);
+				return FALSE;
+			case 'v':
+				printf("Linux strongSwan %s\n", VERSION);
+				return FALSE;
+			case 0:
+				/* option is in group */
+				levels[group] = atoi(optarg);
+				continue;
+			default:
+				usage("");
+				return FALSE;
+		}
+		break;
+	}
+	return TRUE;
+}
+/**
  * Initialize and run charon using a wait function
  */
 static void init_and_run(DWORD dwArgc, LPTSTR *lpszArgv, int (*wait)())
@@ -208,6 +284,11 @@ static void init_and_run(DWORD dwArgc, LPTSTR *lpszArgv, int (*wait)())
 	for (i = 0; i < DBG_MAX; i++)
 	{
 		levels[i] = LEVEL_CTRL;
+	}
+
+	if (!parse_args(dwArgc, lpszArgv, levels, sizeof(levels)))
+	{
+	    goto end;
 	}
 
 	update_status(SERVICE_START_PENDING);
@@ -242,6 +323,7 @@ static void init_and_run(DWORD dwArgc, LPTSTR *lpszArgv, int (*wait)())
 		update_status(SERVICE_STOP_PENDING);
 		CloseHandle(event);
 	}
+end:
 	update_status(SERVICE_STOPPED);
 }
 
