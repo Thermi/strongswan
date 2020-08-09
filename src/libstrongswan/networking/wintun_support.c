@@ -303,6 +303,7 @@ bool create_wintun(char *guid)
 		.cbSize = sizeof(SP_DEVINSTALL_PARAMS_A)
 	};
 	SP_DRVINFO_DETAIL_DATA_A *drv_info_detail_data = malloc(sizeof(SP_DRVINFO_DETAIL_DATA_A));
+	memset(drv_info_detail_data, 0, sizeof(SP_DRVINFO_DETAIL_DATA_A));
 	drv_info_detail_data->cbSize = sizeof(SP_DRVINFO_DETAIL_DATA_A);
 	
 	/* is this optimizable? */
