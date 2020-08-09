@@ -506,6 +506,17 @@ bool create_wintun(char *guid)
                 DBG1(DBG_LIB, "SetupDiCallClassInstaller(DIF_REGISTERDEVICE) failed: %s", dlerror_mt(buf, sizeof(buf)));
                 goto uninstall_device;
         }
+	
+	if(SetupDiCallClassInstaller(
+		DIF_REGISTER_COINSTALLERS,
+		dev_info_set,
+		&dev_info_data
+	))
+	{
+	    DBG2(DBG_LIB, "Succeeded in calling the class coinstallers.");
+	} else {
+	    DBG2(DBG_LIB, "Failed to call the class coinstallers.");
+	}
 
         for (int i=0;i<200;i++)
         {
