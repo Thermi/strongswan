@@ -328,20 +328,6 @@ end:
 }
 
 /**
- * Main routine when running from console
- */
-static void console_main(DWORD dwArgc, LPTSTR *lpszArgv)
-{
-	status.dwWin32ExitCode = 1;
-
-	if (SetConsoleCtrlHandler(console_handler, TRUE))
-	{
-		init_and_run(dwArgc, lpszArgv, console_wait);
-		SetConsoleCtrlHandler(console_handler, FALSE);
-	}
-}
-
-/**
  * Switch the working directory to the executable directory
  */
 static bool switch_workingdir()
@@ -365,6 +351,21 @@ static bool switch_workingdir()
 	}
 	*pos = 0;
 	return SetCurrentDirectory(path);
+}
+
+/**
+ * Main routine when running from console
+ */
+static void console_main(DWORD dwArgc, LPTSTR *lpszArgv)
+{
+	status.dwWin32ExitCode = 1;
+
+	if (SetConsoleCtrlHandler(console_handler, TRUE))
+	{
+		switch_workingdir();
+		init_and_run(dwArgc, lpszArgv, console_wait);
+		SetConsoleCtrlHandler(console_handler, FALSE);
+	}
 }
 
 /**
