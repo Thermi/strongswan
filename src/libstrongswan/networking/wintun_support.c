@@ -572,11 +572,15 @@ bool create_wintun(char *guid)
 	DBG1(DBG_LIB, "Value of HKEY drv_reg_key 2: %ld", (long long) drv_reg_key);	
 	free(temp_buf);
 	
-        SetupDiCallClassInstaller(
+        if (!SetupDiCallClassInstaller(
                 DIF_INSTALLINTERFACES,
                 dev_info_set,
                 &dev_info_data
-        );
+        ))
+	{
+	    DBG1(DBG_LIB, "Failed to call class installer: %s", dlerror_mt(buf, sizeof(buf)));
+	    goto close_reg_keys;
+	}
 
         if (!SetupDiCallClassInstaller(
                 DIF_INSTALLDEVICE,
