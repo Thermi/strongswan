@@ -592,20 +592,19 @@ bool create_wintun(char *guid)
                 DBG1(DBG_LIB, "Failed to get install params (SetupDiGetDeviceInstallParamsA): %s", dlerror_mt(buf, sizeof(buf)));
                 goto close_reg_keys;
         }
-
  
-
         if (!SetupDiSetDeviceRegistryPropertyA(
                 dev_info_set,
                 &dev_info_data,
                 SPDRP_DEVICEDESC,
-                WINTUN_COMPONENT_ID,
-                sizeof(WINTUN_COMPONENT_ID
-        )))
+                STRONGSWAN_WINTUN_INTERFACE_NAME,
+                sizeof(STRONGSWAN_WINTUN_INTERFACE_NAME)
+        ))
         {
-                DBG1(DBG_LIB, "Failed to get device description (SetupDiSetDeviceRegistryPropertyA(SPDRP_DEVICEDESC)) failed: %s", dlerror_mt(buf, sizeof(buf)));
+                DBG1(DBG_LIB, "Failed to set device description (SetupDiSetDeviceRegistryPropertyA(SPDRP_DEVICEDESC)) failed: %s", dlerror_mt(buf, sizeof(buf)));
                 goto close_reg_keys;
         }
+	
 	if(handle_is_valid(drv_reg_key))
 	{
 	    RegCloseKey(drv_reg_key);
