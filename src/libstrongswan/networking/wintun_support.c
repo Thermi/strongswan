@@ -313,6 +313,11 @@ bool create_wintun(char *guid)
 		NULL,
 		NULL
         );
+	if (dev_info_set == INVALID_HANDLE_VALUE || (ret=GetLastError())) {
+	    DBG1(DBG_LIB, "Failed to create devince info list (SetupDiCreateDeviceInfoListExA): %s", human_readable_error(buf, ret, sizeof(buf)));
+	    free(drv_info_detail_data);
+	    return FALSE;
+	}
         /* wait 50 ms */
         struct timespec ts = {
             .tv_sec = 0,
