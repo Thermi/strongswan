@@ -550,7 +550,7 @@ bool create_wintun(char *guid)
 	}
 	if(!handle_is_valid(drv_reg_key))
 	{
-	    DBG0(DBG_LIB, "Failed to open DevRegKey");
+	    DBG0(DBG_LIB, "Failed to open DevRegKey, handle is invalid.");
 	    goto delete_driver_info_list;
 	}
 	// Need to encode this in UTF-16 first(!)
