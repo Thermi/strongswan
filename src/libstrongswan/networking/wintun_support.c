@@ -457,31 +457,31 @@ bool create_wintun(char *guid)
 		    {
 			if(check_hardwareids(drv_info_detail_data) ||
 				strcaseeq(drv_info_data.Description, "Wintun Userspace Tunnel")) {
-			    if(!SetupDiSetSelectedDriverA(dev_info_set, &dev_info_data, &drv_info_data))
+			    if(SetupDiSetSelectedDriverA(dev_info_set, &dev_info_data, &drv_info_data))
 			    {
+				DBG1(DBG_LIB, "Successfully Set driver of device %s for new wintun device",
+				    windows_setupapi_get_friendly_name(
+				    buf,
+				    sizeof(buf),
+				    dev_info_set,
+				    &dev_info_data)
+				);
+				driver_version = drv_info_data.DriverVersion;
+				driver_date = drv_info_data.DriverDate;				
+			    } else {
 				DBG1(DBG_LIB,
-				     "Failed to set driver of device %s for new wintun device: %s",
-				     windows_setupapi_get_friendly_name(
-					buf,
-					sizeof(buf),
-					dev_info_set,
-					&dev_info_data),
+				    "Failed to set driver of device %s for new wintun device: %s",
+				    windows_setupapi_get_friendly_name(
+				    buf,
+				    sizeof(buf),
+				    dev_info_set,
+				    &dev_info_data),
 				    dlerror_mt(
-					buf,
-					sizeof(buf))
+				    buf,
+				    sizeof(buf))
 				);
 				continue;
-			    } else {
-				DBG1(DBG_LIB, "Set driver of device %s for new wintun device",
-				     windows_setupapi_get_friendly_name(
-					buf,
-					sizeof(buf),
-					dev_info_set,
-					&dev_info_data)
-					);
 			    }
-			    driver_version = drv_info_data.DriverVersion;
-			    driver_date = drv_info_data.DriverDate;
 			} else {
 			    DBG1(DBG_LIB, "No HardwareID match found");
 			}
