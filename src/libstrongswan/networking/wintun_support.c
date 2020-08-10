@@ -1207,6 +1207,7 @@ tun_device_t *initialize_unused_wintun_device(const char *name_tmpl)
 /* Possibly creates, and configures a wintun device */
 tun_device_t *try_configure_wintun(const char *name_tmpl)
 {
+	delete_existing_strongswan_wintun_devices();
 	tun_device_t *new_device = NULL;
 	/* Be robust */
 	for(int i=0;i<5;i++)
