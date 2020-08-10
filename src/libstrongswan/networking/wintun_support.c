@@ -262,6 +262,108 @@ METHOD(tun_device_t, wintun_destroy, void,
 }
 
 /**
+ * Deletes existing strongSwan wintun devices
+ * @return	bool indicating if the routine encountered SetupDi errors not
+ *		(not if any devices were deleted)
+ */
+bool delete_existing_strongswan_wintun_devices() {
+    DBG1(DBG_LIB, "Deleting existing strongSwan wintun devices.");
+	/* Reimplementation of CreateInterface from wireguard */
+	char buf[512];
+	uint64_t index = 0;
+	DWORD required_length = 0,
+		error, ret;
+	/* Create an empty device info set for network adapter device class. */
+	SP_DEVINFO_DATA dev_info_data = {
+		.cbSize = sizeof(SP_DEVINFO_DATA)
+	};
+	
+	/* Get all currently existing network interfaces */
+	HDEVINFO dev_info_set = SetupDiGetClassDevsExA(
+		&GUID_DEVCLASS_NET,
+		NULL,
+		NULL,
+		DIGCF_PRESENT,
+		NULL,
+		NULL,
+		NULL
+		);
+	
+	if (dev_info_set == INVALID_HANDLE_VALUE || (ret=GetLastError())) {
+	    DBG1(DBG_LIB, "Failed to create device info list (SetupDiCreateDeviceInfoListExA): %s", human_readable_error(buf, ret, sizeof(buf)));
+	    return FALSE;
+	}
+	
+	if (!dev_info_set)
+	{
+		DBG1(DBG_LIB,
+			"Failed to create DeviceInfoList(SetupDiCreateDeviceInfoListExA): %s",
+				dlerror_mt(buf, sizeof(buf)));
+		goto delete_device_info_list;
+	}
+ 
+	
+	for(index=0;;index++)
+	{
+	    if(!SetupDiEnumDeviceInfo(
+		    dev_info_set,
+		    index,
+		    &dev_info_data))
+	    {
+		error = GetLastError();
+		if (error == ERROR_NO_MORE_ITEMS)
+		{
+		    DBG1(DBG_LIB, "No more items.");
+		    break;
+		} else {
+		    DBG1(DBG_LIB, "Other error occured: %s", dlerror_mt(buf, sizeof(buf)));
+		}
+		continue;
+	    }
+	    /* Check device ID */
+	    if(!SetupDiGetDeviceInstanceIdA(
+		    dev_info_set,
+		    &dev_info_data,
+		    buf,
+		    sizeof(buf),
+		    &required_length))
+	    {
+		DBG1(DBG_LIB, "Failed to get device ID for index %d: %s", index, dlerror_mt(buf, sizeof(buf)));
+	    }
+	    DBG1(DBG_LIB, "Device ID: %s", buf);
+	    if (strstr(buf, "STRONGSWAN"))
+	    {
+		    DBG1(DBG_LIB, "Removing device %s", buf);
+		    /* Delete device */
+		    SP_REMOVEDEVICE_PARAMS remove_device_params = {
+			    .ClassInstallHeader = {
+				    .cbSize = sizeof(SP_CLASSINSTALL_HEADER),
+				    .InstallFunction = DIF_REMOVE
+			    },
+			    .Scope = DI_REMOVEDEVICE_GLOBAL,
+			    .HwProfile = 0
+		    };
+		    if(SetupDiSetClassInstallParams(dev_info_set, &dev_info_data, &remove_device_params.ClassInstallHeader, sizeof(remove_device_params)))
+		    {
+			    if (!SetupDiCallClassInstaller(DIF_REMOVE,
+				    dev_info_set,
+				    &dev_info_data))
+			    {
+				    DBG1(DBG_LIB, "Failed to remove device (SetupDiCallClassInstaller): %s", dlerror_mt(buf, sizeof(buf)));
+			    }			
+		    } else {
+			    DBG1(DBG_LIB, "Failed to set class install params (SetupDiSetClassInstallParams): %s", dlerror_mt(buf, sizeof(buf)));
+		    }   
+	    }
+	}
+delete_device_info_list :
+        if (!SetupDiDestroyDeviceInfoList(dev_info_set))
+        {
+                DBG1(DBG_LIB, "Failed to delete device info set (SetupDiDestroyDeviceInfoList): %s", dlerror_mt(buf, sizeof(buf)));
+        }
+	return TRUE;
+}
+/**
  * Create the tun device and configure it as stored in the registry.
  * @param guid			GUID    GUID that the new interface should use.
  *					Can be NULL to make the system choose one at random.
