@@ -21,6 +21,10 @@
 #include <utils/backtrace.h>
 #include <threading/thread.h>
 
+#ifndef UNLEN
+#define UNLEN 256
+#endif
+
 /**
  * The name of our service, both internal and external
  */
@@ -74,11 +78,14 @@ static void dbg_stderr(debug_t group, level_t level, char *fmt, ...)
  */
 static void print_version()
 {
+	char user[UNLEN+1];
+	uint64_t unused_length = sizeof(user);
 	OSVERSIONINFOEX osvie;
 
 	memset(&osvie, 0, sizeof(osvie));
 	osvie.dwOSVersionInfoSize = sizeof(osvie);
-
+	
+	GetUserNameA(user, &unused_length);
 	if (GetVersionEx((LPOSVERSIONINFO)&osvie))
 	{
 		DBG1(DBG_DMN, "Starting IKE service %s (strongSwan %s, "
@@ -86,6 +93,7 @@ static void print_version()
 			 osvie.wProductType == VER_NT_WORKSTATION ? "Client" : "Server",
 			 osvie.dwMajorVersion, osvie.dwMinorVersion, osvie.dwBuildNumber,
 			 osvie.wServicePackMajor, osvie.wServicePackMinor);
+		DBG1(DBG_DMN, "Running as user %s", user);
 	}
 }
 
