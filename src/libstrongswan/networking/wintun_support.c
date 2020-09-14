@@ -120,7 +120,7 @@ static chunk_t *pop_from_ring(TUN_RING *ring, bool *need_restart)
             DBG0(DBG_LIB, "RING is over capacity!");
         }
         length = TUN_WRAP_POSITION((ring->Tail - ring->Head),
-            TUN_RING_SIZE(ring, TUN_RING_CAPACITY));
+            TUN_RING_SIZE);
             
         if (length <sizeof(uint32_t))
         {
@@ -363,19 +363,40 @@ delete_device_info_list :
         }
 	return TRUE;
 }
+
+/**
+ * Return the file path to the interface (Can be used with CreateFile)
+ */
+bool get_interface_path(char *device_id, char **buf) {
+    DBG0(DBG_LIB, "Looking for device ID %s", device_id);
+    uint32_t bufsize = 512;
+    *buf = malloc(bufsize);
+    sleep(5);
+    CONFIGRET ret = CM_Get_Device_Interface_List(&GUID_INTERFACE_NET, device_id, *buf, bufsize, CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
+    DBG0(DBG_LIB, "Configret: %d", ret);
+    
+    if (ret == CR_BUFFER_SMALL) {
+	DBG1(DBG_LIB, "Buffer too small for CM_Get_Device_Interface_List. That shouldn't happen.");
+	return FALSE;
+    } else if (ret) {
+	DBG1(DBG_LIB, "Other return code: %d", ret);
+	return FALSE;
+    }
+    
+    return TRUE;
+}
 /**
  * Create the tun device and configure it as stored in the registry.
- * @param guid			GUID    GUID that the new interface should use.
  *					Can be NULL to make the system choose one at random.
- * @return bool			Whether creating failed or succeeded.
+ * @return char				deviceID of the device that was created.
  */
-bool create_wintun(char *guid)
+char *create_wintun()
 {
 	/* Reimplementation of CreateInterface from wireguard */
 	char className[MAX_CLASS_NAME_LEN], buf[512],
 		*property_buffer = NULL, NetCfgInstanceId[512], NetLuidIndex[512],
 		IfType[512], adapter_reg_key[512], ipconfig_value[512],
-		ipconfig_reg_key[512], *new_buf = NULL;
+		ipconfig_reg_key[512], *new_buf = NULL, *device_id = NULL;
 	uint64_t index = 0;
 	DWORD property_buffer_length = 0, required_length = 0,
 		reg_value_type, error,
@@ -390,7 +411,6 @@ bool create_wintun(char *guid)
 	};
 	memset(NetCfgInstanceId, 0, sizeof(NetCfgInstanceId));
 	DWORDLONG driver_version = 0;
-	bool return_code = FALSE;
 	HKEY drv_reg_key = NULL, ipconfig_reg_hkey = NULL, adapter_reg_hkey = NULL;
 	/* Timeout of 5000 ms for registry operations */
 	size_t registry_timeout = 5000, buffer_length;
@@ -416,7 +436,7 @@ bool create_wintun(char *guid)
 		NULL
         );
 	if (dev_info_set == INVALID_HANDLE_VALUE || (ret=GetLastError())) {
-	    DBG1(DBG_LIB, "Failed to create devince info list (SetupDiCreateDeviceInfoListExA): %s", human_readable_error(buf, ret, sizeof(buf)));
+	    DBG1(DBG_LIB, "Failed to create device info list (SetupDiCreateDeviceInfoListExA): %s", human_readable_error(buf, ret, sizeof(buf)));
 	    free(drv_info_detail_data);
 	    return FALSE;
 	}
@@ -470,14 +490,14 @@ bool create_wintun(char *guid)
 	/* property_buffer now holds class name */
 	if (!SetupDiCreateDeviceInfo(
 		dev_info_set,
-		property_buffer,
+		STRONGSWAN_WINTUN_DEVICE_ID,
 		&GUID_DEVCLASS_NET,
 		STRONGSWAN_WINTUN_INTERFACE_NAME,
 		NULL,
 		DICD_GENERATE_ID,
 		&dev_info_data))
 	{
-		DBG1(DBG_LIB, "Failed to get wintun interfaces.");
+		DBG1(DBG_LIB, "Failed to create device info object: %s", dlerror_mt(buf, sizeof(buf)));
 		goto delete_device_info_list;
 	}
 
@@ -807,8 +827,20 @@ bool create_wintun(char *guid)
 	
 	/* EnableDeadGWDetect */
 	RegSetValueExA(ipconfig_reg_hkey, "EnableDeadGWDetect", 0, REG_DWORD, 0, sizeof(0));
+		
+	if(!SetupDiGetDeviceInstanceIdA(
+	    dev_info_set,
+	    &dev_info_data,
+	    buf,
+	    sizeof(buf),
+	    &required_length))
+	{
+	    DBG1(DBG_LIB, "Failed to get device ID for index %d: %s", index, dlerror_mt(buf, sizeof(buf)));
+	}
+	DBG1(DBG_LIB, "Device ID: %s", buf);
+	device_id = malloc(strlen(buf)+1);
+	strcpy(device_id, buf);
 	
-	return_code = true;
 close_reg_keys :
 	if(handle_is_valid(drv_reg_key))
 	{
@@ -824,7 +856,7 @@ close_reg_keys :
 	}
 
 delete_driver_info_list : ;
-        if (!return_code)
+        if (!device_id)
         {
                 /* RemoveDeviceParams yade yade yada */
 uninstall_device : ;
@@ -868,7 +900,12 @@ delete_device_info_list :
         {
             free(new_buf);
         }
-        return return_code;
+	if(device_id) {
+	    DBG1(DBG_LIB, "Successfully created a wintun device with NetCfgInstanceId %s", NetCfgInstanceId);
+	} else {
+	    DBG1(DBG_LIB, "Failed to create a wintun device");
+	}
+        return device_id;
 }
 
 /**
@@ -1092,19 +1129,124 @@ char *search_interfaces(GUID *GUID)
         return interfaces;
 }
 
+bool
+impersonate_as_system()
+{
+    HANDLE thread_token, process_snapshot, winlogon_process, winlogon_token, duplicated_token;
+    PROCESSENTRY32 entry;
+    BOOL ret;
+    DWORD pid = 0;
+    TOKEN_PRIVILEGES privileges;
+
+    memset(&entry, 0 , sizeof(entry));
+    memset(&privileges, 0, sizeof(privileges));
+
+    entry.dwSize = sizeof(PROCESSENTRY32);
+
+    privileges.PrivilegeCount = 1;
+    privileges.Privileges->Attributes = SE_PRIVILEGE_ENABLED;
+
+    if (!LookupPrivilegeValue(NULL, SE_DEBUG_NAME, &privileges.Privileges[0].Luid))
+    {
+        return false;
+    }
+
+    if (!ImpersonateSelf(SecurityImpersonation))
+    {
+        return false;
+    }
+
+    if (!OpenThreadToken(GetCurrentThread(), TOKEN_ADJUST_PRIVILEGES, FALSE, &thread_token))
+    {
+        RevertToSelf();
+        return false;
+    }
+    if (!AdjustTokenPrivileges(thread_token, FALSE, &privileges, sizeof(privileges), NULL, NULL))
+    {
+        CloseHandle(thread_token);
+        RevertToSelf();
+        return false;
+    }
+    CloseHandle(thread_token);
+
+    process_snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (process_snapshot == INVALID_HANDLE_VALUE)
+    {
+        RevertToSelf();
+        return false;
+    }
+    for (ret = Process32First(process_snapshot, &entry); ret; ret = Process32Next(process_snapshot, &entry))
+    {
+        if (!_stricmp(entry.szExeFile, "winlogon.exe"))
+        {
+            pid = entry.th32ProcessID;
+            break;
+        }
+    }
+    CloseHandle(process_snapshot);
+    if (!pid)
+    {
+        RevertToSelf();
+        return false;
+    }
+
+    winlogon_process = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
+    if (!winlogon_process)
+    {
+        RevertToSelf();
+        return false;
+    }
+
+    if (!OpenProcessToken(winlogon_process, TOKEN_IMPERSONATE | TOKEN_DUPLICATE, &winlogon_token))
+    {
+        CloseHandle(winlogon_process);
+        RevertToSelf();
+        return false;
+    }
+    CloseHandle(winlogon_process);
+
+    if (!DuplicateToken(winlogon_token, SecurityImpersonation, &duplicated_token))
+    {
+        CloseHandle(winlogon_token);
+        RevertToSelf();
+        return false;
+    }
+    CloseHandle(winlogon_token);
+
+    if (!SetThreadToken(NULL, duplicated_token))
+    {
+        CloseHandle(duplicated_token);
+        RevertToSelf();
+        return false;
+    }
+    CloseHandle(duplicated_token);
+
+    return true;
+}
+
 bool configure_wintun(private_windows_wintun_device_t *this, const char *name_tmpl)
 {
-	char buf[512], *interfaces = NULL, guid_string[512];
+	char buf[512], *interfaces = NULL , guid_string[512], *device_id = NULL;
+	DWORD ret;
 	for(int i=0;i<2;i++) {
 	    interfaces = search_interfaces((GUID *) &GUID_WINTUN_STRONGSWAN);
 	    if(!interfaces)
 	    {
 		DBG1(DBG_LIB, "No strongSwan VPN interface found, creating one.");
-		if (!create_wintun(guid_string))
+		
+		if (!(device_id = create_wintun(guid_string)))
 		{
 		    DBG0(DBG_LIB, "Failed to create new wintun device");
 		    return FALSE;
 		}
+		ret = get_interface_path(device_id, &interfaces);
+		free(device_id);
+		if (!ret)
+		{
+		    return FALSE;
+		}
+		DBG0(DBG_LIB, "Device path: %s", interfaces);
+		break;
 	    }
 	}
 	/* Iterate over contents */	
@@ -1117,20 +1259,23 @@ bool configure_wintun(private_windows_wintun_device_t *this, const char *name_tm
 	    /* wireguard uses FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE instead of 0 after 
 	       GENERIC_READ | GENERIC_WRITE. The reason for that is unknown. It makes no sense though.
 	     */
-		this->tun_handle = CreateFile(interface, GENERIC_READ | GENERIC_WRITE,
-						 0, NULL, OPEN_EXISTING, 0, NULL);
-		if(this->tun_handle) {
-		    /* Don't overwrite last byte */
-		    strncpy(this->if_name, interface, sizeof(this->if_name)-1);
-			break;
-		} else {
-			DBG0(DBG_LIB, "Failed to open tun file handle %s: %s",
-			    interface, dlerror_mt(buf, sizeof(buf)));
-		}
+	    //snprintf(buf, sizeof(buf), "\\\\%s", interface);
+	    this->tun_handle = CreateFile(
+		    interface, GENERIC_READ | GENERIC_WRITE,
+		    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+		    NULL, OPEN_EXISTING, 0, NULL);
+	    if(this->tun_handle != INVALID_HANDLE_VALUE) {
+		/* Don't overwrite last byte */
+		strncpy(this->if_name, interface, sizeof(this->if_name)-1);
+		break;
+	    } else {
+		DBG0(DBG_LIB, "Failed to open tun file handle %s: %s",
+		     interface, dlerror_mt(buf, sizeof(buf)));
+	    }
 	}
 	DBG0(DBG_LIB, "foo");
 	list->get_first(list, (void **) &interface);
-	free(interface);
+	free(interfaces);
 
 	enumerator->destroy(enumerator);
 	list->destroy(list);
@@ -1142,28 +1287,55 @@ bool configure_wintun(private_windows_wintun_device_t *this, const char *name_tm
         }
 	
         /* Create structs for rings and the rings themselves */
-        this->rings = malloc(sizeof(TUN_REGISTER_RINGS));
-        this->rings->Send.Ring = malloc(sizeof(TUN_RING));
+        this->rings = VirtualAlloc(NULL, sizeof(TUN_REGISTER_RINGS), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	this->rings->Send.TailMoved = CreateEventA(NULL, FALSE, FALSE, NULL);
+        this->rings->Send.Ring = VirtualAlloc(NULL, sizeof(TUN_RING), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	this->rings->Send.RingSize = sizeof(TUN_RING);
 	memwipe(this->rings->Send.Ring, sizeof(TUN_RING));
-        this->rings->Receive.Ring = malloc(sizeof(TUN_RING));
+	this->rings->Receive.TailMoved = CreateEventA(NULL, FALSE, FALSE, NULL);
+        this->rings->Receive.Ring = VirtualAlloc(NULL, sizeof(TUN_RING), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	this->rings->Receive.RingSize = sizeof(TUN_RING);
 	memwipe(this->rings->Receive.Ring, sizeof(TUN_RING));
-
+	DBG2(DBG_LIB, "TUN_RING_SIZE(this->rings->Receive, TUN_RING_CAPACITY): %d",
+	    TUN_RING_SIZE);
+	DBG2(DBG_LIB, "TUN_RING_SIZE(this->rings->Send, TUN_RING_CAPACITY): %d",
+	    TUN_RING_SIZE);
         /* Tell driver about the rings */
+	if (!impersonate_as_system())
+        {
+            DBG0(DBG_LIB, "Failed to impersonate as SYSTEM, make sure process is running under privileged account");
+        }
+	
         if(!DeviceIoControl(this->tun_handle,
             TUN_IOCTL_REGISTER_RINGS,
-            &this->rings->Receive,
-            TUN_RING_SIZE(this->rings->Receive, TUN_RING_CAPACITY),
-            &this->rings->Send,
-            TUN_RING_SIZE(this->rings->Send, TUN_RING_CAPACITY),
+	    this->rings,
+            sizeof(*this->rings),
             NULL,
-            NULL
-        )) {
-	    DBG0(DBG_LIB, "failed to install rings");
-	    free(this->rings->Send.Ring);
-	    free(this->rings->Receive.Ring);
-	    free(this->rings);
+            0,
+            &ret,
+            NULL)) {
+	    DBG0(DBG_LIB, "failed to install rings: %s", dlerror_mt(buf, sizeof(buf)));
+	    CloseHandle(this->rings->Receive.TailMoved);
+	    CloseHandle(this->rings->Send.TailMoved);
+	    if(this->rings->Send.Ring) {
+		VirtualFree(this->rings->Send.Ring, 0, MEM_RELEASE);
+	    }
+	    if (this->rings->Receive.Ring) {
+		VirtualFree(this->rings->Receive.Ring, 0, MEM_RELEASE);
+	    }
+	 
+	    VirtualFree(this->rings, 0, MEM_RELEASE);
+	    CloseHandle(this->tun_handle);
+	    if (!RevertToSelf())
+	    {
+		DBG0(DBG_LIB, "RevertToSelf error: %s", dlerror_mt(buf, sizeof(buf)));
+	    }
 	    return FALSE;
 	}
+	if (!RevertToSelf())
+        {
+            DBG0(DBG_LIB, "RevertToSelf error: %s", dlerror_mt(buf, sizeof(buf)));
+        }	
 	return TRUE;
 }
 
@@ -1209,15 +1381,10 @@ tun_device_t *try_configure_wintun(const char *name_tmpl)
 {
 	delete_existing_strongswan_wintun_devices();
 	tun_device_t *new_device = NULL;
-	/* Be robust */
-	for(int i=0;i<5;i++)
+	new_device = initialize_unused_wintun_device(name_tmpl);
+	if (new_device)
 	{
-		/* Try to find an unused wintun device */
-		new_device = initialize_unused_wintun_device(name_tmpl);
-		if (new_device)
-		{
-			return new_device;
-		}
+		return new_device;
 	}
 	return NULL;
 }
