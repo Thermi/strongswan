@@ -102,7 +102,6 @@ bool find_matching_hardwareid(char *pile, char* needle)
 	while(true)
 	{
 		item = windows_drv_info_get_next_hardwareid(pile, &offset);
-		DBG0(DBG_LIB, "next hardwareID: %s", item);
 		if (!item)
 		{
 			return false;
@@ -304,7 +303,6 @@ linked_list_t *string_array_to_linked_list(char *pile)
 	while(true)
 	{
 		item = windows_drv_info_get_next_hardwareid(pile, &offset);
-		DBG2(DBG_LIB, "Next Hardware ID: %s", item);
 		if (!item)
 		{
 			return list;
