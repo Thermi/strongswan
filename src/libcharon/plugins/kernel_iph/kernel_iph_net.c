@@ -454,7 +454,8 @@ static void WINAPI change_interface(void *user, PMIB_IPINTERFACE_ROW row_badal,
 	MIB_IPINTERFACE_ROW_FIXUP* row = (MIB_IPINTERFACE_ROW_FIXUP*)row_badal;
 	IP_ADAPTER_ADDRESSES addrs[64], *current;
 	ULONG res, size = sizeof(addrs);
-
+	char buf[512];
+	DBG1(DBG_KNL, "Received NotifyIpInterfaceChange callback");
 	if (row && type == MibDeleteInstance)
 	{
 		remove_interface(this, row->InterfaceIndex);
@@ -493,7 +494,7 @@ static void WINAPI change_interface(void *user, PMIB_IPINTERFACE_ROW row_badal,
 		}
 		else
 		{
-			DBG1(DBG_KNL, "getting IPH adapter addresses failed: 0x%08lx", res);
+			DBG1(DBG_KNL, "getting IPH adapter addresses failed: 0x%08lx", res, human_readable_error(buf, res, sizeof(buf)));
 		}
 	}
 }
@@ -755,11 +756,12 @@ static void host2unicast(host_t *host, int prefix, MIB_UNICASTIPADDRESS_ROW *row
 METHOD(kernel_net_t, add_ip, status_t,
 	private_kernel_iph_net_t *this, host_t *vip, int prefix, char *name)
 {
+	char buf[512];
 	MIB_UNICASTIPADDRESS_ROW row;
 	u_long status;
 
 	/* name of the MS Loopback adapter */
-	name = "{DB2C49B1-7C90-4253-9E61-8C6A881194ED}";
+	// name = "{DB2C49B1-7C90-4253-9E61-8C6A881194ED}";
 
 	host2unicast(vip, prefix, &row);
 
@@ -773,7 +775,8 @@ METHOD(kernel_net_t, add_ip, status_t,
 	status = CreateUnicastIpAddressEntry(&row);
 	if (status != NO_ERROR)
 	{
-		DBG1(DBG_KNL, "creating IPH address entry failed: %lu", status);
+		DBG1(DBG_KNL, "creating IPH address entry failed: %lu (%s)", status,
+			human_readable_error(buf, status, sizeof(buf)));
 		remove_addr(this, vip);
 		return FAILED;
 	}
@@ -783,6 +786,7 @@ METHOD(kernel_net_t, add_ip, status_t,
 METHOD(kernel_net_t, del_ip, status_t,
 	private_kernel_iph_net_t *this, host_t *vip, int prefix, bool wait)
 {
+	char buf[512];
 	MIB_UNICASTIPADDRESS_ROW row;
 	u_long status;
 
@@ -798,7 +802,8 @@ METHOD(kernel_net_t, del_ip, status_t,
 	status = DeleteUnicastIpAddressEntry(&row);
 	if (status != NO_ERROR)
 	{
-		DBG1(DBG_KNL, "deleting IPH address entry failed: %lu", status);
+		DBG1(DBG_KNL, "deleting IPH address entry failed: %lu (%s)", status,
+			human_readable_error(buf, status, sizeof(buf)));
 		return FAILED;
 	}
 
@@ -811,6 +816,7 @@ METHOD(kernel_net_t, del_ip, status_t,
 static status_t manage_route(private_kernel_iph_net_t *this, bool add,
 					chunk_t dst, uint8_t prefixlen, host_t *gtw, char *name)
 {
+	char buf[512];
 	MIB_IPFORWARD_ROW2 row = {
 		.DestinationPrefix = {
 			.PrefixLength = prefixlen,
@@ -880,7 +886,8 @@ static status_t manage_route(private_kernel_iph_net_t *this, bool add,
 	}
 	if (ret != NO_ERROR)
 	{
-		DBG1(DBG_KNL, "%sing route failed: 0x%08lx", add ? "add" : "remov", ret);
+		DBG1(DBG_KNL, "%sing route failed: 0x%08lx (%s)", add ? "add" : "remov", ret,
+			human_readable_error(buf, ret, sizeof(buf)));
 		return FAILED;
 	}
 
@@ -889,7 +896,8 @@ static status_t manage_route(private_kernel_iph_net_t *this, bool add,
 		ret = EnableRouter(NULL, &this->router);
 		if (ret != ERROR_IO_PENDING)
 		{
-			DBG1(DBG_KNL, "EnableRouter router failed: 0x%08lx", ret);
+			DBG1(DBG_KNL, "EnableRouter router failed: 0x%08lx (%s)", ret,
+				human_readable_error(buf, ret, sizeof(buf)));
 		}
 	}
 	else
@@ -897,7 +905,8 @@ static status_t manage_route(private_kernel_iph_net_t *this, bool add,
 		ret = UnenableRouter(&this->router, NULL);
 		if (ret != NO_ERROR)
 		{
-			DBG1(DBG_KNL, "UnenableRouter router failed: 0x%08lx", ret);
+			DBG1(DBG_KNL, "UnenableRouter router failed: 0x%08lx (%s)", ret, 
+				human_readable_error(buf, ret, sizeof(buf)));
 		}
 	}
 	return SUCCESS;
@@ -937,7 +946,8 @@ kernel_iph_net_t *kernel_iph_net_create()
 {
 	private_kernel_iph_net_t *this;
 	ULONG res;
-
+	char buf[512];
+	
 	INIT(this,
 		.public = {
 			.interface = {
@@ -964,8 +974,8 @@ kernel_iph_net_t *kernel_iph_net_create()
 								  this, TRUE, &this->changes);
 	if (res != NO_ERROR)
 	{
-		DBG1(DBG_KNL, "registering for IPH interface changes failed: 0x%08lx",
-			 res);
+		DBG1(DBG_KNL, "registering for IPH interface changes failed: 0x%08lx (%s)",
+			 res, human_readable_error(buf, res, sizeof(buf)));
 		destroy(this);
 		return NULL;
 	}

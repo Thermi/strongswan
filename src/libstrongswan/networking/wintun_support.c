@@ -111,7 +111,6 @@ static chunk_t *pop_from_ring(TUN_RING *ring, bool *need_restart)
         chunk_t *chunk_packet;
         TUN_PACKET *packet;
         /* Ring is empty if head == tail */
-	DBG2(DBG_LIB, "head: %d tail %d", ring->Head, ring->Tail);
         if (ring->Head == ring->Tail)
         {
             return NULL;
@@ -122,7 +121,6 @@ static chunk_t *pop_from_ring(TUN_RING *ring, bool *need_restart)
         }
         length = TUN_WRAP_POSITION((ring->Tail - ring->Head),
             TUN_RING_CAPACITY);
-        DBG2(DBG_LIB, "used ring length: %d", length);
 	
         if (length < sizeof(uint32_t))
         {
@@ -132,7 +130,6 @@ static chunk_t *pop_from_ring(TUN_RING *ring, bool *need_restart)
 
         }
         packet = (TUN_PACKET *)&(ring->Data[ring->Head]);
-	DBG2(DBG_LIB, "Paket size: %d", packet->Size);
 	
         if (packet->Size > TUN_MAX_IP_PACKET_SIZE)
         {
@@ -141,7 +138,6 @@ static chunk_t *pop_from_ring(TUN_RING *ring, bool *need_restart)
 	    return NULL;
         }
         aligned_packet_size = TUN_PACKET_ALIGN(sizeof(TUN_PACKET_HEADER) + packet->Size);
-	DBG2(DBG_LIB, "Aligned packet size: %d", aligned_packet_size);
         if (aligned_packet_size > length)
         {
             DBG0(DBG_LIB, "Incomplete packet in send ring!");
@@ -156,7 +152,7 @@ static chunk_t *pop_from_ring(TUN_RING *ring, bool *need_restart)
         /* Do we need to memset here? */
         memwipe(packet->Data, packet->Size);
         /* move ring head */
-        ring->Head = TUN_WRAP_POSITION(ring->Head + aligned_packet_size, TUN_RING_CAPACITY);
+        ring->Head = TUN_WRAP_POSITION((ring->Head + aligned_packet_size), TUN_RING_CAPACITY);
         return chunk_packet;
 }
 
@@ -1230,7 +1226,7 @@ impersonate_as_system()
 
 bool configure_wintun(private_windows_wintun_device_t *this, const char *name_tmpl)
 {
-	char buf[512], *interfaces = NULL , guid_string[512], *device_id = NULL;
+	char buf[512], *interfaces = NULL, *device_id = NULL;
 	DWORD ret;
 	for(int i=0;i<2;i++) {
 	    interfaces = search_interfaces((GUID *) &GUID_WINTUN_STRONGSWAN);
@@ -1238,7 +1234,7 @@ bool configure_wintun(private_windows_wintun_device_t *this, const char *name_tm
 	    {
 		DBG1(DBG_LIB, "No strongSwan VPN interface found, creating one.");
 		
-		if (!(device_id = create_wintun(guid_string)))
+		if (!(device_id = create_wintun()))
 		{
 		    DBG0(DBG_LIB, "Failed to create new wintun device");
 		    return FALSE;
