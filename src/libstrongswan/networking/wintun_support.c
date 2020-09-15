@@ -120,9 +120,8 @@ static chunk_t *pop_from_ring(TUN_RING *ring, bool *need_restart)
             DBG0(DBG_LIB, "RING is over capacity!");
         }
         length = TUN_WRAP_POSITION((ring->Tail - ring->Head),
-            TUN_RING_SIZE);
-            
-        if (length <sizeof(uint32_t))
+            TUN_RING_CAPACITY);
+        if (length < sizeof(uint32_t))
         {
             DBG0(DBG_LIB, "RING contains incomplete packet header!");
             *need_restart = TRUE;
@@ -136,8 +135,7 @@ static chunk_t *pop_from_ring(TUN_RING *ring, bool *need_restart)
 	    *need_restart = TRUE;
 	    return NULL;
         }
-
-        aligned_packet_size = TUN_PACKET_ALIGN(sizeof(uint32_t) + packet->Size);
+        aligned_packet_size = TUN_PACKET_ALIGN(sizeof(TUN_PACKET_HEADER) + packet->Size);
         if (aligned_packet_size > length)
         {
             DBG0(DBG_LIB, "Incomplete packet in ring!");
@@ -152,7 +150,7 @@ static chunk_t *pop_from_ring(TUN_RING *ring, bool *need_restart)
         /* Do we need to memset here? */
         memwipe(packet->Data, packet->Size);
         /* move ring head */
-        ring->Head = TUN_WRAP_POSITION(ring->Head, aligned_packet_size);
+        ring->Head = TUN_WRAP_POSITION(ring->Head + aligned_packet_size, TUN_RING_CAPACITY);
         return chunk_packet;
 }
 

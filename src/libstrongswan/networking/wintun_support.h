@@ -38,7 +38,11 @@ extern "C" {
 #define TUN_RING_CAPACITY (16*1024*1024)
 #define TUN_MAX_IP_PACKET_SIZE 0xFFFF
 #define WINTUN_RING_TRAILING_BYTES 0x10000
-    
+
+typedef struct _TUN_PACKET_HEADER {
+	uint32_t size;
+} TUN_PACKET_HEADER;
+
 typedef struct _TUN_PACKET {
     ULONG Size;
     UCHAR Data[TUN_MAX_IP_PACKET_SIZE];
