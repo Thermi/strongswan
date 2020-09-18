@@ -36,13 +36,14 @@
 bool guid2string(char *dst, size_t dst_len, const GUID *guid, bool braces);
 
 /**
- * helper function for reading GUIDs in string form (without the {}) into a GUID type structure.
+ * helper function for reading GUIDs in string form into a GUID type structure.
  * Thread safe and safe for calling several times.
  * @param               guid    allocated GUID type structure, will receive the data from the GUID
  * @param               str     source string to read into the GUID type structure
+ * @param               bool    Whether the guid is enclosed in {} or not
  * @return			 Boolean indicating success or failure (string too short or not a valid GUID)
  */
-bool guidfromstring(GUID *guid, const char *str);
+bool guidfromstring(GUID *guid, const char *str, bool with_braces);
 
 /**
  * helper function for getting registry values that may not exist yet

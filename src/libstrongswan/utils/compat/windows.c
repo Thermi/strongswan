@@ -198,7 +198,8 @@ char *human_readable_error(char *buf, DWORD err, size_t buf_len)
 {
 	char *pos;
 
-	if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+	if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_MAX_WIDTH_MASK
+,
 					  NULL, err, 0, buf, buf_len, NULL) > 0)
 	{
 		pos = strchr(buf, '\n');
