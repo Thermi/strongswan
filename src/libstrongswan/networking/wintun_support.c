@@ -15,14 +15,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+
 #include <winsock2.h>
+#include <ifdef.h>
+#include <netioapi.h>
 #include <windows.h>
 #include <cfgmgr32.h>
 #include <setupapi.h>
 #include <devpkey.h>
 #include <winreg.h>
 #include <utils/windows_helper.h>
-#include <ddk/ndisguid.h>
 
 #include "wintun_support.h"
 
@@ -390,30 +392,28 @@ bool get_interface_path(char *device_id, char **buf) {
  *					Can be NULL to make the system choose one at random.
  * @return char				deviceID of the device that was created.
  */
-char *create_wintun()
+char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 {
 	/* Reimplementation of CreateInterface from wireguard */
 	char className[MAX_CLASS_NAME_LEN], buf[512],
-		*property_buffer = NULL, NetCfgInstanceId[512], NetLuidIndex[512],
-		IfType[512], adapter_reg_key[512], ipconfig_value[512],
-		ipconfig_reg_key[512], *new_buf = NULL, *device_id = NULL;
-	uint64_t index = 0;
+                adapter_reg_key[512], ipconfig_value[512],
+                ipconfig_reg_key[512],
+                *device_id = NULL,
+                *property_buffer = NULL;
+        uint64_t index = 0;
 	DWORD property_buffer_length = 0, required_length = 0,
 		reg_value_type, error,
-		NetCfgInstanceId_length = sizeof(NetCfgInstanceId),
-		NetLuidIndex_length = sizeof(NetLuidIndex),
-		IfType_length = sizeof(IfType),
 		ipconfig_value_length = sizeof(ipconfig_value),
 		drv_info_detail_data_size = 0, ret;
 	FILETIME driver_date = {
 	    .dwHighDateTime = 0,
 	    .dwLowDateTime = 0
 	};
-	memset(NetCfgInstanceId, 0, sizeof(NetCfgInstanceId));
+	memset(NetCfgInstanceId, 0, *NetCfgInstanceId_length);
 	DWORDLONG driver_version = 0;
 	HKEY drv_reg_key = NULL, ipconfig_reg_hkey = NULL, adapter_reg_hkey = NULL;
 	/* Timeout of 5000 ms for registry operations */
-	size_t registry_timeout = 5000, buffer_length;
+	size_t registry_timeout = 5000;
 	/* Create an empty device info set for network adapter device class. */
 	SP_DEVINFO_DATA dev_info_data = {
 		.cbSize = sizeof(SP_DEVINFO_DATA)
@@ -749,7 +749,7 @@ char *create_wintun()
 		DIREG_DRV, KEY_SET_VALUE | KEY_QUERY_VALUE | KEY_NOTIFY
 	);
 
-        if (!registry_wait_get_value(drv_reg_key, NetCfgInstanceId, (DWORD *) &NetCfgInstanceId_length, "NetCfgInstanceId", &reg_value_type, registry_timeout))
+        if (!registry_wait_get_value(drv_reg_key, NetCfgInstanceId, (DWORD *) NetCfgInstanceId_length, "NetCfgInstanceId", &reg_value_type, registry_timeout))
         {
                 DBG1(DBG_LIB, "Failed to retrieve NetCfgInstanceId key. Aborting tun device installation.");
                 goto close_reg_keys;
@@ -760,31 +760,8 @@ char *create_wintun()
                 DBG1(DBG_LIB, "Type of NetCfgInstanceId is not REG_SZ, REG_EXPAND_SZ or REG_MULTI_SZ (Meaning it is not a string). Aborting tun device install.");
                 goto close_reg_keys;
         }
-        /* Expand string */
 
-        new_buf = windows_expand_string(property_buffer, &property_buffer_length, &buffer_length);
 
-        if (!registry_wait_get_value(drv_reg_key, NetLuidIndex, (DWORD *) &NetLuidIndex_length, "NetLuidIndex", &reg_value_type, registry_timeout))
-        {
-                DBG1(DBG_LIB, "Failed to retrieve NetLuidIndex key. Aborting tun device installation.");
-                goto close_reg_keys;
-        }
-        if (reg_value_type != REG_DWORD)
-        {
-                DBG1(DBG_LIB, "Type of NetLuidIndex is not REG_DWORD. Aborting tun device installation.");
-                goto close_reg_keys;
-        }
-
-        if (!registry_wait_get_value(drv_reg_key, IfType, (DWORD *) &IfType_length, "*IfType", &reg_value_type, registry_timeout))
-        {
-                DBG1(DBG_LIB, "Failed to retrieve *IfType key. Aborting tun device installation.");
-                goto close_reg_keys;
-        }
-        if (reg_value_type != REG_DWORD)
-        {
-                DBG1(DBG_LIB, "Type of *IfType is not REG_DWORD. Aborting tun device installation.");
-                goto close_reg_keys;
-        }
 	/* tcpipAdapterRegKeyName */
 	ignore_result(snprintf(adapter_reg_key, sizeof(adapter_reg_key),
 		"SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Adapters\\%s",
@@ -896,237 +873,13 @@ delete_device_info_list :
         {
                 DBG1(DBG_LIB, "Failed to delete device info set (SetupDiDestroyDeviceInfoList): %s", dlerror_mt(buf, sizeof(buf)));
         }
-        if(new_buf)
-        {
-            free(new_buf);
-        }
+
 	if(device_id) {
 	    DBG1(DBG_LIB, "Successfully created a wintun device with NetCfgInstanceId %s", NetCfgInstanceId);
 	} else {
 	    DBG1(DBG_LIB, "Failed to create a wintun device");
 	}
         return device_id;
-}
-
-/**
- * Implements func (pool Pool) GetInterface(ifname string) (*Interface, error)
- * Get a wintun interface handle with that ifname.
- * If it already exists, it is deleted first and a new one is created.
- * This guarantees that the device is always configured correctly.
- * @param		ifname 		desired name of the interface
- * @return 					HANDLE to the wintun device
- */
-bool wireguard_get_interface()
-{
-        GUID guid;
-        char error_buf[512];
-	SP_DEVINFO_DATA dev_info_data;
-	HDEVINFO dev_info_set;
-	char *property_buffer = NULL, buf[512];
-	DWORD error = 0;
-	uint32_t ctr = 0;
-	size_t property_buffer_length = 0, required_buffer_size = 0;
-	/* Initialise list */
-	dev_info_set = SetupDiCreateDeviceInfoListExA(
-		&GUID_DEVCLASS_NET,
-		NULL,
-		NULL,
-		NULL
-		);
-	if (dev_info_set == INVALID_HANDLE_VALUE)
-	{
-		DBG1(DBG_LIB, "Failed to create device info list (SetupDiCreateDeviceInfoListExA): %s", dlerror_mt(buf, sizeof(buf)));
-		return FALSE;
-	}
-	/* Get all currently existing network interfaces */
-	dev_info_set = SetupDiGetClassDevsExA(
-		&GUID_DEVCLASS_NET,
-		"",
-		NULL,
-		DIGCF_PRESENT,
-		dev_info_set,
-		"",
-		NULL
-		);
-	
-	/* Abort if getting list of existing network interfaces failed */
-	if (!dev_info_set || dev_info_set == INVALID_HANDLE_VALUE)
-	{
-		DBG1(DBG_LIB, "SetupDiGetClassDevsExA() failed to enumerate network devices: %s", dlerror_mt(buf, sizeof(buf)));
-		goto delete_device_info_list;
-		return FALSE;
-	}
-	/* enumerate the devices in the collection*/
-	/* Check if hardware ID is Wintun */
-	while(TRUE)
-	{
-		DBG2(DBG_LIB, "Looking at %s",
-                        windows_setupapi_get_friendly_name(buf, sizeof(buf), dev_info_set, &dev_info_data));
-		if (!SetupDiEnumDeviceInfo(dev_info_set, ctr++, &dev_info_data))
-		{
-			DBG2(DBG_LIB, "Encountered error in processing of list: %s", dlerror_mt(buf, sizeof(buf)));
-			if (error == ERROR_NO_MORE_ITEMS)
-			{
-				DBG2(DBG_LIB, "Reached end of network interface list.");
-				break;
-			}
-			/* Translate error into text and log it. Use FormatMessage */
-			/* Continue enumerating other network interfaces */
-			continue;
-		}
-		/* Get information about this particular network interface */
-		/* Get needed length to store property */
-		if (!SetupDiGetDeviceRegistryPropertyA(
-			dev_info_set,
-			&dev_info_data,
-			SPDRP_ADDRESS,
-			NULL,
-			NULL,
-			0,
-			(DWORD *)&required_buffer_size
-			))
-		{
-			DWORD error = GetLastError();
-			/* Request failed, log error and continue */
-			if(error == ERROR_INVALID_DATA)
-			{
-                            DBG1(DBG_LIB,
-                                    "Network interface %s doesn't have a hardware address. Skipping.",
-                                    windows_setupapi_get_friendly_name(buf, sizeof(buf), dev_info_set, &dev_info_data));
-			}
-			continue;
-		}
-		if (property_buffer_length < required_buffer_size)
-		{
-			property_buffer = realloc(property_buffer, required_buffer_size);
-			property_buffer_length = required_buffer_size;
-		}
-		if (!SetupDiGetDeviceRegistryPropertyA(
-			dev_info_set,
-			&dev_info_data,
-			SPDRP_ADDRESS,
-                        NULL,
-			property_buffer,
-			required_buffer_size,
-			NULL
-			))
-		{
-			/* Request failed, log error and continue */
-			DBG1(DBG_LIB, "Failed to get hardwareID for device %s: %s",
-                                windows_setupapi_get_friendly_name(buf, sizeof(buf), dev_info_set, &dev_info_data),
-                                dlerror_mt(error_buf, sizeof(error_buf)));
-			continue;
-		}
-		/* Check hardware id (must be wintun) */
-		if (!strcaseeq(property_buffer,  "Wintun"))
-		{
-			/* Not a wintun type device */
-			continue;
-		}
-		/* It's a wintun type device, check if its name (case insensitive) is the same as ifname */
-		HKEY key = SetupDiOpenDevRegKey(dev_info_set, &dev_info_data, DICS_FLAG_GLOBAL, 0, DIREG_DEV, KEY_QUERY_VALUE);
-		/* return nil, fmt.Errorf("Device-specific registry key open failed: %v", err) */
-		error = RegQueryValueEx(key, "NetCfgInstanceId", NULL, NULL, property_buffer, (DWORD *) &property_buffer_length);
-		if (error != ERROR_SUCCESS)
-		{
-			if (error == ERROR_MORE_DATA)
-			{
-				property_buffer = realloc(property_buffer, property_buffer_length);
-				error = RegQueryValueEx(key, "NetCfgInstanceId", NULL, NULL, property_buffer, (DWORD *) &property_buffer_length);
-				if (error)
-				{
-					DBG1(DBG_LIB,
-                                                "Failed to get NetCfgInstanceId for interface %s: %s",
-						windows_setupapi_get_friendly_name(buf, sizeof(buf), dev_info_set, &dev_info_data),
-						dlerror_mt(error_buf, sizeof(error_buf)));
-					continue;
-				}
-			} else {
-				DBG1(DBG_LIB,
-                                        "Failed to get NetCfgInstanceId for interface %s: %s",
-					windows_setupapi_get_friendly_name(buf, sizeof(buf), dev_info_set, &dev_info_data),
-					dlerror_mt(error_buf, sizeof(error_buf)));
-				continue;
-			}
-		}
-		/* Convert NetCfgInstanceId to GUID */
-		if(!guidfromstring(&guid, property_buffer))
-		{
-			dlerror_mt(error_buf, sizeof(error_buf));
-			DBG1(DBG_LIB, "Failed to convert NetCfgInstanceId %s into GUID: %s",
-				property_buffer, dlerror_mt(buf, sizeof(buf)));
-			continue;
-		}
-		/* Check if GUID is the same */
-		if (!memcmp(property_buffer, &GUID_WINTUN_STRONGSWAN, min(sizeof(GUID_WINTUN_STRONGSWAN), property_buffer_length)))
-		{
-			/* Is not the guid */
-			continue;
-		}
-		/* It's the strongSwan VPN adapter. We delete it and recreate it to make sure it works. */
-		/* TODO: Actually integrate that */
-
-	}
-
-delete_device_info_list:
-        if(property_buffer)
-        {
-            free(property_buffer);
-        }
-	if (!SetupDiDestroyDeviceInfoList(dev_info_set))
-	{
-		DBG1(DBG_LIB, "Failed to destroy device info set (SetupDiDestroyDeviceInfoList): %s", dlerror_mt(buf, sizeof(buf)));
-		return FALSE;
-	}
-	return TRUE;
-}
-
-char *search_interfaces(GUID *GUID)
-{
-	char guid_string[40];
-	guid2string(guid_string, sizeof(guid_string), GUID, TRUE);
-        char *interfaces = NULL;
-	DBG0(DBG_LIB, "Guid2string: %s", guid_string);
-        ULONG required_chars = 0;
-        CONFIGRET ret;
-        for(int tries=0;tries<50;tries++)
-        {
-            if (interfaces)
-            {
-                free(interfaces);
-                interfaces = NULL;
-            }
-            for(int i=0;i<2;i++) {
-		if (CM_Get_Device_Interface_List_Size(&required_chars,
-			(LPGUID)&GUID_DEVINTERFACE_NET,
-			guid_string,
-			CM_GET_DEVICE_INTERFACE_LIST_PRESENT) != CR_SUCCESS)
-		{
-		    return NULL;
-		}
-		interfaces = realloc(interfaces, required_chars*sizeof(WCHAR));
-	    }
-            if (!interfaces)
-	    {
-                return NULL;
-	    }
-	    /* CM_Get_Device_Interface_List writes a zero byte seperated array of strings *
-	     * Because GUID is a device guid, the resulting string array should only have one member
-	     * (Making it effectively a double zero byte terminated string)
-	     */
-            ret = CM_Get_Device_Interface_List((LPGUID)&GUID_DEVINTERFACE_NET, guid_string,
-                            interfaces, required_chars, CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
-            if (ret == CR_SUCCESS)
-	    {
-                break;
-	    }
-            if (ret != CR_BUFFER_SMALL)
-            {
-                free(interfaces);
-                return NULL;
-            }
-        }
-        return interfaces;
 }
 
 bool
@@ -1226,59 +979,34 @@ impersonate_as_system()
 
 bool configure_wintun(private_windows_wintun_device_t *this, const char *name_tmpl)
 {
-	char buf[512], *interfaces = NULL, *device_id = NULL;
+	char buf[512], NetCfgInstanceId[512], *interface_path = NULL, *device_id = NULL;
 	DWORD ret;
-	for(int i=0;i<2;i++) {
-	    interfaces = search_interfaces((GUID *) &GUID_WINTUN_STRONGSWAN);
-	    if(!interfaces)
-	    {
-		DBG1(DBG_LIB, "No strongSwan VPN interface found, creating one.");
-		
-		if (!(device_id = create_wintun()))
-		{
-		    DBG0(DBG_LIB, "Failed to create new wintun device");
-		    return FALSE;
-		}
-		ret = get_interface_path(device_id, &interfaces);
-		free(device_id);
-		if (!ret)
-		{
-		    return FALSE;
-		}
-		DBG0(DBG_LIB, "Device path: %s", interfaces);
-		break;
-	    }
-	}
-	/* Iterate over contents */	
-	linked_list_t *list = string_array_to_linked_list(interfaces);
-	enumerator_t *enumerator = list->create_enumerator(list);
+        size_t NetCfgInstanceId_length = sizeof(NetCfgInstanceId);
+        if (!(device_id = create_wintun(NetCfgInstanceId, &NetCfgInstanceId_length)))
+        {
+            DBG0(DBG_LIB, "Failed to create new wintun device");
+            return FALSE;
+        }
+        ret = get_interface_path(device_id, &interface_path);
+        free(device_id);
+        if (!ret)
+        {
+            return FALSE;
+        }
+        DBG0(DBG_LIB, "Device path: %s", interface_path);
 
-	char *interface;
-	while(enumerator->enumerate(enumerator, (void **) &interface))
-	{
-	    /* wireguard uses FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE instead of 0 after 
-	       GENERIC_READ | GENERIC_WRITE. The reason for that is unknown. It makes no sense though.
-	     */
-	    //snprintf(buf, sizeof(buf), "\\\\%s", interface);
-	    this->tun_handle = CreateFile(
-		    interface, GENERIC_READ | GENERIC_WRITE,
-		    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-		    NULL, OPEN_EXISTING, 0, NULL);
-	    if(this->tun_handle != INVALID_HANDLE_VALUE) {
-		/* Don't overwrite last byte */
-		strncpy(this->if_name, interface, sizeof(this->if_name)-1);
-		break;
-	    } else {
-		DBG0(DBG_LIB, "Failed to open tun file handle %s: %s",
-		     interface, dlerror_mt(buf, sizeof(buf)));
-	    }
-	}
+        this->tun_handle = CreateFile(
+                interface_path, GENERIC_READ | GENERIC_WRITE,
+                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                NULL, OPEN_EXISTING, 0, NULL);
+        if(this->tun_handle != INVALID_HANDLE_VALUE) {
+            strncpy(this->if_name, NetCfgInstanceId, sizeof(this->if_name)-1);
+        } else {
+            DBG0(DBG_LIB, "Failed to open tun file handle %s: %s",
+                 interface_path, dlerror_mt(buf, sizeof(buf)));
+        }
+
 	DBG0(DBG_LIB, "foo");
-	list->get_first(list, (void **) &interface);
-	free(interfaces);
-
-	enumerator->destroy(enumerator);
-	list->destroy(list);
 
         if(!this->tun_handle)
         {
