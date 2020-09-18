@@ -494,7 +494,7 @@ static void WINAPI change_interface(void *user, PMIB_IPINTERFACE_ROW row_badal,
 		}
 		else
 		{
-			DBG1(DBG_KNL, "getting IPH adapter addresses failed: 0x%08lx", res, human_readable_error(buf, res, sizeof(buf)));
+			DBG1(DBG_KNL, "getting IPH adapter addresses failed: 0x%08lx (%s)", res, human_readable_error(buf, res, sizeof(buf)));
 		}
 	}
 }
