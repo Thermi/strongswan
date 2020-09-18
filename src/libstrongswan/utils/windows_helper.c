@@ -49,13 +49,25 @@ bool guid2string(char *dst, size_t dst_len, const GUID *guid, bool braces)
 	return ret >= 36 ? TRUE : FALSE;
 }
 
-bool guidfromstring(GUID *guid, const char *str)
+bool guidfromstring(GUID *guid, const char *str, bool with_braces)
 {
-    size_t read = scanf("%08lx-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-                        guid->Data1, guid->Data2, guid->Data3,	
-			guid->Data4[0], guid->Data4[1], guid->Data4[2], guid->Data4[3],
-			guid->Data4[4], guid->Data4[5], guid->Data4[6], guid->Data4[7]);
-    return read == 36 ? TRUE :  FALSE;
+    char *format = with_braces ?
+                        "{%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX}%n" :
+                        "%08lX-%04hX-%04hX-%02hhX%02hhX-%02hhX%02hhX%02hhX%02hhX%02hhX%02hhX%n";
+    size_t nchars = 0, nfields = sscanf_s(str, format,
+                        &guid->Data1, &guid->Data2, &guid->Data3,	
+			&guid->Data4[0], &guid->Data4[1], &guid->Data4[2], &guid->Data4[3],
+			&guid->Data4[4], &guid->Data4[5], &guid->Data4[6], &guid->Data4[7],
+                        &nchars);
+    DBG0(DBG_LIB, "Nfields: %d, nchars: %d", nfields, nchars);
+    DBG0(DBG_LIB, "nfields == 11: %d", nfields == 11);
+    DBG0(DBG_LIB, "nchars == 38: %d", nchars == 38);
+    if (nfields == 11 && ((with_braces && nchars == 38) || (!with_braces && nchars == 36))) {
+        DBG0(DBG_LIB, "Returning True");
+        return TRUE;
+    }
+    DBG0(DBG_LIB, "Returning False");
+    return FALSE;
 }
 /**
  * see header
