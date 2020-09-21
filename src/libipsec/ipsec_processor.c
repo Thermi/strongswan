@@ -97,7 +97,6 @@ static job_requeue_t process_inbound(private_ipsec_processor_t *this)
 	uint32_t spi, reqid;
 	DBG0(DBG_LIB, "this->: %p", this);
 	DBG0(DBG_LIB, "this->inbound_queue: %p", this->inbound_queue);
-	DBG0(DBG_LIB, "this->inbound_queue->dequeu: %p", this->inbound_queue->dequeue);
 	DBG0(DBG_LIB, "this->inbound_queue->dequeue: %p", this->inbound_queue->dequeue);
 	packet = (esp_packet_t*)this->inbound_queue->dequeue(this->inbound_queue);
 
