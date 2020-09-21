@@ -421,12 +421,12 @@ kernel_libipsec_router_t *kernel_libipsec_router_create()
 	);
 #ifdef WIN32
 	this->tun.handle = this->tun.tun->get_handle(this->tun.tun);
-if (!(this->event = CreateEvent(NULL, FALSE, FALSE, FALSE)))
-{
-    DBG1(DBG_KNL, "creating notify event for kernel-libipsec router failed");
-    free(this);
-    return NULL;
-}
+        if (!(this->event = CreateEvent(NULL, FALSE, FALSE, FALSE)))
+        {
+            DBG1(DBG_KNL, "creating notify event for kernel-libipsec router failed");
+            free(this);
+            return NULL;
+        }
 #else
 	if (pipe(this->notify) != 0 ||
 		!set_nonblock(this->notify[0]) || !set_nonblock(this->notify[1]))
