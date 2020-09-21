@@ -105,17 +105,16 @@ static bool write_to_ring(TUN_RING *ring, chunk_t packet)
     return TRUE;
 }
 
-static chunk_t *pop_from_ring(TUN_RING *ring, bool *need_restart)
+static bool pop_from_ring(TUN_RING *ring, chunk_t *chunk_packet, bool *need_restart)
 {
         uint32_t length;
         size_t aligned_packet_size;
         /* TODO: If ring is over capacity wait until event is sent */
-        chunk_t *chunk_packet;
         TUN_PACKET *packet;
         /* Ring is empty if head == tail */
         if (ring->Head == ring->Tail)
         {
-            return NULL;
+            return FALSE;
         }
         if (ring_over_capacity(ring))
         {
@@ -128,7 +127,7 @@ static chunk_t *pop_from_ring(TUN_RING *ring, bool *need_restart)
         {
             DBG0(DBG_LIB, "RING contains incomplete packet header!");
             *need_restart = TRUE;
-	    return NULL;
+	    return FALSE;
 
         }
         packet = (TUN_PACKET *)&(ring->Data[ring->Head]);
@@ -137,17 +136,16 @@ static chunk_t *pop_from_ring(TUN_RING *ring, bool *need_restart)
         {
             DBG0(DBG_LIB, "RING contains packet larger than TUN_MAX_IP_PACKET_SIZE!");
 	    *need_restart = TRUE;
-	    return NULL;
+	    return FALSE;
         }
         aligned_packet_size = TUN_PACKET_ALIGN(sizeof(TUN_PACKET_HEADER) + packet->Size);
         if (aligned_packet_size > length)
         {
             DBG0(DBG_LIB, "Incomplete packet in send ring!");
 	    *need_restart = TRUE;
-	    return NULL;
+	    return FALSE;
         }
 
-        chunk_packet = malloc(sizeof(chunk_t));
         chunk_packet->ptr = malloc(packet->Size);
         chunk_packet->len = packet->Size;
         memcpy(chunk_packet->ptr, packet->Data, chunk_packet->len);
@@ -155,7 +153,7 @@ static chunk_t *pop_from_ring(TUN_RING *ring, bool *need_restart)
         memwipe(packet->Data, packet->Size);
         /* move ring head */
         ring->Head = TUN_WRAP_POSITION((ring->Head + aligned_packet_size), TUN_RING_CAPACITY);
-        return chunk_packet;
+        return TRUE;
 }
 
 /* Restart the driver.
@@ -198,21 +196,20 @@ METHOD(tun_device_t, wintun_write_packet, bool,
 METHOD(tun_device_t, wintun_read_packet, bool, 
         private_windows_wintun_device_t *this, chunk_t *packet)
 {
-	bool need_restart = FALSE;
-        chunk_t *next = pop_from_ring(this->rings->Send.Ring, &need_restart);
+	bool need_restart = FALSE, success = pop_from_ring(this->rings->Send.Ring, packet, &need_restart);
 	if (need_restart) {
 		restart_driver(this);
 		return FALSE;
 	}
-        if (!next)
+        if (!success)
         {
                 this->rings->Send.Ring->Alertable = TRUE;
-                next = pop_from_ring(this->rings->Send.Ring, &need_restart);
+                success = pop_from_ring(this->rings->Send.Ring, packet, &need_restart);
 		if (need_restart) {
 			restart_driver(this);
 			return FALSE;
 		}
-                if (!next)
+                if (!success)
                 {
                     WaitForSingleObject(this->rings->Send.TailMoved, INFINITE);
                     this->rings->Send.Ring->Alertable = FALSE;
@@ -220,7 +217,6 @@ METHOD(tun_device_t, wintun_read_packet, bool,
                 this->rings->Send.Ring->Alertable = FALSE,
                 ResetEvent(this->rings->Send.TailMoved);
         }
-        *packet = *next;
         return TRUE;
 }
 
