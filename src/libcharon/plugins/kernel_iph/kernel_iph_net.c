@@ -763,6 +763,17 @@ METHOD(kernel_net_t, add_ip, status_t,
 	/* name of the MS Loopback adapter */
 	// name = "{DB2C49B1-7C90-4253-9E61-8C6A881194ED}";
 
+        if (!lib->settings->get_bool(lib->settings,
+						"%s.install_virtual_ip", TRUE, lib->ns)) {
+            return FAILED;
+        }
+        
+        char *install_virtual_ip_on = lib->settings->get_str(lib->settings,
+						"%s.install_virtual_ip_on", NULL, lib->ns);
+        
+        if (install_virtual_ip_on) {
+            name = install_virtual_ip_on;
+        }
 	host2unicast(vip, prefix, &row);
 
 	row.InterfaceIndex = add_addr(this, name, vip, TRUE);
