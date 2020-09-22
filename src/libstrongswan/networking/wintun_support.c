@@ -200,7 +200,8 @@ METHOD(tun_device_t, wintun_read_packet, bool,
         private_windows_wintun_device_t *this, chunk_t *packet)
 {
 	bool need_restart = FALSE, success = pop_from_ring(this->rings->Send.Ring, packet, &need_restart);
-	if (need_restart) {
+	if (need_restart)
+        {
 		restart_driver(this);
 		return FALSE;
 	}
@@ -208,7 +209,8 @@ METHOD(tun_device_t, wintun_read_packet, bool,
         {
                 this->rings->Send.Ring->Alertable = TRUE;
                 success = pop_from_ring(this->rings->Send.Ring, packet, &need_restart);
-		if (need_restart) {
+		if (need_restart)
+                {
 			restart_driver(this);
 			return FALSE;
 		}
@@ -267,7 +269,8 @@ METHOD(tun_device_t, wintun_destroy, void,
  * @return	bool indicating if the routine encountered SetupDi errors not
  *		(not if any devices were deleted)
  */
-bool delete_existing_strongswan_wintun_devices() {
+bool delete_existing_strongswan_wintun_devices()
+{
     DBG1(DBG_LIB, "Deleting existing strongSwan wintun devices.");
 	/* Reimplementation of CreateInterface from wireguard */
 	char buf[512];
@@ -290,7 +293,8 @@ bool delete_existing_strongswan_wintun_devices() {
 		NULL
 		);
 	
-	if (dev_info_set == INVALID_HANDLE_VALUE || (ret=GetLastError())) {
+	if (dev_info_set == INVALID_HANDLE_VALUE || (ret=GetLastError()))
+        {
 	    DBG1(DBG_LIB, "Failed to create device info list (SetupDiCreateDeviceInfoListExA): %s", human_readable_error(buf, ret, sizeof(buf)));
 	    return FALSE;
 	}
@@ -368,7 +372,8 @@ delete_device_info_list :
 /**
  * Return the file path to the interface (Can be used with CreateFile)
  */
-bool get_interface_path(char *device_id, char **buf) {
+bool get_interface_path(char *device_id, char **buf)
+{
     DBG0(DBG_LIB, "Looking for device ID %s", device_id);
     uint32_t bufsize = 512;
     *buf = malloc(bufsize);
@@ -376,7 +381,8 @@ bool get_interface_path(char *device_id, char **buf) {
     CONFIGRET ret = CM_Get_Device_Interface_List(&GUID_INTERFACE_NET, device_id, *buf, bufsize, CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
     DBG0(DBG_LIB, "Configret: %d", ret);
     
-    if (ret == CR_BUFFER_SMALL) {
+    if (ret == CR_BUFFER_SMALL)
+    {
 	DBG1(DBG_LIB, "Buffer too small for CM_Get_Device_Interface_List. That shouldn't happen.");
 	return FALSE;
     } else if (ret) {
@@ -434,7 +440,8 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 		NULL,
 		NULL
         );
-	if (dev_info_set == INVALID_HANDLE_VALUE || (ret=GetLastError())) {
+	if (dev_info_set == INVALID_HANDLE_VALUE || (ret=GetLastError()))
+        {
 	    DBG1(DBG_LIB, "Failed to create device info list (SetupDiCreateDeviceInfoListExA): %s", human_readable_error(buf, ret, sizeof(buf)));
 	    free(drv_info_detail_data);
 	    return FALSE;
@@ -582,7 +589,8 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 			))
 		    {
 			if(check_hardwareids(drv_info_detail_data) ||
-				strcaseeq(drv_info_data.Description, "Wintun Userspace Tunnel")) {
+				strcaseeq(drv_info_data.Description, "Wintun Userspace Tunnel"))
+                        {
 			    if(SetupDiSetSelectedDriverA(dev_info_set, &dev_info_data, &drv_info_data))
 			    {
 				DBG1(DBG_LIB, "Successfully Set driver of device %s for new wintun device",
@@ -873,7 +881,8 @@ delete_device_info_list :
                 DBG1(DBG_LIB, "Failed to delete device info set (SetupDiDestroyDeviceInfoList): %s", dlerror_mt(buf, sizeof(buf)));
         }
 
-	if(device_id) {
+	if(device_id)
+        {
 	    DBG1(DBG_LIB, "Successfully created a wintun device with NetCfgInstanceId %s", NetCfgInstanceId);
 	} else {
 	    DBG1(DBG_LIB, "Failed to create a wintun device");
@@ -998,7 +1007,8 @@ bool configure_wintun(private_windows_wintun_device_t *this, const char *name_tm
                 interface_path, GENERIC_READ | GENERIC_WRITE,
                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                 NULL, OPEN_EXISTING, 0, NULL);
-        if(this->tun_handle != INVALID_HANDLE_VALUE) {
+        if(this->tun_handle != INVALID_HANDLE_VALUE)
+        {
             strncpy(this->if_name, NetCfgInstanceId, sizeof(this->if_name)-1);
         } else {
             DBG0(DBG_LIB, "Failed to open tun file handle %s: %s",
@@ -1040,14 +1050,17 @@ bool configure_wintun(private_windows_wintun_device_t *this, const char *name_tm
             NULL,
             0,
             &ret,
-            NULL)) {
+            NULL))
+        {
 	    DBG0(DBG_LIB, "failed to install rings: %s", dlerror_mt(buf, sizeof(buf)));
 	    CloseHandle(this->rings->Receive.TailMoved);
 	    CloseHandle(this->rings->Send.TailMoved);
-	    if(this->rings->Send.Ring) {
+	    if(this->rings->Send.Ring)
+            {
 		VirtualFree(this->rings->Send.Ring, 0, MEM_RELEASE);
 	    }
-	    if (this->rings->Receive.Ring) {
+	    if (this->rings->Receive.Ring)
+            {
 		VirtualFree(this->rings->Receive.Ring, 0, MEM_RELEASE);
 	    }
 	 
