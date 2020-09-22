@@ -91,7 +91,7 @@ const static GUID GUID_DEVCLASS_NET = { 0x4d36e972L, 0xe325, 0x11ce, { 0xbf, 0xc
 //#define TUN_IOCTL_REGISTER_RINGS ((51820 << 16) | (0x970 << 2) | 0 /*METHOD_BUFFERED*/ | (0x3 /*FILE_READ_DATA | FILE_WRITE_DATA*/ << 14))
 #define TUN_PACKET_TRAILING_SIZE (sizeof(uint32_t) + ((TUN_MAX_IP_PACKET_SIZE + \
     (TUN_PACKET_ALIGNMENT - 1)) &~(TUN_PACKET_ALIGNMENT - 1)) - TUN_PACKET_ALIGNMENT)
-#define TUN_WRAP_POSITION(position, size) ({position & (size - 1);})
+#define TUN_WRAP_POSITION(position, size) ((position & (size - 1)))
 #define TUN_PACKET_ALIGN(size) ((size + (TUN_PACKET_ALIGNMENT - 1)) &~(TUN_PACKET_ALIGNMENT - 1))
 
 

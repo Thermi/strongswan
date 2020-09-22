@@ -87,12 +87,15 @@ static bool write_to_ring(TUN_RING *ring, chunk_t packet)
     if (ring_over_capacity(ring))
     {
         DBG1(DBG_LIB, "RING is over capacity!");
+        return FALSE;
     }
-    uint64_t aligned_packet_size = TUN_PACKET_ALIGN(packet.len);
-    uint64_t buffer_space = TUN_WRAP_POSITION(((ring->Head - ring->Tail) - TUN_PACKET_ALIGNMENT), TUN_RING_CAPACITY);
+    
+    uint64_t aligned_packet_size = TUN_PACKET_ALIGN(sizeof(TUN_PACKET_HEADER) + packet.len);
+    uint64_t buffer_space = TUN_WRAP_POSITION((ring->Head - ring->Tail - TUN_PACKET_ALIGNMENT), TUN_RING_CAPACITY);
     if (aligned_packet_size > buffer_space)
     {
         DBG1(DBG_LIB, "RING is full!");
+        return FALSE;
     }
     
     /* copy packet size and data into ring */
