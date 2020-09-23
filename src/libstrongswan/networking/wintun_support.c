@@ -276,7 +276,7 @@ bool delete_existing_strongswan_wintun_devices()
 	char buf[512];
 	uint64_t index = 0;
 	DWORD required_length = 0,
-		error, ret;
+		error, ret = 0;
 	/* Create an empty device info set for network adapter device class. */
 	SP_DEVINFO_DATA dev_info_data = {
 		.cbSize = sizeof(SP_DEVINFO_DATA)
@@ -295,7 +295,12 @@ bool delete_existing_strongswan_wintun_devices()
 	
 	if (dev_info_set == INVALID_HANDLE_VALUE || (ret=GetLastError()))
         {
-	    DBG1(DBG_LIB, "Failed to create device info list (SetupDiCreateDeviceInfoListExA): %s", human_readable_error(buf, ret, sizeof(buf)));
+            if (ret)
+            {
+                DBG1(DBG_LIB, "Failed to create device info list (SetupDiCreateDeviceInfoListExA): %s", human_readable_error(buf, ret, sizeof(buf)));
+            } else {
+                DBG1(DBG_LIB, "Failed to create device info list (SetupDiCreateDeviceInfoListExA), dev_info_set has value INVALID_HANDLE_VALUE");
+            }
 	    return FALSE;
 	}
 	
@@ -376,20 +381,36 @@ bool get_interface_path(char *device_id, char **buf)
 {
     DBG0(DBG_LIB, "Looking for device ID %s", device_id);
     uint32_t bufsize = 512;
-    *buf = malloc(bufsize);
-    sleep(5);
-    CONFIGRET ret = CM_Get_Device_Interface_List(&GUID_INTERFACE_NET, device_id, *buf, bufsize, CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
-    DBG0(DBG_LIB, "Configret: %d", ret);
-    
-    if (ret == CR_BUFFER_SMALL)
-    {
-	DBG1(DBG_LIB, "Buffer too small for CM_Get_Device_Interface_List. That shouldn't happen.");
-	return FALSE;
-    } else if (ret) {
-	DBG1(DBG_LIB, "Other return code: %d", ret);
-	return FALSE;
-    }
-    
+    GUID cpy;
+    *buf = calloc(bufsize, sizeof(char));
+    uint64_t tries = 0;
+
+    do {
+        sleep(1);
+        cpy = (GUID) GUID_INTERFACE_NET;
+        CONFIGRET ret = CM_Get_Device_Interface_List(&cpy, device_id, *buf, bufsize, CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
+        DBG0(DBG_LIB, "Configret: %d", ret);
+
+        if (ret == CR_BUFFER_SMALL)
+        {
+            DBG1(DBG_LIB, "Buffer too small for CM_Get_Device_Interface_List. That shouldn't happen.");
+            return FALSE;
+        } else if (ret) {
+            DBG1(DBG_LIB, "Other return code: %d", ret);
+            return FALSE;
+        }
+        DBG2(DBG_LIB, "strlen(*buf): %d", strlen(*buf));
+        DBG2(DBG_LIB, "bufsize: %d", bufsize);
+        ret = strlen(*buf);
+        if (!ret)
+        {
+            DBG2(DBG_LIB, "Waiting for 1 second for device path to become "
+                    "available; cfgmngr32 currently returns the device path as "
+                    "empty string. Try number: %d.", tries++);
+        } else {
+            break;
+        }
+    } while (TRUE);
     return TRUE;
 }
 /**
@@ -409,7 +430,7 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 	DWORD property_buffer_length = 0, required_length = 0,
 		reg_value_type, error,
 		ipconfig_value_length = sizeof(ipconfig_value),
-		drv_info_detail_data_size = 0, ret;
+		drv_info_detail_data_size = 0, ret = 0;
 	FILETIME driver_date = {
 	    .dwHighDateTime = 0,
 	    .dwLowDateTime = 0
@@ -440,17 +461,21 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 		NULL,
 		NULL
         );
-	if (dev_info_set == INVALID_HANDLE_VALUE || (ret=GetLastError()))
+	if (dev_info_set == INVALID_HANDLE_VALUE)
         {
-	    DBG1(DBG_LIB, "Failed to create device info list (SetupDiCreateDeviceInfoListExA): %s", human_readable_error(buf, ret, sizeof(buf)));
+	    DBG1(DBG_LIB, "Failed to create device info list (SetupDiCreateDeviceInfoListExA), dev_info_set is an invalid handle");
 	    free(drv_info_detail_data);
 	    return FALSE;
 	}
+        
+        if ((ret=GetLastError()))
+        {
+	    DBG1(DBG_LIB, "Failed to create device info list (SetupDiCreateDeviceInfoListExA): %s", human_readable_error(buf, ret, sizeof(buf)));
+	    free(drv_info_detail_data);
+	    return FALSE;            
+        }
         /* wait 50 ms */
-        struct timespec ts = {
-            .tv_sec = 0,
-            .tv_nsec = 50000000,
-        };
+        struct timespec ts;
 	
 	if (!dev_info_set)
 	{
@@ -823,7 +848,7 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 	}
 	DBG1(DBG_LIB, "Device ID: %s", buf);
 	device_id = malloc(strlen(buf)+1);
-	strcpy(device_id, buf);
+        memcpy(device_id, buf, strlen(buf)+1);
 	
 close_reg_keys :
 	if(handle_is_valid(drv_reg_key))
@@ -987,7 +1012,7 @@ impersonate_as_system()
 
 bool configure_wintun(private_windows_wintun_device_t *this, const char *name_tmpl)
 {
-	char buf[512], NetCfgInstanceId[512], *interface_path = NULL, *device_id = NULL;
+	char buf[512], NetCfgInstanceId[255], *interface_path = NULL, *device_id = NULL;
 	DWORD ret;
         size_t NetCfgInstanceId_length = sizeof(NetCfgInstanceId);
         if (!(device_id = create_wintun(NetCfgInstanceId, &NetCfgInstanceId_length)))
