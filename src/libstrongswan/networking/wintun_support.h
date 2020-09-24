@@ -30,7 +30,6 @@ extern "C" {
 #        endif
 
 #include "windows_tun.h"
-#include <wchar.h>
 #include "tlhelp32.h"
 #include "securitybaseapi.h"
     
