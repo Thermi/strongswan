@@ -883,8 +883,8 @@ static status_t manage_route(private_kernel_iph_net_t *this, bool add,
 	}
 	if (gtw)
 	{
-		/*memcpy(&row.NextHop, gtw->get_sockaddr(gtw),
-			   *gtw->get_sockaddr_len(gtw));*/
+		memcpy(&row.NextHop, gtw->get_sockaddr(gtw),
+			   *gtw->get_sockaddr_len(gtw));
 	}
 
 	if (add)
