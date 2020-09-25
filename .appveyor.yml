@@ -85,7 +85,7 @@ for:
     - ./scripts/test.sh
   #build_cloud: 
   environment:
-    APPVEYOR_BUILD_WORKER_IMAGE: appveyor/build-image:minimal-ubuntu-18.04
+    APPVEYOR_BUILD_WORKER_IMAGE: Linux
 
 - matrix:
     only:
@@ -105,7 +105,7 @@ for:
     - ./scripts/test.sh
   #build_cloud: 
   environment:
-    APPVEYOR_BUILD_WORKER_IMAGE: appveyor/build-image:minimal-ubuntu-18.04
+    APPVEYOR_BUILD_WORKER_IMAGE: Linux
 
 - matrix:
     only:
