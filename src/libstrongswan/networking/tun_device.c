@@ -570,5 +570,4 @@ tun_device_t *tun_device_create(const char *name_tmpl)
 	}
 	return &this->public;
 }
-#endif
 #endif /* TUN devices supported */
