@@ -133,8 +133,8 @@ install_deps() {
 		pkg install -y bison flex gperf gettext ${DEPS}
 		;;
 	linux)
-		sudo apt-get update -qq && \
-		sudo apt-get install -qq bison flex gperf gettext ${DEPS}
+		$sudo apt-get update -qq && \
+		$sudo apt-get install -qq bison flex gperf gettext ${DEPS}
 		;;
 	esac
 
@@ -454,8 +454,8 @@ case "$1" in
 deps)
 	case "$TRAVIS_OS_NAME" in
 	linux)
-		sudo apt-get update -qq && \
-		sudo apt-get install -qq bison flex gperf gettext $DEPS
+		$sudo apt-get update -qq && \
+		$sudo apt-get install -qq bison flex gperf gettext $DEPS
 		install_deps
 		fix_timezone
 		exit 0
