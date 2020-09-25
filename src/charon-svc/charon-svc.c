@@ -79,7 +79,7 @@ static void dbg_stderr(debug_t group, level_t level, char *fmt, ...)
 static void print_version()
 {
 	char user[UNLEN+1];
-	uint32_t unused_length = sizeof(user);
+	DWORD unused_length = sizeof(user);
 	OSVERSIONINFOEX osvie;
 
 	memset(&osvie, 0, sizeof(osvie));
