@@ -409,7 +409,6 @@ METHOD(tun_device_t, destroy, void,
 
 bool init_tun(private_tun_device_t *this, const char *name_tmpl)
 {
-	return try_configure_wintun(this, name_tmpl);
 #if defined(__APPLE__)
 
 	struct ctl_info info;
