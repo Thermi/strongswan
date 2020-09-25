@@ -42,7 +42,6 @@ tun_device_t *tun_device_create(const char *name_tmpl)
 
 #else /* TUN devices supported */
 
-#ifndef WIN32
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -529,6 +528,7 @@ bool init_tun(private_tun_device_t *this, const char *name_tmpl)
 		DBG1(DBG_LIB, "failed to open %s: %s", this->if_name, strerror(errno));
 	}
 	return this->tunfd > 0;
+#endif
 }
 
 /*
@@ -570,6 +570,5 @@ tun_device_t *tun_device_create(const char *name_tmpl)
 	}
 	return &this->public;
 }
-#endif /* !WIN32 */
 #endif
 #endif /* TUN devices supported */
