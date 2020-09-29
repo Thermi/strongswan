@@ -8,6 +8,7 @@ max_jobs: 4
 
 environment:
   global:
+    docker_ipv6: true
     MONOLITHIC: no
     TESTS_REDUCED_KEYLENGTHS: yes
     TZ: Europe/Zurich
