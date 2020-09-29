@@ -6,6 +6,8 @@ clone_depth: 50
 
 max_jobs: 4
 
+docker_ipv6: true
+
 environment:
   global:
     MONOLITHIC: no
