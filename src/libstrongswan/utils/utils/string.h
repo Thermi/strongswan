@@ -111,12 +111,4 @@ char *strreplace(const char *str, const char *search, const char *replace);
  */
 linked_list_t *strsplit(const char *str, const char *tokstr);
 
-/**
- * 
- * @param string	string to be searched in
- * @param delimiter	delimiter string between
- * @param saveptr	pointer used internally
- * @return		pointer to the next found token
- */
-char *next_tok(const char *string, const char *delimiter, char **saveptr);
 #endif /** STRING_H_ @} */
