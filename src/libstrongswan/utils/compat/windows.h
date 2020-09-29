@@ -279,7 +279,7 @@ char *dlerror_mt(char *buf, size_t buf_len);
  * function for translating the given error into a human readable error message
  * using FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, ...)
  * @param	buf	caller supplied buffer
- * @param	erro	caller supplied erorr value to translate
+ * @param	err	caller supplied erorr value to translate
  * @param 	buf_len	length of caller supplied buffer
  * @return             caller supplied buffer
  */

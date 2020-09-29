@@ -107,7 +107,6 @@ char *strreplace(const char *str, const char *search, const char *replace);
  * Returns a linked list containing the strings, allocated on the heap.
  * 
  * @param str           original string
- * @param sep           Seperator string
  * @return              linked list containing the strings
  */
 linked_list_t *strsplit(const char *str, const char *tokstr);
