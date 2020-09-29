@@ -42,6 +42,8 @@ environment:
       MONOLITHIC: yes
     - TEST: sonarcloud
       MONOLITHIC: no
+    - TEST: wintun-sonarcloud
+      MONOLITHIC: yes
 
 matrix:
   exclude:
@@ -63,6 +65,9 @@ matrix:
     - image: Visual Studio 2017
       TEST: sonarcloud
       MONOLITHIC: no
+    - image: Visual Studio 2017
+      TEST: wintun-sonarcloud
+      MONOLITHIC: yes
 
 # Don't build if it's a push with a tag
 skip_tags: true

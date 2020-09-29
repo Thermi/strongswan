@@ -263,7 +263,7 @@ win*)
 			--enable-imc-os --enable-imv-os --enable-tnc-imv --enable-tnc-imc
 			--enable-pki --enable-swanctl --enable-socket-win
 			--enable-kernel-iph --enable-kernel-wfp --enable-winhttp"
-	if test "$TEST" = "wintun"; then
+	if [[ "$TEST" == "wintun*" ]]; then
 		CONFIG="$CONFIG --enable-wintun --enable-kernel-libipsec --enable-libipsec"
 
 	fi
@@ -508,32 +508,49 @@ esac
 
 echo "$ make $TARGET"
 case "$TEST" in
-sonarcloud)
-        if test -n "${APPVEYOR}"
+*sonarcloud)
+        export SONAR_SCANNER_VERSION=4.2.0.1873
+        # This implicitely (based on .appveyor.yml) only runs on Windows platforms, so travis won't ever run this
+        if [[ "$TEST" == win* ]]
         then
-            export SONAR_SCANNER_VERSION=4.2.0.1873
-            export SONAR_SCANNER_HOME=$HOME/.sonar/sonar-scanner-$SONAR_SCANNER_VERSION-linux
-            curl --create-dirs -sSLo $HOME/.sonar/sonar-scanner.zip \
-                https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/\
-sonar-scanner-cli-$SONAR_SCANNER_VERSION-linux.zip || exit $?
-            unzip -o $HOME/.sonar/sonar-scanner.zip -d $HOME/.sonar/ || exit $?
+            export SONAR_SCANNER_HOME=$DEPS_BUILD_DIR/.sonar/sonar-scanner-$SONAR_SCANNER_VERSION-windows
+            curl --create-dirs -sSLo $DEPS_BUILD_DIR/.sonar/sonar-scanner.zip \
+                    https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/\
+                    sonar-scanner-cli-$SONAR_SCANNER_VERSION-windows.zip || exit $?
+            unzip -o $DEPS_BUILD_DIR/.sonar/sonar-scanner.zip -d $DEPS_BUILD_DIR/.sonar/ || exit $?
             export PATH=$SONAR_SCANNER_HOME/bin:$PATH
             export SONAR_SCANNER_OPTS="-server"
+            curl --create-dirs -sSLo $DEPS_BUILD_DIR/.sonar/build-wrapper-win-x86.zip \
+                    https://sonarcloud.io/static/cpp/build-wrapper-win-x86.zip
+            unzip -o $DEPS_BUILD_DIR/.sonar/build-wrapper-win-x86.zip -d $DEPS_BUILD_DIR/.sonar/
+            export PATH=$DEPS_BUILD_DIR/.sonar/build-wrapper-win-x86:$PATH
+            build-wrapper-win-x86-64 --out-dir bw-output make -j4 || exit $?
+        else
+            if test -n "${APPVEYOR}"
+            then
+                export SONAR_SCANNER_HOME=$HOME/.sonar/sonar-scanner-$SONAR_SCANNER_VERSION-linux
+                curl --create-dirs -sSLo $HOME/.sonar/sonar-scanner.zip \
+                    https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/\
+    sonar-scanner-cli-$SONAR_SCANNER_VERSION-linux.zip || exit $?
+                unzip -o $HOME/.sonar/sonar-scanner.zip -d $HOME/.sonar/ || exit $?
+                export PATH=$SONAR_SCANNER_HOME/bin:$PATH
+                export SONAR_SCANNER_OPTS="-server"
 
-            curl --create-dirs -sSLo $HOME/.sonar/build-wrapper-linux-x86.zip \
-                https://sonarcloud.io/static/cpp/build-wrapper-linux-x86.zip
-            unzip -o $HOME/.sonar/build-wrapper-linux-x86.zip -d $HOME/.sonar/
-            export PATH=$HOME/.sonar/build-wrapper-linux-x86:$PATH
+                curl --create-dirs -sSLo $HOME/.sonar/build-wrapper-linux-x86.zip \
+                    https://sonarcloud.io/static/cpp/build-wrapper-linux-x86.zip
+                unzip -o $HOME/.sonar/build-wrapper-linux-x86.zip -d $HOME/.sonar/
+                export PATH=$HOME/.sonar/build-wrapper-linux-x86:$PATH
+            fi
+            # there is an issue with the platform detection that causes sonarqube to
+            # fail on bionic with "ERROR: ld.so: object '...libinterceptor-${PLATFORM}.so'
+            # from LD_PRELOAD cannot be preloaded (cannot open shared object file)"
+            # https://jira.sonarsource.com/browse/CPP-2027
+            BW_PATH=$(dirname $(which build-wrapper-linux-x86-64))
+            cp $BW_PATH/libinterceptor-x86_64.so $BW_PATH/libinterceptor-haswell.so
+            # without target, coverage is currently not supported anyway because
+            # sonarqube only supports gcov, not lcov
+            build-wrapper-linux-x86-64 --out-dir bw-output make -j4 || exit $?
         fi
-	# there is an issue with the platform detection that causes sonarqube to
-	# fail on bionic with "ERROR: ld.so: object '...libinterceptor-${PLATFORM}.so'
-	# from LD_PRELOAD cannot be preloaded (cannot open shared object file)"
-	# https://jira.sonarsource.com/browse/CPP-2027
-	BW_PATH=$(dirname $(which build-wrapper-linux-x86-64))
-	cp $BW_PATH/libinterceptor-x86_64.so $BW_PATH/libinterceptor-haswell.so
-	# without target, coverage is currently not supported anyway because
-	# sonarqube only supports gcov, not lcov
-	build-wrapper-linux-x86-64 --out-dir bw-output make -j4 || exit $?
 	;;
 *)
 	make -j4 $TARGET || exit $?
