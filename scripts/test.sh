@@ -123,7 +123,7 @@ fix_timezone() {
 install_deps() {
 	# configure.ac checks against the easy_install file in $PATH, which is only provided by the PIP egg, not the Ubuntu package!
 	: ${DEPS:=FOO}
-	case "${TRAVIS_OS_NAME}" in
+	case "$TRAVIS_OS_NAME" in
 	osx)
 		brew update && \
 		brew install ${DEPS}
@@ -138,7 +138,7 @@ install_deps() {
 		;;
 	esac
 
-    case "${APPVEYOR}" in
+    case "$APPVEYOR" in
     true)
         sudo apt-get install -qq bison flex gperf gettext pkg-config ${DEPS}
         ;;
@@ -149,10 +149,10 @@ install_deps() {
 }
 
 appveyor_set_vars() {
-	if test -n "${APPVEYOR}"
+	if test -n "$APPVEYOR"
     then
-        declare -g TRAVIS_OS_NAME=linux TRAVIS_COMMIT="${APPVEYOR_REPO_COMMIT}" \
-            TRAVIS_BUILD_NUMBER="${APPVEYOR_BUILD_NUMBER}" 
+        declare -g TRAVIS_OS_NAME=linux TRAVIS_COMMIT="$APPVEYOR_REPO_COMMIT" \
+            TRAVIS_BUILD_NUMBER="$APPVEYOR_BUILD_NUMBER"
     fi
 }
 : ${TRAVIS_BUILD_DIR=$PWD}
@@ -526,7 +526,7 @@ case "$TEST" in
             export PATH=$DEPS_BUILD_DIR/.sonar/build-wrapper-win-x86:$PATH
             build-wrapper-win-x86-64 --out-dir bw-output make -j4 || exit $?
         else
-            if test -n "${APPVEYOR}"
+            if test -n "$APPVEYOR"
             then
                 export SONAR_SCANNER_HOME=$HOME/.sonar/sonar-scanner-$SONAR_SCANNER_VERSION-linux
                 curl --create-dirs -sSLo $HOME/.sonar/sonar-scanner.zip \
