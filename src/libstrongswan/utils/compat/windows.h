@@ -24,6 +24,7 @@
 #include <errno.h>
 
 #include <winsock2.h>
+#include <devpropdef.h>
 #include <ws2tcpip.h>
 #include <direct.h>
 #include <inttypes.h>
