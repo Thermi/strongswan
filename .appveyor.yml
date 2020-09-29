@@ -65,7 +65,7 @@ matrix:
     - image: Visual Studio 2017
       TEST: sonarcloud
       MONOLITHIC: no
-    - image: Visual Studio 2017
+    - image: Ubuntu
       TEST: wintun-sonarcloud
       MONOLITHIC: yes
 
