@@ -4,6 +4,8 @@ image:
 
 clone_depth: 50
 
+max_jobs: 4
+
 environment:
   global:
     MONOLITHIC: no
