@@ -524,7 +524,7 @@ $SONAR_SCANNER_VERSION-windows.zip || exit $?
                     https://sonarcloud.io/static/cpp/build-wrapper-win-x86.zip
             unzip -o $DEPS_BUILD_DIR/.sonar/build-wrapper-win-x86.zip -d $DEPS_BUILD_DIR/.sonar/
             export PATH=$DEPS_BUILD_DIR/.sonar/build-wrapper-win-x86:$PATH
-            build-wrapper-win-x86-64 --out-dir bw-output make -j4 || exit $?
+            build-wrapper-win-x86-64.exe --out-dir bw-output make -j4 || exit $?
         else
             if test -n "$APPVEYOR"
             then
