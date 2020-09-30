@@ -517,7 +517,7 @@ case "$TEST" in
             curl --create-dirs -sSLo $DEPS_BUILD_DIR/.sonar/sonar-scanner.zip \
 https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/\sonar-scanner-cli-\
 $SONAR_SCANNER_VERSION-windows.zip || exit $?
-            unzip -o $DEPS_BUILD_DIR/.sonar/sonar-scanner.zip -d $DEPS_BUILD_DIR/.sonar/ || exit $?
+            unzip -o $DEPS_BUILD_DIR/.sonar/sonar-scanner.zip -d $DEPS_BUILD_DIR/.sonar/ || exit $?
             export PATH=$SONAR_SCANNER_HOME/bin:$PATH
             export SONAR_SCANNER_OPTS="-server"
             curl --create-dirs -sSLo $DEPS_BUILD_DIR/.sonar/build-wrapper-win-x86.zip \
