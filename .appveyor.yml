@@ -129,6 +129,5 @@ for:
     - set CCACHE_DIR=C:\CCACHE
     - set MSYS_SH=C:\msys%BITS%\usr\bin\sh.exe
     - set MSYSTEM=MINGW%BITS%
-    - set TEST=win%BITS%
 artifacts:
     - path: config.h
