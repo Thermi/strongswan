@@ -263,7 +263,7 @@ win*)
 			--enable-imc-os --enable-imv-os --enable-tnc-imv --enable-tnc-imc
 			--enable-pki --enable-swanctl --enable-socket-win
 			--enable-kernel-iph --enable-kernel-wfp --enable-winhttp"
-	if [[ "$TEST" == "wintun*" ]]; then
+	if [[ "$TEST" == wintun* ]]; then
 		CONFIG="$CONFIG --enable-wintun --enable-kernel-libipsec --enable-libipsec"
 
 	fi
