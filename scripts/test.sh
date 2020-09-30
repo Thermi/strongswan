@@ -176,6 +176,13 @@ else
 fi
 export DEBIAN_FRONTEND=noninteractive
 
+# Make sure the printf-builtin test on AppVeyor (Windows platform) runs the
+# windows compatible path and not the Linux/Unix specific path
+if [ "$TEST" == "printf-builtin" && "$APPVEYOR" == "True" ]
+then
+    TEST=win64
+fi
+
 case "$TEST" in
 default)
 	# should be the default, but lets make sure
