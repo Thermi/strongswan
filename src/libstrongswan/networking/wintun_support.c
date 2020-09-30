@@ -113,7 +113,8 @@ static bool write_to_ring(TUN_RING *ring, chunk_t packet, uint64_t ring_capacity
     return TRUE;
 }
 
-static bool pop_from_ring(TUN_RING *ring, chunk_t *chunk_packet, bool *need_restart)
+static bool pop_from_ring(TUN_RING *ring, chunk_t *chunk_packet,
+                            uint64_t ring_capacity, bool *need_restart)
 {
         uint32_t length;
         size_t aligned_packet_size;
