@@ -71,27 +71,32 @@ struct private_windows_wintun_device_t {
 	 * Netmask for address
 	 */
 	uint8_t netmask;
+        
+        /**
+         * Size of the rings
+         */
+        uint64_t ring_capacity;
 };
 
-static inline bool ring_over_capacity(TUN_RING *ring)
+static inline bool ring_over_capacity(TUN_RING *ring, uint64_t ring_capacity)
 {
-    return ((ring->Head >= TUN_RING_CAPACITY) || (ring->Tail >= TUN_RING_CAPACITY));
+    return ((ring->Head >= ring_capacity) || (ring->Tail >= ring_capacity));
 }
 
 /* This is likely broken (!!!) */
-static bool write_to_ring(TUN_RING *ring, chunk_t packet)
+static bool write_to_ring(TUN_RING *ring, chunk_t packet, uint64_t ring_capacity)
 {
-        /* Check if packet fits */
+    /* Check if packet fits */
     TUN_PACKET *tun_packet;
     /* TODO: if ring is full or over capacity, wait until wintun driver sends event */
-    if (ring_over_capacity(ring))
+    if (ring_over_capacity(ring, ring_capacity))
     {
         DBG1(DBG_LIB, "RING is over capacity!");
         return FALSE;
     }
     
     uint64_t aligned_packet_size = TUN_PACKET_ALIGN(sizeof(TUN_PACKET_HEADER) + packet.len);
-    uint64_t buffer_space = TUN_WRAP_POSITION((ring->Head - ring->Tail - TUN_PACKET_ALIGNMENT), TUN_RING_CAPACITY);
+    uint64_t buffer_space = TUN_WRAP_POSITION((ring->Head - ring->Tail - TUN_PACKET_ALIGNMENT), ring_capacity);
     if (aligned_packet_size > buffer_space)
     {
         DBG1(DBG_LIB, "RING is full!");
@@ -104,7 +109,7 @@ static bool write_to_ring(TUN_RING *ring, chunk_t packet)
     memcpy(tun_packet->Data, packet.ptr, packet.len);
     
     /* move ring tail */
-    ring->Tail = TUN_WRAP_POSITION((ring->Tail + aligned_packet_size), TUN_RING_CAPACITY);
+    ring->Tail = TUN_WRAP_POSITION((ring->Tail + aligned_packet_size), ring_capacity);
     return TRUE;
 }
 
@@ -119,12 +124,12 @@ static bool pop_from_ring(TUN_RING *ring, chunk_t *chunk_packet, bool *need_rest
         {
             return FALSE;
         }
-        if (ring_over_capacity(ring))
+        if (ring_over_capacity(ring, ring_capacity))
         {
             DBG0(DBG_LIB, "RING is over capacity!");
         }
         length = TUN_WRAP_POSITION((ring->Tail - ring->Head),
-            TUN_RING_CAPACITY);
+            ring_capacity);
 	
         if (length < sizeof(uint32_t))
         {
@@ -153,9 +158,9 @@ static bool pop_from_ring(TUN_RING *ring, chunk_t *chunk_packet, bool *need_rest
         chunk_packet->len = packet->Size;
         memcpy(chunk_packet->ptr, packet->Data, chunk_packet->len);
         /* Do we need to memset here? */
-        memwipe(packet->Data, packet->Size);
+        /* memwipe(packet->Data, packet->Size); */
         /* move ring head */
-        ring->Head = TUN_WRAP_POSITION((ring->Head + aligned_packet_size), TUN_RING_CAPACITY);
+        ring->Head = TUN_WRAP_POSITION((ring->Head + aligned_packet_size), ring_capacity);
         return TRUE;
 }
 
@@ -188,7 +193,7 @@ METHOD(tun_device_t, wintun_get_handle, HANDLE,
 METHOD(tun_device_t, wintun_write_packet, bool,
         private_windows_wintun_device_t *this, chunk_t packet)
 {
-        write_to_ring(this->rings->Receive.Ring, packet);
+        write_to_ring(this->rings->Receive.Ring, packet, this->ring_capacity);
         if (this->rings->Receive.Ring->Alertable)
         {
             SetEvent(this->rings->Receive.TailMoved);
@@ -199,7 +204,8 @@ METHOD(tun_device_t, wintun_write_packet, bool,
 METHOD(tun_device_t, wintun_read_packet, bool, 
         private_windows_wintun_device_t *this, chunk_t *packet)
 {
-	bool need_restart = FALSE, success = pop_from_ring(this->rings->Send.Ring, packet, &need_restart);
+	bool need_restart = FALSE, success = pop_from_ring(this->rings->Send.Ring,
+                packet, this->ring_capacity, &need_restart);
 	if (need_restart)
         {
 		restart_driver(this);
@@ -208,7 +214,8 @@ METHOD(tun_device_t, wintun_read_packet, bool,
         if (!success)
         {
                 this->rings->Send.Ring->Alertable = TRUE;
-                success = pop_from_ring(this->rings->Send.Ring, packet, &need_restart);
+                success = pop_from_ring(this->rings->Send.Ring, packet,
+                        this->ring_capacity, &need_restart);
 		if (need_restart)
                 {
 			restart_driver(this);
@@ -1051,17 +1058,19 @@ bool configure_wintun(private_windows_wintun_device_t *this, const char *name_tm
         /* Create structs for rings and the rings themselves */
         this->rings = VirtualAlloc(NULL, sizeof(TUN_REGISTER_RINGS), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 	this->rings->Send.TailMoved = CreateEventA(NULL, FALSE, FALSE, NULL);
-        this->rings->Send.Ring = VirtualAlloc(NULL, sizeof(TUN_RING), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-	this->rings->Send.RingSize = sizeof(TUN_RING);
-	memwipe(this->rings->Send.Ring, sizeof(TUN_RING));
+        this->rings->Send.Ring = VirtualAlloc(NULL, sizeof(TUN_RING) + this->ring_capacity + WINTUN_RING_TRAILING_BYTES,
+            MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	this->rings->Send.RingSize = sizeof(TUN_RING) + this->ring_capacity + WINTUN_RING_TRAILING_BYTES;
+	memwipe(this->rings->Send.Ring, sizeof(TUN_RING) + this->ring_capacity + WINTUN_RING_TRAILING_BYTES);
 	this->rings->Receive.TailMoved = CreateEventA(NULL, FALSE, FALSE, NULL);
-        this->rings->Receive.Ring = VirtualAlloc(NULL, sizeof(TUN_RING), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-	this->rings->Receive.RingSize = sizeof(TUN_RING);
-	memwipe(this->rings->Receive.Ring, sizeof(TUN_RING));
+        this->rings->Receive.Ring = VirtualAlloc(NULL, sizeof(TUN_RING) + this->ring_capacity + WINTUN_RING_TRAILING_BYTES,
+            MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+	this->rings->Receive.RingSize = sizeof(TUN_RING) + this->ring_capacity + WINTUN_RING_TRAILING_BYTES;
+	memwipe(this->rings->Receive.Ring, sizeof(TUN_RING) + this->ring_capacity + WINTUN_RING_TRAILING_BYTES);
 	DBG2(DBG_LIB, "TUN_RING_SIZE(this->rings->Receive, TUN_RING_CAPACITY): %d",
-	    TUN_RING_SIZE);
+	    this->ring_capacity);
 	DBG2(DBG_LIB, "TUN_RING_SIZE(this->rings->Send, TUN_RING_CAPACITY): %d",
-	    TUN_RING_SIZE);
+	    this->ring_capacity);
         /* Tell driver about the rings */
 	if (!impersonate_as_system())
         {
@@ -1130,7 +1139,8 @@ tun_device_t *initialize_unused_wintun_device(const char *name_tmpl)
 		.rings = NULL,
                 .tun_handle = NULL,
 		.ifindex = 0,
-
+                .ring_capacity = lib->settings->get_int(lib->settings,
+                    "%s.ring_capacity", TUN_RING_CAPACITY),
 	);
 	if(configure_wintun(this, name_tmpl))
 	{

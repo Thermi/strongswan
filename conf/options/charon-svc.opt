@@ -1,0 +1,8 @@
+charon-svc {}
+	Options for the charon-svc.exe IKE daemon. (Windows)
+
+	Options for the charon-svc.exe IKE daemon. (Windows)
+
+charon.ring_capacity = 16777216
+    On Windows when using the wintun driver, the size of each of
+    the two rings in byte. Must be a power of two, max 32MB each (total 64MB)

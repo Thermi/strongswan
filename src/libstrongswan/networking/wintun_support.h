@@ -55,7 +55,7 @@ typedef struct _TUN_RING {
     volatile ULONG Head;
     volatile ULONG Tail;
     volatile LONG Alertable;
-    UCHAR Data[TUN_RING_CAPACITY + WINTUN_RING_TRAILING_BYTES];
+    UCHAR Data[];
 } TUN_RING;
 
 typedef struct _TUN_REGISTER_RINGS {
