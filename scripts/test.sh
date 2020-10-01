@@ -143,16 +143,30 @@ install_deps() {
         sudo apt-get install -qq bison flex gperf gettext pkg-config ${DEPS}
         ;;
     True)
-        pacman --noconfirm -Sy bison flex gperf gettext mingw-w64-x86_64-gmp gmp ccache
+        curl -O http://repo.msys2.org/msys/x86_64/msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz \
+            msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig || exit 1
+        pacman-key --verify msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig || exit 1
+        pacman -U msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz
+        rm msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz*
+        pacman --noconfirm -Sy bison flex gperf gettext mingw-w64-x86_64-gmp gmp ccache unzip
         ;;
     esac
 }
 
 appveyor_set_vars() {
-	if test -n "$APPVEYOR"
+    if test -n "$APPVEYOR"
     then
-        declare -g TRAVIS_OS_NAME=linux TRAVIS_COMMIT="$APPVEYOR_REPO_COMMIT" \
-            TRAVIS_BUILD_NUMBER="$APPVEYOR_BUILD_NUMBER"
+        case "$APPVEYOR" in
+        True)
+            declare -g TRAVIS_OS_NAME=windows
+        ;;   
+        *)
+            # Ubuntu or unknown
+            declare -g TRAVIS_OS_NAME=linux
+        ;;
+        esac
+        declare -g TRAVIS_COMMIT="$APPVEYOR_REPO_COMMIT" \
+                TRAVIS_BUILD_NUMBER="$APPVEYOR_BUILD_NUMBER"
     fi
 }
 : ${TRAVIS_BUILD_DIR=$PWD}
@@ -170,15 +184,15 @@ CFLAGS="-g -O2 -Wall -Wno-format -Wno-format-security -Wno-pointer-sign -Werror"
 #True is Windows, true is Ubuntu
 # no sudo on Windows
 if test "$APPVEYOR" = "True"; then
-    export sudo=""
+    declare -g sudo=""
 else
-    export sudo="sudo"
+    declare -g sudo="sudo"
 fi
 export DEBIAN_FRONTEND=noninteractive
 
 # Make sure the printf-builtin test on AppVeyor (Windows platform) runs the
 # windows compatible path and not the Linux/Unix specific path
-if [ "$TEST" == "printf-builtin" && "$APPVEYOR" == "True" ]
+if test "$TEST" == "printf-builtin" -a "$APPVEYOR" == "True"
 then
     TEST=win64
 fi
