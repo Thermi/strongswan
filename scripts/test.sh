@@ -143,8 +143,8 @@ install_deps() {
         sudo apt-get install -qq bison flex gperf gettext pkg-config ${DEPS}
         ;;
     True)
-        curl -O http://repo.msys2.org/msys/x86_64/msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz \
-            msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig || exit 1
+        curl -O http://repo.msys2.org/msys/x86_64/msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz || exit 1
+        curl -O msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig || exit 1
         pacman-key --verify msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig || exit 1
         pacman -U --noconfirm msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz
         rm msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz*
