@@ -152,7 +152,7 @@ install_deps() {
         sudo apt-get install -qq bison flex gperf gettext pkg-config ${DEPS}
         ;;
     True)
-        pacman --noconfirm -Sy bison flex gperf gettext mingw-w64-x86_64-gmp gmp ccache unzip
+        pacman --noconfirm -Sy bison flex gperf gettext mingw-w64-x86_64-gmp  mingw-w64-x86_64-crt-git mingw-w64-x86_64-winpthreads-git gmp ccache unzip 
         ;;
     esac
 }
