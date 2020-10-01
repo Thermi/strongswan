@@ -146,7 +146,7 @@ install_deps() {
         curl -O http://repo.msys2.org/msys/x86_64/msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz \
             msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig || exit 1
         pacman-key --verify msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig || exit 1
-        pacman -U msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz
+        pacman -U --noconfirm msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz
         rm msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz*
         pacman --noconfirm -Sy bison flex gperf gettext mingw-w64-x86_64-gmp gmp ccache unzip
         ;;
