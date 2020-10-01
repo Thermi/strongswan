@@ -302,7 +302,7 @@ win*)
                 LDFLAGS="-L/c/OpenSSL-$TEST"
                 export LDFLAGS
         fi
-        CFLAGS="$CFLAGS -mno-ms-bitfields  -DNOCRYPT -DWIN32"
+        CFLAGS="$CFLAGS -mno-ms-bitfields  -DNOCRYPT -DWIN32 -lwinpthread"
         DEPS="gcc-mingw-w64-base ccache"
         CONFIG="--host=x86_64-w64-mingw32 $CONFIG --enable-dbghelp-backtraces"
         DEPS="gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 mingw-w64-x86-64-dev $DEPS"
