@@ -345,7 +345,7 @@ bool delete_existing_strongswan_wintun_devices()
 	    {
 		DBG1(DBG_LIB, "Failed to get device ID for index %d: %s", index, dlerror_mt(buf, sizeof(buf)));
 	    }
-	    DBG1(DBG_LIB, "Device ID: %s", buf);
+	    DBG2(DBG_LIB, "Retrieved Device ID: %s", buf);
 	    if (strstr(buf, "STRONGSWAN"))
 	    {
 		    DBG1(DBG_LIB, "Removing device %s", buf);
