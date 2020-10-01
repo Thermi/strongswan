@@ -18,6 +18,8 @@
 
 #include <winsock2.h>
 #include <ifdef.h>
+/* For NTSTATUS, potentially defined in bcrypt.h if it exists */
+#include <winternl.h>
 #include <netioapi.h>
 #include <windows.h>
 #include <cfgmgr32.h>
