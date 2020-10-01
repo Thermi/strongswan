@@ -304,7 +304,7 @@ win*)
         DEPS="gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 mingw-w64-x86-64-dev $DEPS"
         #CC="$CCACHE x86_64-w64-mingw32-gcc"
         CC="x86_64-w64-mingw32-gcc"
-        if test "$TEST" = "deps"
+        if test "$1" = "deps"
         then
             install_deps
         fi
