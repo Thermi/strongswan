@@ -2,6 +2,10 @@
 # Build script for Travis CI
 set -x
 
+fix_msys2() {
+        pacman --noconfirm -Sydd pacman
+}
+
 build_botan()
 {
 	# same revision used in the build recipe of the testing environment
@@ -304,10 +308,6 @@ win*)
         DEPS="gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 mingw-w64-x86-64-dev $DEPS"
         #CC="$CCACHE x86_64-w64-mingw32-gcc"
         CC="x86_64-w64-mingw32-gcc"
-        if test "$1" = "deps"
-        then
-            install_deps
-        fi
 	;;
 android)
 	DEPS="$DEPS openjdk-8-jdk"
@@ -493,6 +493,10 @@ deps)
 		pkg install -y automake autoconf libtool pkgconf && \
 		pkg install -y bison flex gperf gettext $DEPS
 		;;
+        windows)
+                fix_msys2
+                install_deps
+                ;;
 	esac
 	exit $?
 	;;
