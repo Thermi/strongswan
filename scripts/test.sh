@@ -274,36 +274,40 @@ all|coverage|sonarcloud)
 	fi
 	;;
 win*)
-	CONFIG="--disable-defaults --enable-svc --enable-ikev2
-			--enable-ikev1 --enable-static --enable-test-vectors --enable-nonce
-			--enable-constraints --enable-revocation --enable-pem --enable-pkcs1
-			--enable-pkcs8 --enable-x509 --enable-pubkey --enable-acert
-			--enable-eap-tnc --enable-eap-ttls --enable-eap-identity
-			--enable-updown --enable-ext-auth --enable-libipsec
-			--enable-tnccs-20 --enable-imc-attestation --enable-imv-attestation
-			--enable-imc-os --enable-imv-os --enable-tnc-imv --enable-tnc-imc
-			--enable-pki --enable-swanctl --enable-socket-win
-			--enable-kernel-iph --enable-kernel-wfp --enable-winhttp"
-	if [[ "$TEST" == wintun* ]]; then
-		CONFIG="$CONFIG --enable-wintun --enable-kernel-libipsec --enable-libipsec"
+        CONFIG="--disable-defaults --enable-svc --enable-ikev2
+                        --enable-ikev1 --enable-static --enable-test-vectors --enable-nonce
+                        --enable-constraints --enable-revocation --enable-pem --enable-pkcs1
+                        --enable-pkcs8 --enable-x509 --enable-pubkey --enable-acert
+                        --enable-eap-tnc --enable-eap-ttls --enable-eap-identity
+                        --enable-updown --enable-ext-auth --enable-libipsec
+                        --enable-tnccs-20 --enable-imc-attestation --enable-imv-attestation
+                        --enable-imc-os --enable-imv-os --enable-tnc-imv --enable-tnc-imc
+                        --enable-pki --enable-swanctl --enable-socket-win
+                        --enable-kernel-iph --enable-kernel-wfp --enable-winhttp"
+        if [[ "$TEST" == wintun* ]]; then
+                CONFIG="$CONFIG --enable-wintun --enable-kernel-libipsec --enable-libipsec"
 
-	fi
-	# no make check for Windows binaries unless we run on a windows host
-    #CCACHE=ccache
-	if test "$APPVEYOR" != "True"; then
-		TARGET=
-	else
-		CONFIG="$CONFIG --enable-openssl"
-		CFLAGS="$CFLAGS -I/c/OpenSSL-$TEST/include"
-		LDFLAGS="-L/c/OpenSSL-$TEST"
-		export LDFLAGS
-	fi
-	CFLAGS="$CFLAGS -mno-ms-bitfields  -DNOCRYPT -DWIN32"
-	DEPS="gcc-mingw-w64-base ccache"
-	CONFIG="--host=x86_64-w64-mingw32 $CONFIG --enable-dbghelp-backtraces"
-	DEPS="gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 mingw-w64-x86-64-dev $DEPS"
-	#CC="$CCACHE x86_64-w64-mingw32-gcc"
-	CC="x86_64-w64-mingw32-gcc"
+        fi
+        # no make check for Windows binaries unless we run on a windows host
+        #CCACHE=ccache
+        if test "$APPVEYOR" != "True"; then
+                TARGET=
+        else
+                CONFIG="$CONFIG --enable-openssl"
+                CFLAGS="$CFLAGS -I/c/OpenSSL-$TEST/include"
+                LDFLAGS="-L/c/OpenSSL-$TEST"
+                export LDFLAGS
+        fi
+        CFLAGS="$CFLAGS -mno-ms-bitfields  -DNOCRYPT -DWIN32"
+        DEPS="gcc-mingw-w64-base ccache"
+        CONFIG="--host=x86_64-w64-mingw32 $CONFIG --enable-dbghelp-backtraces"
+        DEPS="gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 mingw-w64-x86-64-dev $DEPS"
+        #CC="$CCACHE x86_64-w64-mingw32-gcc"
+        CC="x86_64-w64-mingw32-gcc"
+        if test "$TEST" = "deps"
+        then
+            install_deps
+        fi
 	;;
 android)
 	DEPS="$DEPS openjdk-8-jdk"
