@@ -329,12 +329,9 @@ bool delete_existing_strongswan_wintun_devices()
 		    &dev_info_data))
 	    {
 		error = GetLastError();
-		if (error == ERROR_NO_MORE_ITEMS)
+		if (error != ERROR_NO_MORE_ITEMS)
 		{
-		    DBG1(DBG_LIB, "No more items.");
-		    break;
-		} else {
-		    DBG1(DBG_LIB, "Other error occured: %s", dlerror_mt(buf, sizeof(buf)));
+		    DBG1(DBG_LIB, "An error occured: %s", dlerror_mt(buf, sizeof(buf)));
 		}
 		continue;
 	    }
