@@ -88,6 +88,7 @@ static bool write_to_ring(TUN_RING *ring, chunk_t packet, uint64_t ring_capacity
 {
     /* Check if packet fits */
     TUN_PACKET *tun_packet;
+    ULONG ring_tail;
     /* TODO: if ring is full or over capacity, wait until wintun driver sends event */
     if (ring_over_capacity(ring, ring_capacity))
     {
@@ -109,7 +110,9 @@ static bool write_to_ring(TUN_RING *ring, chunk_t packet, uint64_t ring_capacity
     memcpy(tun_packet->Data, packet.ptr, packet.len);
     
     /* move ring tail */
-    ring->Tail = TUN_WRAP_POSITION((ring->Tail + aligned_packet_size), ring_capacity);
+    ring_tail = TUN_WRAP_POSITION((ring->Tail + aligned_packet_size), ring_capacity);
+    ring->Tail = ring_tail;
+    DBG2(DBG_LIB, "New tail position: %lu", ring_tail);
     return TRUE;
 }
 
@@ -427,24 +430,30 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 {
 	/* Reimplementation of CreateInterface from wireguard */
 	char className[MAX_CLASS_NAME_LEN], buf[512],
-                adapter_reg_key[512], ipconfig_value[512],
-                ipconfig_reg_key[512],
-                *device_id = NULL,
-                *property_buffer = NULL;
-        uint64_t index = 0;
+		adapter_reg_key[512], ipconfig_value[512],
+		ipconfig_reg_key[512],
+		*device_id = NULL,
+		*property_buffer = NULL;
+	uint64_t index = 0;
+
+	size_t registry_timeout = 5000;
 	DWORD property_buffer_length = 0, required_length = 0,
 		reg_value_type, error,
 		ipconfig_value_length = sizeof(ipconfig_value),
 		drv_info_detail_data_size = 0, ret = 0;
-	FILETIME driver_date = {
-	    .dwHighDateTime = 0,
-	    .dwLowDateTime = 0
-	};
-	memset(NetCfgInstanceId, 0, *NetCfgInstanceId_length);
+
 	DWORDLONG driver_version = 0;
 	HKEY drv_reg_key = NULL, ipconfig_reg_hkey = NULL, adapter_reg_hkey = NULL;
 	/* Timeout of 5000 ms for registry operations */
-	size_t registry_timeout = 5000;
+
+	LPWSTR temp_buf = NULL;
+
+	FILETIME driver_date = {
+		.dwHighDateTime = 0,
+		.dwLowDateTime = 0
+	};
+	memset(NetCfgInstanceId, 0, *NetCfgInstanceId_length);
+
 	/* Create an empty device info set for network adapter device class. */
 	SP_DEVINFO_DATA dev_info_data = {
 		.cbSize = sizeof(SP_DEVINFO_DATA)
@@ -712,8 +721,6 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 	    DBG0(DBG_LIB, "Failed to open DevRegKey, handle is invalid.");
 	    goto delete_driver_info_list;
 	}
-	// Need to encode this in UTF-16 first(!)
-	LPWSTR temp_buf = NULL;
 	
 	if(!ascii2utf16(&temp_buf, 0, GUID_WINTUN_STRONGSWAN_STRING, -1))
 	{
@@ -729,7 +736,9 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 			human_readable_error(buf, ret, sizeof(buf)));
         }
 	DBG1(DBG_LIB, "Value of HKEY drv_reg_key 2: %ld", (long long) drv_reg_key);	
-	free(temp_buf);
+	if (temp_buf) {
+		free(temp_buf);
+	}
 	
         if (!SetupDiCallClassInstaller(
                 DIF_INSTALLINTERFACES,
