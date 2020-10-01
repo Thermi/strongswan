@@ -384,7 +384,7 @@ delete_device_info_list :
  */
 bool get_interface_path(char *device_id, char **buf)
 {
-    DBG0(DBG_LIB, "Looking for device ID %s", device_id);
+    DBG2(DBG_LIB, "Looking for device ID %s", device_id);
     uint32_t bufsize = 512;
     GUID cpy;
     *buf = calloc(bufsize, sizeof(char));
