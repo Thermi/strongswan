@@ -1,6 +1,6 @@
 image:
   - Visual Studio 2017
-  - Ubuntu
+  - Ubuntu2004
 
 clone_depth: 50
 
@@ -47,7 +47,7 @@ environment:
 
 matrix:
   exclude:
-    - image: Ubuntu
+    - image: Ubuntu2004
       TEST: wintun
     - image: Visual Studio 2017
       TEST: botan
@@ -65,7 +65,7 @@ matrix:
     - image: Visual Studio 2017
       TEST: sonarcloud
       MONOLITHIC: no
-    - image: Ubuntu
+    - image: Ubuntu2004
       TEST: wintun-sonarcloud
       MONOLITHIC: yes
 
@@ -75,7 +75,7 @@ skip_tags: true
 for:
 - matrix:
     only:
-      - image: Ubuntu
+      - image: Ubuntu2004
       - TEST: sonarcloud
   clone_depth: 0
   cache:
@@ -97,7 +97,7 @@ for:
 
 - matrix:
     only:
-      - image: Ubuntu
+      - image: Ubuntu2004
   cache:
   - /home/appveyor/.ccache
   - dependencies -> scripts/test.sh
