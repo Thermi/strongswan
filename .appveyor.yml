@@ -19,6 +19,16 @@ environment:
     DEPS_BUILD_DIR: ./dependencies/
 
   matrix:
+    - TEST: win64
+      MONOLITHIC: yes
+    - TEST: wintun
+      MONOLITHIC: yes
+    - TEST: printf-builtin
+      MONOLITHIC: yes
+    - TEST: sonarcloud
+      MONOLITHIC: no
+    - TEST: wintun-sonarcloud
+      MONOLITHIC: yes      
     - TEST: all
     - TEST: all
       MONOLITHIC: yes
@@ -34,16 +44,6 @@ environment:
       LEAK_DETECTIVE: yes
     - TEST: apidoc
       MONOLITHIC: no
-    - TEST: win64
-      MONOLITHIC: yes
-    - TEST: wintun
-      MONOLITHIC: yes
-    - TEST: printf-builtin
-      MONOLITHIC: yes
-    - TEST: sonarcloud
-      MONOLITHIC: no
-    - TEST: wintun-sonarcloud
-      MONOLITHIC: yes
 
 matrix:
   exclude:
