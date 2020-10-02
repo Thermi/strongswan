@@ -594,7 +594,7 @@ apidoc)
 	fi
 	rm make.warnings
 	;;
-sonarcloud)
+*sonarcloud)
     sonar-scanner \
         -Dsonar.organization=contauro-ag \
         -Dsonar.projectKey=contauro-ag_strongswan \
