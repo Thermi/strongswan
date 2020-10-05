@@ -3,8 +3,8 @@
 set -x
 
 fix_msys2() {
-        curl -O https://www2.futureware.at/~nickoe/msys2-mirror/mingw/x86_64/msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz | exit 1
-        curl -O https://www2.futureware.at/~nickoe/msys2-mirror/mingw/x86_64/msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig | exit 1
+        curl -O https://www2.futureware.at/~nickoe/msys2-mirror/msys/i686/msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz | exit 1
+        curl -O https://www2.futureware.at/~nickoe/msys2-mirror/msys/i686/msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig | exit 1
         pacman-key --verify msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig || exit 1
         pacman -U --noconfirm msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz
         rm msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz*
