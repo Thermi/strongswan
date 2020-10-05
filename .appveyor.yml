@@ -92,8 +92,8 @@ for:
   test_script:
     - ./scripts/test.sh
   #build_cloud: 
-  environment:
-    APPVEYOR_BUILD_WORKER_IMAGE: Linux-Our-Cloud
+  #environment:
+  #  APPVEYOR_BUILD_WORKER_IMAGE: Linux-Our-Cloud
 
 - matrix:
     only:
@@ -112,8 +112,8 @@ for:
   test_script:
     - ./scripts/test.sh
   #build_cloud: 
-  environment:
-    APPVEYOR_BUILD_WORKER_IMAGE: Linux-Our-Cloud
+  #environment:
+  #  APPVEYOR_BUILD_WORKER_IMAGE: Linux-Our-Cloud
 
 - matrix:
     only:
