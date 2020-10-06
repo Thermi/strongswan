@@ -1076,10 +1076,7 @@ bool configure_wintun(private_windows_wintun_device_t *this, const char *name_tm
             MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 	this->rings->Receive.RingSize = sizeof(TUN_RING) + this->ring_capacity + WINTUN_RING_TRAILING_BYTES;
 	memwipe(this->rings->Receive.Ring, sizeof(TUN_RING) + this->ring_capacity + WINTUN_RING_TRAILING_BYTES);
-	DBG2(DBG_LIB, "TUN_RING_SIZE(this->rings->Receive, TUN_RING_CAPACITY): %d",
-	    this->ring_capacity);
-	DBG2(DBG_LIB, "TUN_RING_SIZE(this->rings->Send, TUN_RING_CAPACITY): %d",
-	    this->ring_capacity);
+	DBG2(DBG_LIB, "Ring capacity: %d", this->ring_capacity);
         /* Tell driver about the rings */
 	if (!impersonate_as_system())
         {
@@ -1149,7 +1146,7 @@ tun_device_t *initialize_unused_wintun_device(const char *name_tmpl)
                 .tun_handle = NULL,
 		.ifindex = 0,
                 .ring_capacity = lib->settings->get_int(lib->settings,
-                    "%s.ring_capacity", TUN_RING_CAPACITY),
+                    "%s.ring_capacity", TUN_RING_CAPACITY, lib->ns),
 	);
 	if(configure_wintun(this, name_tmpl))
 	{
@@ -1163,12 +1160,17 @@ tun_device_t *initialize_unused_wintun_device(const char *name_tmpl)
 /* Possibly creates, and configures a wintun device */
 tun_device_t *try_configure_wintun(const char *name_tmpl)
 {
-	delete_existing_strongswan_wintun_devices();
-	tun_device_t *new_device = NULL;
-	new_device = initialize_unused_wintun_device(name_tmpl);
-	if (new_device)
-	{
-		return new_device;
+	if (lib->settings->get_bool(lib->settings, "%s.use_wintun", TRUE, lib->ns)) {
+		if (lib->settings->get_bool(lib->settings, "%s.delete_existing_wintun_devices", TRUE, lib->ns))
+		{
+			delete_existing_strongswan_wintun_devices();
+		}
+		tun_device_t *new_device = NULL;
+		new_device = initialize_unused_wintun_device(name_tmpl);
+		if (new_device)
+		{
+			return new_device;
+		}		
 	}
 	return NULL;
 }
