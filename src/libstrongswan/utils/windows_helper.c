@@ -374,7 +374,7 @@ int ascii2utf16(LPWSTR *dst, size_t dst_len, const char *str, const size_t str_l
 		    dst, dst_len, str, str_len, dlerror_mt(buf, sizeof(buf)));
 	    return 0;
 	}
-	*dst = malloc(ret);
+	*dst = malloc(ret*sizeof(WCHAR));
 	if(!(*dst))
 	{
 	    DBG1(DBG_LIB, "Failed to convert string (ascii2utf) with dst %p, dst_len %u, str %p and str_Len %u because the required memory of %u byte could not be allocated.",
