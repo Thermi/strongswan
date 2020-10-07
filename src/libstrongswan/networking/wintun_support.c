@@ -337,44 +337,40 @@ bool delete_existing_strongswan_wintun_devices()
 		if (error != ERROR_NO_MORE_ITEMS)
 		{
 		    DBG1(DBG_LIB, "An error occured: %s", dlerror_mt(buf, sizeof(buf)));
+			&dev_info_data,
+			buf,
+			sizeof(buf),
+			&required_length))
+		{
+			DBG1(DBG_LIB, "Failed to get device ID for index %d: %s", index, dlerror_mt(buf, sizeof(buf)));
 		}
-		continue;
-	    }
-	    /* Check device ID */
-	    if(!SetupDiGetDeviceInstanceIdA(
-		    dev_info_set,
-		    &dev_info_data,
-		    buf,
-		    sizeof(buf),
-		    &required_length))
-	    {
-		DBG1(DBG_LIB, "Failed to get device ID for index %d: %s", index, dlerror_mt(buf, sizeof(buf)));
-	    }
-	    DBG2(DBG_LIB, "Retrieved Device ID: %s", buf);
-	    if (strstr(buf, "STRONGSWAN"))
-	    {
-		    DBG1(DBG_LIB, "Removing device %s", buf);
-		    /* Delete device */
-		    SP_REMOVEDEVICE_PARAMS remove_device_params = {
-			    .ClassInstallHeader = {
-				    .cbSize = sizeof(SP_CLASSINSTALL_HEADER),
-				    .InstallFunction = DIF_REMOVE
-			    },
-			    .Scope = DI_REMOVEDEVICE_GLOBAL,
-			    .HwProfile = 0
-		    };
-		    if(SetupDiSetClassInstallParams(dev_info_set, &dev_info_data, &remove_device_params.ClassInstallHeader, sizeof(remove_device_params)))
-		    {
-			    if (!SetupDiCallClassInstaller(DIF_REMOVE,
-				    dev_info_set,
-				    &dev_info_data))
-			    {
-				    DBG1(DBG_LIB, "Failed to remove device (SetupDiCallClassInstaller): %s", dlerror_mt(buf, sizeof(buf)));
-			    }			
-		    } else {
-			    DBG1(DBG_LIB, "Failed to set class install params (SetupDiSetClassInstallParams): %s", dlerror_mt(buf, sizeof(buf)));
-		    }   
-	    }
+		DBG2(DBG_LIB, "Retrieved Device ID: %s", buf);
+		if (strstr(buf, "STRONGSWAN"))
+		{
+			DBG1(DBG_LIB, "Removing device %s", buf);
+			/* Delete device */
+			SP_REMOVEDEVICE_PARAMS remove_device_params = {
+				.ClassInstallHeader = {
+					.cbSize = sizeof(SP_CLASSINSTALL_HEADER),
+					.InstallFunction = DIF_REMOVE
+				},
+				.Scope = DI_REMOVEDEVICE_GLOBAL,
+				.HwProfile = 0
+			};
+			if(SetupDiSetClassInstallParams(dev_info_set, &dev_info_data, &remove_device_params.ClassInstallHeader, sizeof(remove_device_params)))
+			{
+				if (!SetupDiCallClassInstaller(DIF_REMOVE,
+					dev_info_set,
+					&dev_info_data))
+				{
+					DBG1(DBG_LIB, "Failed to remove device (SetupDiCallClassInstaller): %s", dlerror_mt(buf, sizeof(buf)));
+				}			
+			} else {
+				DBG1(DBG_LIB, "Failed to set class install params (SetupDiSetClassInstallParams): %s", dlerror_mt(buf, sizeof(buf)));
+			}   
+		} else {
+			DBG2(DBG_LIB, "Skipping device %s", buf);
+		}
 	}
 delete_device_info_list :
         if (!SetupDiDestroyDeviceInfoList(dev_info_set))
