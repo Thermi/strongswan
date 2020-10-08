@@ -124,7 +124,7 @@ bool registry_wait_get_value(HKEY key, void *caller_buf, DWORD *caller_buf_len,
 					break;
 				}
 				function_ret_wait = WaitForSingleObjectEx(handle, ms_to_deadline, FALSE);
-				if(function_ret_wait != WAIT_OBJECT_0)
+				if(function_ret_wait && function_ret_wait != WAIT_OBJECT_0 )
 				{
 					dlerror_mt(buf, sizeof(buf));
 					DBG1(DBG_LIB, "Failed to wait for event (WaitForSingleObjectEx(): %ld): %s", function_ret_wait, buf);
