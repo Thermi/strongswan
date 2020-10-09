@@ -186,7 +186,7 @@ METHOD(tun_device_t, wintun_set_mtu, bool,
 METHOD(tun_device_t, wintun_get_mtu, int,
 	private_windows_wintun_device_t *this)
 {
-        return TUN_MAX_IP_PACKET_SIZE;
+        return 1500;
 }
 
 /* On WIN32 we return the handle of the read ring (kernel space -> user space) */
