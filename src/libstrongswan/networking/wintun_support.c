@@ -328,15 +328,22 @@ bool delete_existing_strongswan_wintun_devices()
 	
 	for(index=0;;index++)
 	{
-	    if(!SetupDiEnumDeviceInfo(
-		    dev_info_set,
-		    index,
-		    &dev_info_data))
-	    {
-		error = GetLastError();
-		if (error != ERROR_NO_MORE_ITEMS)
+		DBG3(DBG_LIB, "Running SetupDiEnumDeviceInfo.");
+		if(!SetupDiEnumDeviceInfo(
+			dev_info_set,
+			index,
+			&dev_info_data))
 		{
-		    DBG1(DBG_LIB, "An error occured: %s", dlerror_mt(buf, sizeof(buf)));
+			error = GetLastError();
+			if (error != ERROR_NO_MORE_ITEMS)
+			{
+			    DBG1(DBG_LIB, "An error occured: %s", dlerror_mt(buf, sizeof(buf)));
+			}
+			break;
+		}
+		/* Check device ID */
+		if(!SetupDiGetDeviceInstanceIdA(
+			dev_info_set,
 			&dev_info_data,
 			buf,
 			sizeof(buf),
@@ -367,7 +374,7 @@ bool delete_existing_strongswan_wintun_devices()
 				}			
 			} else {
 				DBG1(DBG_LIB, "Failed to set class install params (SetupDiSetClassInstallParams): %s", dlerror_mt(buf, sizeof(buf)));
-			}   
+			}
 		} else {
 			DBG2(DBG_LIB, "Skipping device %s", buf);
 		}
@@ -500,7 +507,7 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 	if(!SetupDiClassNameFromGuidExA(
 		&GUID_DEVCLASS_NET,
 		className,
-		sizeof(className),
+		sizeof(className)-1,
 		&required_length,
 		NULL,
 		NULL
