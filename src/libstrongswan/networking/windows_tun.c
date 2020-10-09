@@ -240,19 +240,6 @@ bool windows_get_driver_info_data_a(
 
 bool check_hardwareids(SP_DRVINFO_DETAIL_DATA_A *drv_info_detail_data)
 {
-	// If the device does have a hardware ID, check it.
-	/* WideCharToMultiByte; */
-	short unsigned int destination[512];
-	int written_chars = MultiByteToWideChar(
-		CP_UTF8,
-		0,
-		WINTUN_COMPONENT_ID,
-		-1,
-		destination,
-		sizeof(destination));
-	DBG2(
-	    DBG_LIB, "Converting string from %s to %ls with MultiByteToWideChar wrote %d bytes,",
-	    WINTUN_COMPONENT_ID, destination, written_chars);
 	/* Make sure CompatIDsOffset indicates more than one HardwareID is in it
 	 * but also there actually is a hardware ID in the HardwareID field,
 	 * instead of just a \r(\n) (Windows DOES do that!) */
@@ -260,15 +247,15 @@ bool check_hardwareids(SP_DRVINFO_DETAIL_DATA_A *drv_info_detail_data)
 		drv_info_detail_data->HardwareID &&
 		drv_info_detail_data->HardwareID[0] != '\r')
 	{
-		DBG2(DBG_LIB, "HardwareID: %hns",
+		DBG2(DBG_LIB, "HardwareID: %%s",
 			drv_info_detail_data->HardwareID);
 		if (!strcmp(
 			drv_info_detail_data->HardwareID,
-			(char *) destination)) {
+			WINTUN_COMPONENT_ID)) {
 			/* HardwareID matches */
 		    DBG2(DBG_LIB, "HardwareID %s matches %s",
 			    drv_info_detail_data->HardwareID,
-			    destination);
+			    WINTUN_COMPONENT_ID);
 		    return TRUE;
 		} else {
 		    DBG2(DBG_LIB, "HardwareID does not match");
@@ -283,11 +270,11 @@ bool check_hardwareids(SP_DRVINFO_DETAIL_DATA_A *drv_info_detail_data)
 		/* compatIDs are in wide characters. Need to convert all fields into compatible */
 		if(find_matching_hardwareid(
 			drv_info_detail_data->HardwareID,
-			(char *) destination))
+			(char *) WINTUN_COMPONENT_ID))
 		{
 		    return TRUE;		    
 		} else {
-		    DBG2(DBG_LIB, "ID %ls is not in compatible hardware IDs", destination);
+		    DBG2(DBG_LIB, "ID %s is not in compatible hardware IDs", WINTUN_COMPONENT_ID);
 		    return FALSE;
 		}
 	}
@@ -324,7 +311,6 @@ tun_device_t *try_configure_openvpn(const char *name_tmpl)
 tun_device_t *tun_device_create(const char *name_tmpl)
 {
         tun_device_t *public = NULL;
-	dbg_default_set_level(LEVEL_DIAG);
 #ifdef USE_WINTUN
 	public = try_configure_wintun(name_tmpl);
 	/* if (!public)
