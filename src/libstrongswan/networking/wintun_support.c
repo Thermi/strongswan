@@ -85,6 +85,15 @@ static inline bool ring_over_capacity(TUN_RING *ring, uint64_t ring_capacity)
     return ((ring->Head >= ring_capacity) || (ring->Tail >= ring_capacity));
 }
 
+static inline ULONG get_head(TUN_RING *ring)
+{
+	return (ULONG) __atomic_load_n(&ring->Head, __ATOMIC_RELAXED);
+}
+
+static inline ULONG get_tail(TUN_RING *ring)
+{
+	return (ULONG) __atomic_load_n(&ring->Tail, __ATOMIC_RELAXED);
+}
 /* This is likely broken (!!!) */
 static bool write_to_ring(TUN_RING *ring, chunk_t packet, uint64_t ring_capacity)
 {
@@ -113,8 +122,8 @@ static bool write_to_ring(TUN_RING *ring, chunk_t packet, uint64_t ring_capacity
     
     /* move ring tail */
     ring_tail = TUN_WRAP_POSITION((ring->Tail + aligned_packet_size), ring_capacity);
-    ring->Tail = ring_tail;
-    DBG2(DBG_LIB, "New tail position: %lu", ring_tail);
+    __atomic_store(&ring->Tail, &ring_tail, __ATOMIC_RELAXED);
+    DBG2(DBG_LIB, "TO RING New tail position: %lu, new ring used capacity %lu", ring_tail, get_tail(ring)-get_head(ring));
     return TRUE;
 }
 
@@ -122,11 +131,12 @@ static bool pop_from_ring(TUN_RING *ring, chunk_t *chunk_packet,
                             uint64_t ring_capacity, bool *need_restart)
 {
         uint32_t length;
+	ULONG ret;
         size_t aligned_packet_size;
         /* TODO: If ring is over capacity wait until event is sent */
         TUN_PACKET *packet;
         /* Ring is empty if head == tail */
-        if (ring->Head == ring->Tail)
+        if (get_head(ring) == get_tail(ring))
         {
             return FALSE;
         }
@@ -166,7 +176,9 @@ static bool pop_from_ring(TUN_RING *ring, chunk_t *chunk_packet,
         /* Do we need to memset here? */
         /* memwipe(packet->Data, packet->Size); */
         /* move ring head */
-        ring->Head = TUN_WRAP_POSITION((ring->Head + aligned_packet_size), ring_capacity);
+	ret = TUN_WRAP_POSITION((ring->Head + aligned_packet_size), ring_capacity);
+        __atomic_store(&ring->Head, &ret, __ATOMIC_RELAXED);
+	DBG2(DBG_LIB, "FROM RING New ring head position %lu new used capacity %lu", ret, get_tail(ring)-get_head(ring));
         return TRUE;
 }
 
@@ -200,7 +212,7 @@ METHOD(tun_device_t, wintun_write_packet, bool,
         private_windows_wintun_device_t *this, chunk_t packet)
 {
         write_to_ring(this->rings->Receive.Ring, packet, this->ring_capacity);
-        if (this->rings->Receive.Ring->Alertable)
+        if (__atomic_load_n(&this->rings->Receive.Ring->Alertable, __ATOMIC_RELAXED))
         {
             SetEvent(this->rings->Receive.TailMoved);
         }
