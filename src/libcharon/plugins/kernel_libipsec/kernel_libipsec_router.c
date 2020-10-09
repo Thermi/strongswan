@@ -18,6 +18,7 @@
 
 #ifdef WIN32
 #include <signal.h>
+#include <synchapi.h>
 #endif
 
 #include "kernel_libipsec_router.h"
