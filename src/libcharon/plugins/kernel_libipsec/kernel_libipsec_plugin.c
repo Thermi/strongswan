@@ -98,6 +98,18 @@ METHOD(plugin_t, destroy, void,
 	free(this);
 }
 
+static void load_configs(private_kernel_libipsec_plugin_t *this) {
+	this->router->use_events(this->router, lib->settings->get_bool(
+		lib->settings, "%s.use_events", TRUE, lib->ns));
+}
+
+METHOD(plugin_t, reload, bool,
+	private_kernel_libipsec_plugin_t *this)
+{
+	load_configs(this);
+	return TRUE;
+}
+
 /*
  * see header file
  */
@@ -118,6 +130,9 @@ plugin_t *kernel_libipsec_plugin_create()
 				.get_name = _get_name,
 				.get_features = _get_features,
 				.destroy = _destroy,
+#ifdef WIN32
+				.reload = _reload,
+#endif
 			},
 		},
 	);

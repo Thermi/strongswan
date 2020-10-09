@@ -85,6 +85,17 @@ struct private_kernel_libipsec_router_t {
 	 * Event we use to signal handle_plain() about changes regarding tun devices
 	 */
 	HANDLE event;
+	
+	/**
+	 * Setting for waiting on event or using busy loop
+	 */
+	bool use_events;
+	
+	/**
+	 * Whether a packet could be read from any of the tun devices in the last
+	 * iteration of handle_plain
+	 */
+	bool got_result;
 #else
 	/**
 	 * Pipe to signal handle_plain() about changes regarding TUN devices
@@ -252,55 +263,89 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 	}
 	enumerator->destroy(enumerator);
 #else
-	HANDLE *tun_handles;
-	DWORD ret;
 	this->lock->read_lock(this->lock);
-	/* Check if any of the TUN devices has data for reading */
-	tun_handles = alloca(sizeof(HANDLE)* (this->tuns->get_count(this->tuns)+2));
-	tun_handles[count] = this->event;
-	count++;
-	tun_handles[count] = this->tun.handle;
-	count++;
-	enumerator = this->tuns->create_enumerator(this->tuns);
-	while (enumerator->enumerate(enumerator, NULL, &entry))
-	{
-		tun_handles[count] = entry->handle;
+	if(this->use_events || !this->got_result) {
+		HANDLE *tun_handles;
+		DWORD ret;
+		/* Check if any of the TUN devices has data for reading */
+		tun_handles = alloca(sizeof(HANDLE)* (this->tuns->get_count(this->tuns)+2));
+		tun_handles[count] = this->event;
 		count++;
-	}
-	
-	enumerator->destroy(enumerator);
-	this->lock->unlock(this->lock);
-	
-	ret = WaitForMultipleObjects(count, tun_handles, FALSE, INFINITE);
-	this->lock->read_lock(this->lock);
-	if (ret >= WAIT_OBJECT_0 || ret <= WAIT_OBJECT_0 + count -1)
-	{
-		int offset = ret - WAIT_OBJECT_0;
-		switch(offset)
+		tun_handles[count] = this->tun.handle;
+		count++;
+		enumerator = this->tuns->create_enumerator(this->tuns);
+		while (enumerator->enumerate(enumerator, NULL, &entry))
 		{
-			case 0:
-				ResetEvent(tun_handles[offset]);
-				return JOB_REQUEUE_DIRECT;
-				break;
-			case 1:
-				process_plain(this->tun.tun);
-				break;
-			default:
-				while (enumerator->enumerate(enumerator, NULL, &entry))
-				{
-					if (WaitForSingleObjectEx(entry->handle, 0, FALSE))
-					{
-						process_plain(entry->tun);
-					}
-				}
-				break;
+			tun_handles[count] = entry->handle;
+			count++;
 		}
-	}
-	else if (ret == WAIT_FAILED)
-	{
-		char error_buf[512];
-		DBG1(DBG_LIB, "Failed to wait for tun devices to be ready for reading: %s",
-		dlerror_mt(error_buf, sizeof(error_buf)));
+
+		enumerator->destroy(enumerator);
+		this->lock->unlock(this->lock);
+
+		/* Wait 50 milliseconds max */
+		ret = WaitForMultipleObjectsEx(count, tun_handles, FALSE, 50, TRUE);
+		this->lock->read_lock(this->lock);
+		if (ret >= WAIT_OBJECT_0 || ret <= WAIT_OBJECT_0 + count -1)
+		{
+			int offset = ret - WAIT_OBJECT_0;
+			this->got_result = TRUE;
+			switch(offset)
+			{
+				case 0:
+					ResetEvent(tun_handles[offset]);
+					return JOB_REQUEUE_DIRECT;
+					break;
+				case 1:
+					process_plain(this->tun.tun);
+					break;
+				default:
+					enumerator = this->tuns->create_enumerator(this->tuns);
+					while (enumerator->enumerate(enumerator, NULL, &entry))
+					{
+						if (WaitForSingleObjectEx(entry->handle, 0, FALSE) == WAIT_OBJECT_0)
+						{
+							process_plain(entry->tun);
+						}
+					}
+					enumerator->destroy(enumerator);
+					break;
+			}
+		}
+		else if (ret == WAIT_FAILED)
+		{
+			char error_buf[512];
+			DBG1(DBG_LIB, "Failed to wait for tun devices to be ready for reading: %s",
+			dlerror_mt(error_buf, sizeof(error_buf)));
+		}
+	} else {
+		bool got_result_this_iteration;
+		this->lock->unlock(this->lock);
+		this->lock->write_lock(this->lock);
+		this->got_result = FALSE;
+		/* Check each handle individually */
+		do {
+			got_result_this_iteration = FALSE;
+			ResetEvent(this->event);
+			if(WaitForSingleObjectEx(this->tun.handle, 0, FALSE) == WAIT_OBJECT_0)
+			{
+				got_result_this_iteration = TRUE;
+				this->got_result = TRUE;
+				process_plain(this->tun.tun);
+			}
+			enumerator = this->tuns->create_enumerator(this->tuns);
+			while(enumerator->enumerate(enumerator, NULL, &entry))
+			{
+				if(WaitForSingleObjectEx(entry->handle, 0, FALSE) == WAIT_OBJECT_0)
+				{
+					got_result_this_iteration = TRUE;
+					this->got_result = TRUE;
+					process_plain(entry->tun);
+				}
+			}
+			enumerator->destroy(enumerator);
+		}
+		while(got_result_this_iteration);
 	}
 #endif /* WIN32 */
 	this->lock->unlock(this->lock);
@@ -390,6 +435,14 @@ METHOD(kernel_libipsec_router_t, destroy, void,
 	free(this);
 }
 
+#ifdef WIN32
+METHOD(kernel_libipsec_router_t, use_events, void,
+	private_kernel_libipsec_router_t *this, bool use_events)
+{
+	this->use_events = use_events;
+}
+#endif
+
 #ifndef WIN32
 /**
  * Set O_NONBLOCK on the given socket.
@@ -415,6 +468,9 @@ kernel_libipsec_router_t *kernel_libipsec_router_create()
 			},
 			.get_tun_name = _get_tun_name,
 			.destroy = _destroy,
+#ifdef WIN32			
+			.use_events = _use_events,
+#endif
 		},
 		.tun = {
 			.tun = lib->get(lib, "kernel-libipsec-tun"),

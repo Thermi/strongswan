@@ -48,6 +48,13 @@ struct kernel_libipsec_router_t {
 	 * Destroy the given instance
 	 */
 	void (*destroy)(kernel_libipsec_router_t *this);
+
+#ifdef WIN32
+	/**
+	 * Use the busy loop or not 
+	 */
+	void (*use_events)(kernel_libipsec_router_t *this, bool use_events);
+#endif
 };
 
 /**
