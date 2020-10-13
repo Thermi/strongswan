@@ -179,6 +179,9 @@ else
   libstrongswan_la_LIBADD += $(PTHREADLIB)
 endif
 
+if USE_WINTUN
+    libstrongswan_la_LIBADD += -lwinpthread
+endif
 if USE_DBGHELP
   libstrongswan_la_LIBADD += -ldbghelp
   AM_CPPFLAGS += -DHAVE_DBGHELP
