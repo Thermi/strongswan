@@ -123,7 +123,6 @@ static bool write_to_ring(TUN_RING *ring, chunk_t packet, uint64_t ring_capacity
     /* move ring tail */
     ring_tail = TUN_WRAP_POSITION((ring->Tail + aligned_packet_size), ring_capacity);
     __atomic_store(&ring->Tail, &ring_tail, __ATOMIC_RELAXED);
-    DBG2(DBG_LIB, "TO RING New tail position: %lu, new ring used capacity %lu", ring_tail, get_tail(ring)-get_head(ring));
     return TRUE;
 }
 
@@ -178,7 +177,6 @@ static bool pop_from_ring(TUN_RING *ring, chunk_t *chunk_packet,
         /* move ring head */
 	ret = TUN_WRAP_POSITION((ring->Head + aligned_packet_size), ring_capacity);
         __atomic_store(&ring->Head, &ret, __ATOMIC_RELAXED);
-	DBG2(DBG_LIB, "FROM RING New ring head position %lu new used capacity %lu", ret, get_tail(ring)-get_head(ring));
         return TRUE;
 }
 
@@ -229,9 +227,11 @@ METHOD(tun_device_t, wintun_read_packet, bool,
 		restart_driver(this);
 		return FALSE;
 	}
-        if (!success)
+	return success;
+	/*
+	if (!success)
         {
-                this->rings->Send.Ring->Alertable = TRUE;
+                 __atomic_store_n(this->rings->Send.Ring->Alertable, TRUE, __ATOMIC_RELAXED); 
                 success = pop_from_ring(this->rings->Send.Ring, packet,
                         this->ring_capacity, &need_restart);
 		if (need_restart)
@@ -241,13 +241,14 @@ METHOD(tun_device_t, wintun_read_packet, bool,
 		}
                 if (!success)
                 {
+			return FALSE;
                     WaitForSingleObject(this->rings->Send.TailMoved, INFINITE);
                     this->rings->Send.Ring->Alertable = FALSE;
                 }
-                this->rings->Send.Ring->Alertable = FALSE,
+                this->rings->Send.Ring->Alertable = FALSE;
                 ResetEvent(this->rings->Send.TailMoved);
         }
-        return TRUE;
+        return TRUE; */
 }
 
 /* Bogus implementation because nobody should use this */
