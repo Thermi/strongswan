@@ -103,12 +103,12 @@ struct tun_device_t {
 	 */
 	char *(*get_name)(tun_device_t *this);
 
-        /**
-         * Get the underlying HANDLE.
-         *
-         * @return                              file HANDLE of this tun device
-         */
-        HANDLE (*get_handle)(tun_device_t *this);
+	/**
+	 * Get the underlying HANDLE.
+	 *
+	 * @return                              file HANDLE of this tun device
+	 */
+	HANDLE (*get_handle)(tun_device_t *this);
 
 	/**
 	 * Destroy a tun_device_t
