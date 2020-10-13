@@ -143,31 +143,34 @@ char *windows_setupapi_get_friendly_name(char *buffer, size_t buf_len, HDEVINFO 
 {
 	memwipe(buffer, buf_len);
 	size_t required_length;
-        DWORD prop_type, ret;
-	if(!(ret=SetupDiGetDeviceRegistryPropertyA(
+        DWORD prop_type;
+	char buf[512];
+	if(!SetupDiGetDeviceRegistryPropertyA(
 		dev_info_set, dev_info_data,
 		SPDRP_FRIENDLYNAME,
 		&prop_type,
 		buffer,
 		buf_len,
 		(DWORD *)&required_length
-		)))
+		))
 	{
-		DBG1(DBG_LIB, "Ret: %d", ret);
 		/* Try hardware path instead */
-		ret=SetupDiGetDeviceRegistryPropertyA(
+		if(SetupDiGetDeviceRegistryPropertyA(
 			dev_info_set, dev_info_data,
 			SPDRP_LOCATION_INFORMATION,
 			&prop_type,
 			buffer,
 			buf_len,
-			(DWORD *)&required_length);
-		DBG1(DBG_LIB, "Ret 2: %d", ret);
-		if (strcmp(buffer, "\r\n") || strcmp(buffer, ""))
+			(DWORD *)&required_length))
 		{
-		    ignore_result(snprintf(buffer, buf_len, "<unknown>"));
+			if (strcmp(buffer, "\r\n") || strcmp(buffer, ""))
+			{
+			    ignore_result(snprintf(buffer, buf_len, "<unknown>"));
+			}
+			return buffer;
+		} else {
+			DBG1(DBG_LIB, "Failed to retrieve the hardware location of a device: %s", dlerror_mt(buf, sizeof(buf)));
 		}
-		return buffer;
 	}
 	return buffer;
 }
@@ -194,43 +197,51 @@ bool windows_get_driver_info_data_a(
 	    required_length
 	)))
 	{
-	    DBG0(DBG_LIB, "required_length: %u", *required_length);
-	    DBG0(DBG_LIB, "buffer length: %u", *property_buffer_length);
-	    error = GetLastError();
-	    DBG1(DBG_LIB, "ret: %d", ret);
-	    if(!error && !ret)
-	    {
-		DBG1(DBG_LIB, "Success!");
-		return TRUE;
-	    }
-	    else if (error == ERROR_INSUFFICIENT_BUFFER)
-	    {
-		DBG1(DBG_LIB, "Error: Insufficient memory.");
-		// allocate memory
-		*drv_info_detail_data = realloc(
-			*drv_info_detail_data,
-			*required_length + sizeof(SP_DRVINFO_DETAIL_DATA_A));
-		(*drv_info_detail_data)->cbSize = sizeof(SP_DRVINFO_DETAIL_DATA_A);
-		*property_buffer_length = *required_length + sizeof(SP_DRVINFO_DETAIL_DATA_A);
 		DBG0(DBG_LIB, "required_length: %u", *required_length);
-		if (!SetupDiGetDriverInfoDetailA(
-			*dev_info_set,
-			dev_info_data,
-			drv_info_data,
-			*drv_info_detail_data,
-			*property_buffer_length,
-			required_length
-		))
+		DBG0(DBG_LIB, "buffer length: %u", *property_buffer_length);
+		error = GetLastError();
+		DBG1(DBG_LIB, "ret: %d", ret);
+		if(!error && !ret)
 		{
-		    DBG1(DBG_LIB,
-			    "Previous required length was bogus. New error is: %s",
-			    dlerror_mt(buf, sizeof(buf)));
+		    DBG1(DBG_LIB, "Success!");
+		    return TRUE;
 		}
-	    } else {
-		// other error occured. Log error and skip item.
-		DBG1(DBG_LIB, "A different error occured: %s",
-			dlerror_mt(buf, sizeof(buf)));
-	    }
+		else {
+			switch (error) {
+				case ERROR_INSUFFICIENT_BUFFER:
+					DBG1(DBG_LIB, "Error: Insufficient memory.");
+					// allocate memory
+					*drv_info_detail_data = realloc(
+						*drv_info_detail_data,
+						*required_length + sizeof(SP_DRVINFO_DETAIL_DATA_A));
+					(*drv_info_detail_data)->cbSize = sizeof(SP_DRVINFO_DETAIL_DATA_A);
+					*property_buffer_length = *required_length + sizeof(SP_DRVINFO_DETAIL_DATA_A);
+					DBG0(DBG_LIB, "required_length: %u", *required_length);
+					if (!SetupDiGetDriverInfoDetailA(
+						*dev_info_set,
+						dev_info_data,
+						drv_info_data,
+						*drv_info_detail_data,
+						*property_buffer_length,
+						required_length
+					))
+					{
+					    DBG1(DBG_LIB,
+						    "Previous required length was bogus. New error is: %s",
+						    dlerror_mt(buf, sizeof(buf)));
+					}
+					;;
+				case ERROR_INVALID_USER_BUFFER:
+					DBG1(DBG_LIB, "Invalid user buffer (for some reason)");
+					;;
+				default:
+					DBG1(DBG_LIB, "A different error occured: %s",
+						dlerror_mt(buf, sizeof(buf)));
+					;;
+			}
+		}
+		    
+
 	} else {
 	    DBG1(DBG_LIB, "Received error: %s", dlerror_mt(buf, sizeof(buf)));
 	}
