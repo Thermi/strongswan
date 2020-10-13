@@ -313,7 +313,7 @@ METHOD(socket_t, sender, status_t,
 						 NULL, NULL) == SOCKET_ERROR)
 	{
 		err = WSAGetLastError();
-		DBG1(DBG_NET, "sending packet failed: (%d) %s", human_readable_error(errbuf, err, sizeof(errbuf)));
+		DBG1(DBG_NET, "sending packet failed: (%d) %s", err, human_readable_error(errbuf, err, sizeof(errbuf)));
 		return FAILED;
 	}
 	return SUCCESS;
