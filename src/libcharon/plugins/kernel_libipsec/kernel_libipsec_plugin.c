@@ -98,24 +98,22 @@ METHOD(plugin_t, destroy, void,
 	free(this);
 }
 
-static void load_configs(private_kernel_libipsec_plugin_t *this) {
-	this->router->use_events(this->router, lib->settings->get_bool(
-		lib->settings, "%s.use_events", TRUE, lib->ns));
-}
-
+#ifdef WIN32
 METHOD(plugin_t, reload, bool,
 	private_kernel_libipsec_plugin_t *this)
 {
-	load_configs(this);
+	this->router->reload(this->router);
 	return TRUE;
 }
-
+#endif
 /*
  * see header file
  */
 plugin_t *kernel_libipsec_plugin_create()
 {
 	private_kernel_libipsec_plugin_t *this;
+	char buf[512];
+	HANDLE pseudohandle = GetCurrentProcess();
 
 	if (!lib->caps->check(lib->caps, CAP_NET_ADMIN))
 	{	/* required to create TUN devices */
@@ -163,5 +161,14 @@ plugin_t *kernel_libipsec_plugin_create()
 	/* set TUN device as default to install VIPs */
 	lib->settings->set_str(lib->settings, "%s.install_virtual_ip_on",
 						   this->tun->get_name(this->tun), lib->ns);
+	
+	/* Need highest priority (not realtime for now) 
+	 * to make sure strongSwan can always process packets */
+	if(!SetPriorityClass(pseudohandle, HIGH_PRIORITY_CLASS))
+	{
+		DBG1(DBG_LIB, "Failed to raise process priority: %s", dlerror_mt(buf, sizeof(buf)));
+	} else {
+		DBG1(DBG_LIB, "Raised process priority to HIGH_PRIORITY_CLASS");
+	}
 	return &this->public.plugin;
 }

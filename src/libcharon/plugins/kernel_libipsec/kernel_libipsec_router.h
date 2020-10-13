@@ -49,12 +49,13 @@ struct kernel_libipsec_router_t {
 	 */
 	void (*destroy)(kernel_libipsec_router_t *this);
 
-#ifdef WIN32
+#ifdef WIN32	
 	/**
-	 * Use the busy loop or not 
+	 * Reload the configuration of the router 
 	 */
-	void (*use_events)(kernel_libipsec_router_t *this, bool use_events);
+	void (*reload)(kernel_libipsec_router_t *this);
 #endif
+
 };
 
 /**
