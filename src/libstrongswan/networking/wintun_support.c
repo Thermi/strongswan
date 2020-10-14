@@ -743,14 +743,12 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
                 goto uninstall_device;
         }
 	
-	if(SetupDiCallClassInstaller(
+	if(!SetupDiCallClassInstaller(
 		DIF_REGISTER_COINSTALLERS,
 		dev_info_set,
 		&dev_info_data
 	))
 	{
-	    DBG2(DBG_LIB, "Succeeded in calling the class coinstallers.");
-	} else {
 	    DBG2(DBG_LIB, "Failed to call the class coinstallers.");
 	}
 
@@ -790,7 +788,6 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 	    DBG1(DBG_LIB, "Failed to convert string, aborting.");
 	    goto delete_driver_info_list;
 	}
-	DBG1(DBG_LIB, "Value of HKEY drv_reg_key 1: %ld", (long long) drv_reg_key);
         if ((ret=RegSetKeyValueA(drv_reg_key, NULL, "NetSetupAnticipatedInstanceId", REG_SZ, temp_buf, wcslen(temp_buf)+1)) != ERROR_SUCCESS)
         {
                 DBG1(DBG_LIB,
@@ -798,7 +795,6 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 			ret,
 			human_readable_error(buf, ret, sizeof(buf)));
         }
-	DBG1(DBG_LIB, "Value of HKEY drv_reg_key 2: %ld", (long long) drv_reg_key);	
 	if (temp_buf) {
 		free(temp_buf);
 	}
@@ -863,13 +859,12 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
                 DBG1(DBG_LIB, "Failed to retrieve NetCfgInstanceId key. Aborting tun device installation.");
                 goto close_reg_keys;
         }
-	DBG2(DBG_LIB, "NetCfgInstanceId type is %d with value: %s", reg_value_type, NetCfgInstanceId);
+
         if (!(reg_value_type &= (REG_SZ | REG_EXPAND_SZ | REG_MULTI_SZ)))
         {
                 DBG1(DBG_LIB, "Type of NetCfgInstanceId is not REG_SZ, REG_EXPAND_SZ or REG_MULTI_SZ (Meaning it is not a string). Aborting tun device install.");
                 goto close_reg_keys;
         }
-
 
 	/* tcpipAdapterRegKeyName */
 	ignore_result(snprintf(adapter_reg_key, sizeof(adapter_reg_key),
@@ -923,7 +918,7 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 	{
 	    DBG1(DBG_LIB, "Failed to get device ID for index %d: %s", index, dlerror_mt(buf, sizeof(buf)));
 	}
-	DBG1(DBG_LIB, "Device ID: %s", buf);
+
 	device_id = malloc(strlen(buf)+1);
         memcpy(device_id, buf, strlen(buf)+1);
 	
@@ -1103,7 +1098,7 @@ bool configure_wintun(private_windows_wintun_device_t *this, const char *name_tm
         {
             return FALSE;
         }
-        DBG0(DBG_LIB, "Device path: %s", interface_path);
+        DBG2(DBG_LIB, "Device path: %s", interface_path);
 
         this->tun_handle = CreateFile(
                 interface_path, GENERIC_READ | GENERIC_WRITE,
