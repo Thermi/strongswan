@@ -111,6 +111,8 @@ struct private_kernel_libipsec_router_t {
 	uint64_t spinloop_threshold;
 	
 	LARGE_INTEGER switching_time;
+	
+	bool windows_close;
 #else
 	/**
 	 * Pipe to signal handle_plain() about changes regarding TUN devices
@@ -312,6 +314,7 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 		EndingTime = { .QuadPart = 0 },
 		ElapsedMicroseconds = { .QuadPart = 0},
 		Frequency = { .QuadPart = 0};
+	uint64_t processed_packets = 0, failed_calls = 0;
 	
 	QueryPerformanceFrequency(&Frequency); 	
 	
@@ -342,7 +345,7 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 		ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
 		ElapsedMicroseconds.QuadPart *= 1000000000;
 		ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
-		DBG1(DBG_LIB, "Waited for %lld", ElapsedMicroseconds.QuadPart);
+		DBG1(DBG_LIB, "Waited for %lld nanoseconds", ElapsedMicroseconds.QuadPart);
 		this->lock->read_lock(this->lock);
 		if (ret >= WAIT_OBJECT_0 || ret <= WAIT_OBJECT_0 + count -1)
 		{
@@ -371,6 +374,23 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 					enumerator->destroy(enumerator);
 					break;
 			}
+		} else if (ret >= WAIT_ABANDONED_0 || ret <= WAIT_ABANDONED_0 + count -1)
+		{
+			int offset = ret - WAIT_ABANDONED_0;
+			this->got_result = FALSE;
+			switch(offset)
+			{
+				case 0:
+					DBG2(DBG_LIB, "Notify handle closed.");
+					break;
+				case 1:
+					DBG2(DBG_LIB, "Primary tun handle closed");
+					break;
+				default:
+					DBG2(DBG_LIB, "Other tun handle closed at offset %d", offset);
+					break;
+			}
+			return JOB_REQUEUE_NONE;
 		}
 		else if (ret == WAIT_FAILED)
 		{
@@ -390,18 +410,31 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 		ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - this->switching_time.QuadPart;
 		ElapsedMicroseconds.QuadPart *= 1000000000;
 		ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
-		DBG1(DBG_LIB, "Delay between switching is %lld", ElapsedMicroseconds.QuadPart);
+		DBG1(DBG_LIB, "Delay between switching is %lld nanoseconds", ElapsedMicroseconds.QuadPart);
 		do {
 			/* Because the NT kernel scheduler stops waking up the process
 			 * if we wait too often, we need to avoid calling any WaitFor* functions.
 			 * Thus we busy loop in user space until we get no result for some time */
 			this->got_result = FALSE;
-			this->got_result |= process_plain_wintun(this->tun.tun);
+			if(process_plain_wintun(this->tun.tun))
+			{
+				this->got_result |= TRUE;
+				processed_packets++;
+			} else {
+				failed_calls++;
+			}
+			
 			ResetEvent(this->tun.handle);
 			enumerator = this->tuns->create_enumerator(this->tuns);
 			while(enumerator->enumerate(enumerator, NULL, &entry))
 			{
-				this->got_result |= process_plain_wintun(entry->tun);
+				if (process_plain_wintun(entry->tun))
+				{
+					processed_packets++;
+					this->got_result |= TRUE;
+				} else {
+					failed_calls++;
+				}
 				ResetEvent(entry->handle);
 			}
 			enumerator->destroy(enumerator);
@@ -424,8 +457,13 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 				enumerator->destroy(enumerator);
 				if (ElapsedMicroseconds.QuadPart >= this->spinloop_threshold)
 				{
-					
-					DBG0(DBG_LIB, "Reached threshold at %lld, switching back to events.", ElapsedMicroseconds.QuadPart);
+					DBG0(DBG_LIB, "Processed %lld packets,"
+						" failed %lld calls to read packets"
+					 " Reached threshold at %lld nanoseconds, switching"
+					 " back to events.",
+					 processed_packets,
+					 failed_calls,
+					 ElapsedMicroseconds.QuadPart);
 					ResetEvent(this->event);
 					this->notify = FALSE;
 					break;
@@ -433,7 +471,7 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 			}
 			if(this->notify)
 			{
-				DBG0(DBG_LIB, "Interrupt job from bool");
+				DBG0(DBG_LIB, "Processed %lld packets, Interrupt job from bool", processed_packets);
 				ResetEvent(this->event);
 				this->notify = FALSE;
 				break;
@@ -478,7 +516,7 @@ METHOD(kernel_listener_t, tun, bool,
 	}
 	/* notify handler thread to recreate FD set */
 #ifdef WIN32
-	ignore_result(SetEvent(this->event));
+	SetEvent(this->event);
 	this->notify = TRUE;
 #else
 	ignore_result(write(this->notify[1], buf, sizeof(buf)));
@@ -520,16 +558,17 @@ METHOD(kernel_libipsec_router_t, destroy, void,
 	ipsec->processor->unregister_acquire(ipsec->processor,
 		 (ipsec_acquire_cb_t)raise_acquire);
 	charon->kernel->remove_listener(charon->kernel, &this->public.listener);
-	this->lock->destroy(this->lock);
-	this->tuns->destroy(this->tuns);
 #ifdef WIN32
 	SetEvent(this->event);
+	this->tun.tun->destroy(this->tun.tun);
 	CloseHandle(this->tun.handle);
 	CloseHandle(this->event);
 #else
 	close(this->notify[0]);
 	close(this->notify[1]);
 #endif
+	this->lock->destroy(this->lock);
+	this->tuns->destroy(this->tuns);	
 	router = NULL;
 	free(this);
 }
