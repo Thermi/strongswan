@@ -154,6 +154,7 @@ bool find_matching_hardwareid(char *pile, char* needle);
  */
 char *windows_setupapi_get_friendly_name(char *buffer, size_t buf_len, HDEVINFO dev_info_set, SP_DEVINFO_DATA *dev_info_data);
 
+/*
 bool windows_get_driver_info_data_a(
 	HDEVINFO *dev_info_set,
 	SP_DEVINFO_DATA *dev_info_data,
@@ -162,6 +163,7 @@ bool windows_get_driver_info_data_a(
 	DWORD *property_buffer_length,
 	DWORD *required_length
 );
+*/
 
 bool check_hardwareids(SP_DRVINFO_DETAIL_DATA_A *drv_info_detail_data);
 

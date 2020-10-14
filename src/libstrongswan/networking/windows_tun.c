@@ -174,7 +174,7 @@ char *windows_setupapi_get_friendly_name(char *buffer, size_t buf_len, HDEVINFO 
 	}
 	return buffer;
 }
-
+/*
 bool windows_get_driver_info_data_a(
 	HDEVINFO *dev_info_set,
 	SP_DEVINFO_DATA *dev_info_data,
@@ -197,57 +197,50 @@ bool windows_get_driver_info_data_a(
 	    required_length
 	)))
 	{
-		DBG0(DBG_LIB, "required_length: %u", *required_length);
-		DBG0(DBG_LIB, "buffer length: %u", *property_buffer_length);
 		error = GetLastError();
-		DBG1(DBG_LIB, "ret: %d", ret);
-		if(!error && !ret)
-		{
-		    DBG1(DBG_LIB, "Success!");
-		    return TRUE;
+		switch (error) {
+			case 0:
+				break;
+			case ERROR_INVALID_USER_BUFFER:
+				DBG1(DBG_LIB, "Error %d: Insufficient memory.", error);
+				// allocate memory
+				*drv_info_detail_data = realloc(
+					*drv_info_detail_data,
+					*required_length + sizeof(SP_DRVINFO_DETAIL_DATA_A));
+				(*drv_info_detail_data)->cbSize = sizeof(SP_DRVINFO_DETAIL_DATA_A);
+				*property_buffer_length = *required_length + sizeof(SP_DRVINFO_DETAIL_DATA_A);
+				DBG0(DBG_LIB, "required_length: %u", *required_length);
+				if (!SetupDiGetDriverInfoDetailA(
+					*dev_info_set,
+					dev_info_data,
+					drv_info_data,
+					*drv_info_detail_data,
+					*property_buffer_length,
+					required_length
+				))
+				{
+					error = GetLastError();
+					DBG1(DBG_LIB,
+					    "Previous required length was bogus. New error is %d: %s",
+					    error, dlerror_mt(buf, sizeof(buf)));
+				}
+				break;
+			case ERROR_INSUFFICIENT_BUFFER:
+				DBG1(DBG_LIB, "Invalid user buffer (for some reason) %d", error);
+				return FALSE;
+				break;
+			default:
+				DBG1(DBG_LIB, "A different error occured %d: %s",
+				 error, dlerror_mt(buf, sizeof(buf)));
+				return FALSE;
+				break;
 		}
-		else {
-			switch (error) {
-				case ERROR_INSUFFICIENT_BUFFER:
-					DBG1(DBG_LIB, "Error: Insufficient memory.");
-					// allocate memory
-					*drv_info_detail_data = realloc(
-						*drv_info_detail_data,
-						*required_length + sizeof(SP_DRVINFO_DETAIL_DATA_A));
-					(*drv_info_detail_data)->cbSize = sizeof(SP_DRVINFO_DETAIL_DATA_A);
-					*property_buffer_length = *required_length + sizeof(SP_DRVINFO_DETAIL_DATA_A);
-					DBG0(DBG_LIB, "required_length: %u", *required_length);
-					if (!SetupDiGetDriverInfoDetailA(
-						*dev_info_set,
-						dev_info_data,
-						drv_info_data,
-						*drv_info_detail_data,
-						*property_buffer_length,
-						required_length
-					))
-					{
-					    DBG1(DBG_LIB,
-						    "Previous required length was bogus. New error is: %s",
-						    dlerror_mt(buf, sizeof(buf)));
-					}
-					;;
-				case ERROR_INVALID_USER_BUFFER:
-					DBG1(DBG_LIB, "Invalid user buffer (for some reason)");
-					;;
-				default:
-					DBG1(DBG_LIB, "A different error occured: %s",
-						dlerror_mt(buf, sizeof(buf)));
-					;;
-			}
-		}
-		    
-
 	} else {
 	    DBG1(DBG_LIB, "Received error: %s", dlerror_mt(buf, sizeof(buf)));
 	}
     }
     return FALSE;
-}
+} */
 
 bool check_hardwareids(SP_DRVINFO_DETAIL_DATA_A *drv_info_detail_data)
 {
