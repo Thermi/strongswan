@@ -595,18 +595,34 @@ apidoc)
 	rm make.warnings
 	;;
 *sonarcloud)
-    sonar-scanner \
-        -Dsonar.organization=contauro-ag \
-        -Dsonar.projectKey=contauro-ag_strongswan \
-        -Dsonar.projectVersion="$(git describe)+${TRAVIS_BUILD_NUMBER}" \
-        -Dsonar.sources=. \
-        -Dsonar.cfamily.threads=2 \
-        -Dsonar.cfamily.cache.enabled=true \
-        -Dsonar.host.url=https://sonarcloud.io \
-        -Dsonar.cfamily.cache.path=$HOME/.sonar-cache \
-        -Dsonar.cfamily.build-wrapper-output=bw-output \
-        "-Dsonar.branch.name=${APPVEYOR_REPO_BRANCH}" \
-        -Dsonar.login=${SONARCLOUD_LOGIN}  || exit $?
+           case "$TEST" in
+            win*)
+                sonar-scanner.bat -Dsonar.organization=contauro-ag \
+                -Dsonar.projectKey=contauro-ag_strongswan \
+                -Dsonar.projectVersion="$(git describe)+${TRAVIS_BUILD_NUMBER}" \
+                -Dsonar.sources=. \
+                -Dsonar.cfamily.threads=2 \
+                -Dsonar.cfamily.cache.enabled=true \
+                -Dsonar.host.url=https://sonarcloud.io \
+                -Dsonar.cfamily.cache.path=$HOME/.sonar-cache \
+                -Dsonar.cfamily.build-wrapper-output=bw-output \
+                -Dsonar.branch.name=${APPVEYOR_REPO_BRANCH} \
+                -Dsonar.login=${SONARCLOUD_LOGIN}
+            ;;
+            *)
+                sonar-scanner -Dsonar.organization=contauro-ag \
+                -Dsonar.projectKey=contauro-ag_strongswan \
+                -Dsonar.projectVersion="$(git describe)+${TRAVIS_BUILD_NUMBER}" \
+                -Dsonar.sources=. \
+                -Dsonar.cfamily.threads=2 \
+                -Dsonar.cfamily.cache.enabled=true \
+                -Dsonar.host.url=https://sonarcloud.io \
+                -Dsonar.cfamily.cache.path=$HOME/.sonar-cache \
+                -Dsonar.cfamily.build-wrapper-output=bw-output \
+                -Dsonar.branch.name=${APPVEYOR_REPO_BRANCH} \
+                -Dsonar.login=${SONARCLOUD_LOGIN}
+            ;;
+            esac
 	rm -r bw-output .scannerwork
 	;;
 android)
