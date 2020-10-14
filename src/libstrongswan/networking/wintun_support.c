@@ -29,6 +29,7 @@
 #include <utils/windows_helper.h>
 
 #include "wintun_support.h"
+#include <threading/mutex.h>
 
 typedef struct private_windows_wintun_device_t private_windows_wintun_device_t;
 
@@ -78,6 +79,16 @@ struct private_windows_wintun_device_t {
          * Size of the rings
          */
         uint64_t ring_capacity;
+	
+	/**
+	 * Bool to indicate to a reader not using the event handles that
+	 * the tun device is getting closed
+	 */
+	bool close;
+	
+	/**
+	 *  Lock used for makeing sure the device is not destroyed while in use */
+	mutex_t *lock;
 };
 
 static inline bool ring_over_capacity(TUN_RING *ring, uint64_t ring_capacity)
@@ -203,30 +214,49 @@ METHOD(tun_device_t, wintun_get_mtu, int,
 METHOD(tun_device_t, wintun_get_handle, HANDLE,
         private_windows_wintun_device_t *this)
 {
-        return this->rings->Send.TailMoved;
+	this->lock->lock(this->lock);
+	HANDLE eventhandle = this->rings->Send.TailMoved;
+        this->lock->unlock(this->lock);
+	return eventhandle;
 }
 
 METHOD(tun_device_t, wintun_write_packet, bool,
         private_windows_wintun_device_t *this, chunk_t packet)
 {
+	this->lock->lock(this->lock);
+	if (this->windows_close)
+	{
+		return FALSE;
+		this->lock->unlock(this->lock);
+	}
         write_to_ring(this->rings->Receive.Ring, packet, this->ring_capacity);
         if (__atomic_load_n(&this->rings->Receive.Ring->Alertable, __ATOMIC_RELAXED))
         {
             SetEvent(this->rings->Receive.TailMoved);
         }
+	this->lock->unlock(this->lock);
         return TRUE;
 }
 
 METHOD(tun_device_t, wintun_read_packet, bool, 
         private_windows_wintun_device_t *this, chunk_t *packet)
 {
-	bool need_restart = FALSE, success = pop_from_ring(this->rings->Send.Ring,
+	bool need_restart = FALSE, success;
+	this->lock->lock(this->lock);
+	if (this->windows_close)
+	{
+		this->lock->unlock(this->lock);
+		return FALSE;
+	}
+	success = pop_from_ring(this->rings->Send.Ring,
                 packet, this->ring_capacity, &need_restart);
 	if (need_restart)
         {
+		this->lock->unlock(this->lock);
 		restart_driver(this);
 		return FALSE;
 	}
+	this->lock->unlock(this->lock);
 	return success;
 	/*
 	if (!success)
@@ -288,6 +318,17 @@ METHOD(tun_device_t, wintun_up, bool,
 METHOD(tun_device_t, wintun_destroy, void,
 	private_windows_wintun_device_t *this)
 {
+	this->lock->lock(this->lock);
+	this->close = TRUE;
+	SetEvent(this->rings->Send.TailMoved);
+	CloseHandle(this->rings->Send.TailMoved);
+	CloseHandle(this->rings->Receive.TailMoved);
+	CloseHandle(this->tun_handle);
+	VirtualFree(this->rings->Send.Ring, 0, MEM_RELEASE);
+	VirtualFree(this->rings->Receive.Ring, 0, MEM_RELEASE);
+	VirtualFree(this->rings, 0, MEM_RELEASE);
+	this->lock->unlock(this->lock);
+	this->lock->destroy(this->lock);
 }
 
 /**
@@ -634,8 +675,11 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 		DBG1(DBG_LIB, "driver provider name: %s", drv_info_data.ProviderName);
 		if(CompareFileTime(&drv_info_data.DriverDate, &driver_date) == 1)
 		{
-		    /* Check if the device is compatible by checking the hardware IDs */
-		    required_length = 0;
+			/* Check if the device is compatible by checking the hardware IDs */
+			/** On my system, the underlying call to SetupDiGetDriverInfoDetailA
+			 * fails, so this is disabled for now.
+			*/
+		    /* required_length = 0;
 		    if(windows_get_driver_info_data_a(
 			dev_info_set,
 			&dev_info_data,
@@ -644,6 +688,7 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 			&drv_info_detail_data_size,
 			&required_length
 			))
+		     */
 		    {
 			if(check_hardwareids(drv_info_detail_data) ||
 				strcaseeq(drv_info_data.Description, "Wintun Userspace Tunnel"))
@@ -676,9 +721,9 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 			} else {
 			    DBG1(DBG_LIB, "No HardwareID match found");
 			}
-		    } else {
+		    } /* else {
 			DBG1(DBG_LIB, "Failed to get driver info data");
-		    }
+		    } */
 		}
 	}
         if(driver_version == 0)
@@ -1158,6 +1203,7 @@ tun_device_t *initialize_unused_wintun_device(const char *name_tmpl)
 			.up = _wintun_up,
 			.destroy = _wintun_destroy,
 		},
+		.lock = mutex_create(MUTEX_TYPE_DEFAULT),
 		.rings = NULL,
                 .tun_handle = NULL,
 		.ifindex = 0,
@@ -1166,10 +1212,11 @@ tun_device_t *initialize_unused_wintun_device(const char *name_tmpl)
 	);
 	if(configure_wintun(this, name_tmpl))
 	{
-	    return &this->public;
+		return &this->public;
 	} else {
-	    free(this);
-	    return NULL;
+		this->lock->destroy(this->lock);
+		free(this);
+		return NULL;
 	}
 }
 
