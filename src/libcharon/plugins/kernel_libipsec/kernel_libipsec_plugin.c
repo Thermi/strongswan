@@ -146,6 +146,17 @@ plugin_t *kernel_libipsec_plugin_create()
 	if (!this->tun)
 	{
 		DBG1(DBG_KNL, "failed to create TUN device");
+		if (lib->settings->get_bool(lib->settings, "%s.use_wintun", FALSE,
+					 lib->ns))
+		{
+			/** Windows is incredibly wonky and a lot of memory allocation
+			 * goes wrong is anything goes wrong in setupapi when setting up wintun
+			 * so we need to bail out here and stop the whole process.
+			 * It's pointless to try to continue because the event handler won't be
+			 * set up properly (queue will not be allocated, lock will be a NULL pointer, ...)
+			 */
+			charon->bus->alert(charon->bus, ALERT_SHUTDOWN_SIGNAL);
+		}
 		destroy(this);
 		return NULL;
 	}
