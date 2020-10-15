@@ -499,7 +499,7 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 	DWORD property_buffer_length = 0, required_length = 0,
 		reg_value_type, error,
 		ipconfig_value_length = sizeof(ipconfig_value),
-		drv_info_detail_data_size = 0, ret = 0;
+		ret = 0;
 
 	DWORDLONG driver_version = 0;
 	HKEY drv_reg_key = NULL, ipconfig_reg_hkey = NULL, adapter_reg_hkey = NULL;
