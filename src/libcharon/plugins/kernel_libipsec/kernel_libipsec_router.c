@@ -345,7 +345,7 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 		ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
 		ElapsedMicroseconds.QuadPart *= 1000000000;
 		ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
-		DBG1(DBG_LIB, "Waited for %lld nanoseconds", ElapsedMicroseconds.QuadPart);
+		DBG1(DBG_LIB, "Waited for %lld nanoseconds (%lld miliseconds)", ElapsedMicroseconds.QuadPart, ElapsedMicroseconds.QuadPart/1000000);
 		this->lock->read_lock(this->lock);
 		if (ret >= WAIT_OBJECT_0 || ret <= WAIT_OBJECT_0 + count -1)
 		{
