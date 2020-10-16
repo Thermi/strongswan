@@ -907,8 +907,19 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 	}
 	
 	/* EnableDeadGWDetect */
-	RegSetValueExA(ipconfig_reg_hkey, "EnableDeadGWDetect", 0, REG_DWORD, 0, sizeof(0));
-		
+	ret=0;
+	if((ret=RegSetValueExA(ipconfig_reg_hkey, "EnableDeadGWDetect", 0, REG_DWORD, (BYTE *)&ret, sizeof(ret))) != ERROR_SUCCESS)
+	{
+		DBG1(DBG_LIB, "Failed to set EnableDeadGWDetect to 0 (%d): %s", ret, human_readable_error(buf, ret, sizeof(buf)));
+	}
+	ret=sizeof(buf);
+	if ((ret=RegQueryValueExA(ipconfig_reg_hkey, "EnableDeadGWDetect", NULL, (LPDWORD) &index, buf, &ret)) != ERROR_SUCCESS)
+	{
+		DBG1(DBG_LIB, "Failed to retrieve type and value of EnableDeadGWDetect. Ret is %d", ret);
+	} else {
+		DBG1(DBG_LIB, "EnableDeadGWDetect is type %d with value %d", index, buf);
+	}
+	
 	if(!SetupDiGetDeviceInstanceIdA(
 	    dev_info_set,
 	    &dev_info_data,
