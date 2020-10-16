@@ -695,7 +695,7 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
                         {
 			    if(SetupDiSetSelectedDriverA(dev_info_set, &dev_info_data, &drv_info_data))
 			    {
-				DBG1(DBG_LIB, "Successfully Set driver of device %s for new wintun device",
+				DBG2(DBG_LIB, "Successfully Set driver of device %s for new wintun device",
 				    windows_setupapi_get_friendly_name(
 				    buf,
 				    sizeof(buf),
@@ -763,11 +763,11 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 			KEY_SET_VALUE | KEY_QUERY_VALUE | KEY_NOTIFY
 			)))
                 {
-		    DBG1(DBG_LIB, "Successfully opened registry key");
+		    DBG2(DBG_LIB, "Successfully opened registry key");
                     /* Got registry key */
 		    break;
                 } else {
-		    DBG1(DBG_LIB, "Failed to open registry key");
+		    DBG2(DBG_LIB, "Failed to open registry key");
 		    /* Make sure the thread sleeps at least 50 ms */
 		    ts = (struct timespec) {
 			.tv_sec = 0,
@@ -875,7 +875,7 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 	// Wait for reg key to be populated
 	if(!(adapter_reg_hkey = registry_open_wait(HKEY_LOCAL_MACHINE, adapter_reg_key, 0, registry_timeout)))
 	{
-		DBG1(DBG_LIB, "Timeout while waiting for %s to be accessible.", adapter_reg_key);
+		DBG2(DBG_LIB, "Timeout while waiting for %s to be accessible.", adapter_reg_key);
 		goto close_reg_keys;
 	}
 
@@ -883,13 +883,13 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 	if(!registry_wait_get_value(adapter_reg_hkey, ipconfig_value, &ipconfig_value_length, "IpConfig",
 		&reg_value_type, registry_timeout))
 	{
-		DBG1(DBG_LIB, "Timeout while waiting for key %s\\%s", adapter_reg_key, "IpConfig");
+		DBG2(DBG_LIB, "Timeout while waiting for key %s\\%s", adapter_reg_key, "IpConfig");
 		goto close_reg_keys;
 	}
 	
 	if (!(reg_value_type &= (REG_SZ | REG_EXPAND_SZ | REG_MULTI_SZ)))
 	{
-		DBG1(DBG_LIB, "Invalid type %u for key %s\\%s",
+		DBG2(DBG_LIB, "Invalid type %u for key %s\\%s",
 			reg_value_type,
 			adapter_reg_key,
 			"IpConfig");
@@ -902,7 +902,7 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 	
 	if(!(ipconfig_reg_hkey = registry_open_wait(HKEY_LOCAL_MACHINE, ipconfig_reg_key, 0, registry_timeout)))
 	{
-		DBG1(DBG_LIB, "Timeout while waiting for key %s to be accessible", ipconfig_reg_key);
+		DBG2(DBG_LIB, "Timeout while waiting for key %s to be accessible", ipconfig_reg_key);
 		goto close_reg_keys;
 	}
 	
@@ -916,7 +916,7 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 	    sizeof(buf),
 	    &required_length))
 	{
-	    DBG1(DBG_LIB, "Failed to get device ID for index %d: %s", index, dlerror_mt(buf, sizeof(buf)));
+	    DBG2(DBG_LIB, "Failed to get device ID for index %d: %s", index, dlerror_mt(buf, sizeof(buf)));
 	}
 
 	device_id = malloc(strlen(buf)+1);
@@ -960,29 +960,29 @@ uninstall_device : ;
 				dev_info_set,
 				&dev_info_data))
 			{
-				DBG1(DBG_LIB, "Failed to remove device (SetupDiCallClassInstaller): %s", dlerror_mt(buf, sizeof(buf)));
+				DBG2(DBG_LIB, "Failed to remove device (SetupDiCallClassInstaller): %s", dlerror_mt(buf, sizeof(buf)));
 			}			
 		} else {
-			DBG1(DBG_LIB, "Failed to set class install params (SetupDiSetClassInstallParams): %s", dlerror_mt(buf, sizeof(buf)));
+			DBG2(DBG_LIB, "Failed to set class install params (SetupDiSetClassInstallParams): %s", dlerror_mt(buf, sizeof(buf)));
 		}
         }
 
 if (!SetupDiDestroyDriverInfoList(dev_info_set, &dev_info_data, SPDIT_COMPATDRIVER))
         {
-                DBG1(DBG_LIB, "Failed to destroy driver info list (SetupDiDestroyDriverInfoList): %s", dlerror_mt(buf, sizeof(buf)));
+                DBG2(DBG_LIB, "Failed to destroy driver info list (SetupDiDestroyDriverInfoList): %s", dlerror_mt(buf, sizeof(buf)));
         }
 
 delete_device_info_list :
         if (!SetupDiDestroyDeviceInfoList(dev_info_set))
         {
-                DBG1(DBG_LIB, "Failed to delete device info set (SetupDiDestroyDeviceInfoList): %s", dlerror_mt(buf, sizeof(buf)));
+                DBG2(DBG_LIB, "Failed to delete device info set (SetupDiDestroyDeviceInfoList): %s", dlerror_mt(buf, sizeof(buf)));
         }
 
 	if(device_id)
         {
-	    DBG1(DBG_LIB, "Successfully created a wintun device with NetCfgInstanceId %s", NetCfgInstanceId);
+	    DBG2(DBG_LIB, "Successfully created a wintun device with NetCfgInstanceId %s", NetCfgInstanceId);
 	} else {
-	    DBG1(DBG_LIB, "Failed to create a wintun device");
+	    DBG2(DBG_LIB, "Failed to create a wintun device");
 	}
         return device_id;
 }
