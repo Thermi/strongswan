@@ -342,8 +342,7 @@ bool delete_existing_strongswan_wintun_devices()
 	/* Reimplementation of CreateInterface from wireguard */
 	char buf[512];
 	uint64_t index = 0;
-	DWORD required_length = 0,
-		error, ret = 0;
+	DWORD required_length = 0, ret = 0;
 	/* Create an empty device info set for network adapter device class. */
 	SP_DEVINFO_DATA dev_info_data = {
 		.cbSize = sizeof(SP_DEVINFO_DATA)
@@ -364,9 +363,13 @@ bool delete_existing_strongswan_wintun_devices()
         {
             if (ret)
             {
-                DBG1(DBG_LIB, "Failed to create device info list (SetupDiCreateDeviceInfoListExA): %s", human_readable_error(buf, ret, sizeof(buf)));
+                DBG1(DBG_LIB, "Failed to create device info list (SetupDiCreate"
+			"DeviceInfoListExA): %s", human_readable_error(buf, ret,
+								sizeof(buf)));
             } else {
-                DBG1(DBG_LIB, "Failed to create device info list (SetupDiCreateDeviceInfoListExA), dev_info_set has value INVALID_HANDLE_VALUE");
+                DBG1(DBG_LIB, "Failed to create device info list (SetupDiCreate"
+			"DeviceInfoListExA), dev_info_set has value"
+			"INVALID_HANDLE_VALUE");
             }
 	    return FALSE;
 	}
@@ -388,8 +391,8 @@ bool delete_existing_strongswan_wintun_devices()
 			index,
 			&dev_info_data))
 		{
-			error = GetLastError();
-			if (error != ERROR_NO_MORE_ITEMS)
+			ret=GetLastError();
+			if (ret != ERROR_NO_MORE_ITEMS)
 			{
 			    DBG1(DBG_LIB, "An error occured: %s", dlerror_mt(buf, sizeof(buf)));
 			}
@@ -403,34 +406,45 @@ bool delete_existing_strongswan_wintun_devices()
 			sizeof(buf),
 			&required_length))
 		{
-			DBG1(DBG_LIB, "Failed to get device ID for index %d: %s", index, dlerror_mt(buf, sizeof(buf)));
-		}
-		DBG2(DBG_LIB, "Retrieved Device ID: %s", buf);
-		if (strstr(buf, "STRONGSWAN"))
-		{
-			DBG1(DBG_LIB, "Removing device %s", buf);
-			/* Delete device */
-			SP_REMOVEDEVICE_PARAMS remove_device_params = {
-				.ClassInstallHeader = {
-					.cbSize = sizeof(SP_CLASSINSTALL_HEADER),
-					.InstallFunction = DIF_REMOVE
-				},
-				.Scope = DI_REMOVEDEVICE_GLOBAL,
-				.HwProfile = 0
-			};
-			if(SetupDiSetClassInstallParams(dev_info_set, &dev_info_data, &remove_device_params.ClassInstallHeader, sizeof(remove_device_params)))
-			{
-				if (!SetupDiCallClassInstaller(DIF_REMOVE,
-					dev_info_set,
-					&dev_info_data))
-				{
-					DBG1(DBG_LIB, "Failed to remove device (SetupDiCallClassInstaller): %s", dlerror_mt(buf, sizeof(buf)));
-				}			
-			} else {
-				DBG1(DBG_LIB, "Failed to set class install params (SetupDiSetClassInstallParams): %s", dlerror_mt(buf, sizeof(buf)));
-			}
+			DBG1(DBG_LIB, "Failed to get device ID for index %d: %s",
+				index, dlerror_mt(buf, sizeof(buf)));
 		} else {
-			DBG2(DBG_LIB, "Skipping device %s", buf);
+			DBG2(DBG_LIB, "Retrieved Device ID: %s", buf);
+			if (strstr(buf, "STRONGSWAN"))
+			{
+				DBG1(DBG_LIB, "Removing device %s", buf);
+				/* Delete device */
+				SP_REMOVEDEVICE_PARAMS remove_device_params = {
+					.ClassInstallHeader = {
+						.cbSize = sizeof(SP_CLASSINSTALL_HEADER),
+						.InstallFunction = DIF_REMOVE
+					},
+					.Scope = DI_REMOVEDEVICE_GLOBAL,
+					.HwProfile = 0
+				};
+				if(SetupDiSetClassInstallParams(dev_info_set,
+					&dev_info_data,
+					&remove_device_params.ClassInstallHeader,
+					sizeof(remove_device_params)))
+				{
+					if (!SetupDiCallClassInstaller(DIF_REMOVE,
+						dev_info_set,
+						&dev_info_data))
+					{
+						DBG1(DBG_LIB, "Failed to remove "
+							"device (SetupDiCallClass"
+							"Installer): %s",
+							dlerror_mt(buf, sizeof(buf)));
+					}			
+				} else {
+					DBG1(DBG_LIB, "Failed to set class inst"
+						"all params (SetupDiSetClassIns"
+						"tallParams): %s",
+						dlerror_mt(buf, sizeof(buf)));
+				}
+			} else {
+				DBG2(DBG_LIB, "Skipping device %s", buf);
+			}
 		}
 	}
 delete_device_info_list :
@@ -456,7 +470,6 @@ bool get_interface_path(char *device_id, char **buf)
         sleep(1);
         cpy = (GUID) GUID_INTERFACE_NET;
         CONFIGRET ret = CM_Get_Device_Interface_List(&cpy, device_id, *buf, bufsize, CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
-        DBG0(DBG_LIB, "Configret: %d", ret);
 
         if (ret == CR_BUFFER_SMALL)
         {
@@ -466,8 +479,6 @@ bool get_interface_path(char *device_id, char **buf)
             DBG1(DBG_LIB, "Other return code: %d", ret);
             return FALSE;
         }
-        DBG2(DBG_LIB, "strlen(*buf): %d", strlen(*buf));
-        DBG2(DBG_LIB, "bufsize: %d", bufsize);
         ret = strlen(*buf);
         if (!ret)
         {
@@ -488,21 +499,19 @@ bool get_interface_path(char *device_id, char **buf)
 char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 {
 	/* Reimplementation of CreateInterface from wireguard */
-	char className[MAX_CLASS_NAME_LEN], buf[512],
-		adapter_reg_key[512], ipconfig_value[512],
-		ipconfig_reg_key[512],
+	char className[MAX_CLASS_NAME_LEN], buf[512], ipconfig_value[512],
 		*device_id = NULL,
 		*property_buffer = NULL;
 	uint64_t index = 0;
 
 	size_t registry_timeout = 5000;
 	DWORD property_buffer_length = 0, required_length = 0,
-		reg_value_type, error,
+		reg_value_type,
 		ipconfig_value_length = sizeof(ipconfig_value),
 		ret = 0;
 
 	DWORDLONG driver_version = 0;
-	HKEY drv_reg_key = NULL, ipconfig_reg_hkey = NULL, adapter_reg_hkey = NULL;
+	HKEY reg_hkey = NULL;
 	/* Timeout of 5000 ms for registry operations */
 
 	LPWSTR temp_buf = NULL;
@@ -661,8 +670,8 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 			index,
 			&drv_info_data))
 		{
-			error = GetLastError();
-			if (error == ERROR_NO_MORE_ITEMS)
+			ret=GetLastError();
+			if (ret == ERROR_NO_MORE_ITEMS)
 			{
 				// break and go on
 				break;
@@ -754,7 +763,7 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 
         for (int i=0;i<200;i++)
         {
-                if ((drv_reg_key = SetupDiOpenDevRegKey(
+                if ((reg_hkey = SetupDiOpenDevRegKey(
 			dev_info_set,
 			&dev_info_data,
 			DICS_FLAG_GLOBAL,
@@ -774,10 +783,10 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 			.tv_nsec = 50000000,
 		    };
 		    while (nanosleep(&ts, &ts)){}	 
-		    drv_reg_key = NULL;
+		    reg_hkey = NULL;
 		}
 	}
-	if(!handle_is_valid(drv_reg_key))
+	if(!handle_is_valid(reg_hkey))
 	{
 	    DBG0(DBG_LIB, "Failed to open DevRegKey, handle is invalid.");
 	    goto delete_driver_info_list;
@@ -788,13 +797,16 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 	    DBG1(DBG_LIB, "Failed to convert string, aborting.");
 	    goto delete_driver_info_list;
 	}
-        if ((ret=RegSetKeyValueA(drv_reg_key, NULL, "NetSetupAnticipatedInstanceId", REG_SZ, temp_buf, wcslen(temp_buf)+1)) != ERROR_SUCCESS)
+        if ((ret=RegSetKeyValueA(reg_hkey, NULL, "NetSetupAnticipatedInstanceId", REG_SZ, temp_buf, wcslen(temp_buf)+1)) != ERROR_SUCCESS)
         {
                 DBG1(DBG_LIB,
 			"Failed to set regkey NetSetupAnticipatedInstanceId (RegSetKeyValueA): (decimal %u) %s",
 			ret,
 			human_readable_error(buf, ret, sizeof(buf)));
         }
+
+	RegCloseKey(reg_hkey);
+
 	if (temp_buf) {
 		free(temp_buf);
 	}
@@ -806,7 +818,7 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
         ))
 	{
 	    DBG1(DBG_LIB, "Failed to call class installer: %s", dlerror_mt(buf, sizeof(buf)));
-	    goto close_reg_keys;
+	    goto close_reg_key;
 	}
 
         if (!SetupDiCallClassInstaller(
@@ -816,7 +828,7 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
                 ))
         {
                 DBG1(DBG_LIB, "Failed to install device (SetupDicallInstaller(DIF_INSTALLDEVICE)): %s", dlerror_mt(buf, sizeof(buf)));
-                goto close_reg_keys;
+                goto close_reg_key;
         }
 
         if (!SetupDiGetDeviceInstallParamsA(
@@ -826,7 +838,7 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
                 ))
         {
                 DBG1(DBG_LIB, "Failed to get install params (SetupDiGetDeviceInstallParamsA): %s", dlerror_mt(buf, sizeof(buf)));
-                goto close_reg_keys;
+                goto close_reg_key;
         }
  
         if (!SetupDiSetDeviceRegistryPropertyA(
@@ -838,15 +850,11 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
         ))
         {
                 DBG1(DBG_LIB, "Failed to set device description (SetupDiSetDeviceRegistryPropertyA(SPDRP_DEVICEDESC)) failed: %s", dlerror_mt(buf, sizeof(buf)));
-                goto close_reg_keys;
+                goto close_reg_key;
         }
 	
-	if(handle_is_valid(drv_reg_key))
-	{
-	    RegCloseKey(drv_reg_key);
-	}
 	
-	drv_reg_key = SetupDiOpenDevRegKey(
+	reg_hkey = SetupDiOpenDevRegKey(
 		dev_info_set,
 		&dev_info_data,
 		DICS_FLAG_GLOBAL,
@@ -854,66 +862,69 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 		DIREG_DRV, KEY_SET_VALUE | KEY_QUERY_VALUE | KEY_NOTIFY
 	);
 
-        if (!registry_wait_get_value(drv_reg_key, NetCfgInstanceId, (DWORD *) NetCfgInstanceId_length, "NetCfgInstanceId", &reg_value_type, registry_timeout))
+        if (!registry_wait_get_value(reg_hkey, NetCfgInstanceId, (DWORD *) NetCfgInstanceId_length, "NetCfgInstanceId", &reg_value_type, registry_timeout))
         {
                 DBG1(DBG_LIB, "Failed to retrieve NetCfgInstanceId key. Aborting tun device installation.");
-                goto close_reg_keys;
+                goto close_reg_key;
         }
-
+	
+	RegCloseKey(reg_hkey);
+	
         if (!(reg_value_type &= (REG_SZ | REG_EXPAND_SZ | REG_MULTI_SZ)))
         {
                 DBG1(DBG_LIB, "Type of NetCfgInstanceId is not REG_SZ, REG_EXPAND_SZ or REG_MULTI_SZ (Meaning it is not a string). Aborting tun device install.");
-                goto close_reg_keys;
+                goto close_reg_key;
         }
 
 	/* tcpipAdapterRegKeyName */
-	ignore_result(snprintf(adapter_reg_key, sizeof(adapter_reg_key),
+	ignore_result(snprintf(buf, sizeof(buf),
 		"SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Adapters\\%s",
 		NetCfgInstanceId));
 	
         // Wait for TCP/IP adapter registry key to emerge and populate.
 	// Wait for reg key to be populated
-	if(!(adapter_reg_hkey = registry_open_wait(HKEY_LOCAL_MACHINE, adapter_reg_key, 0, registry_timeout)))
+	if(!(reg_hkey = registry_open_wait(HKEY_LOCAL_MACHINE, buf, 0, registry_timeout)))
 	{
-		DBG2(DBG_LIB, "Timeout while waiting for %s to be accessible.", adapter_reg_key);
-		goto close_reg_keys;
+		DBG2(DBG_LIB, "Timeout while waiting for %s to be accessible.", buf);
+		goto close_reg_key;
 	}
 
         /* IpConfig */
-	if(!registry_wait_get_value(adapter_reg_hkey, ipconfig_value, &ipconfig_value_length, "IpConfig",
+	if(!registry_wait_get_value(reg_hkey, ipconfig_value, &ipconfig_value_length, "IpConfig",
 		&reg_value_type, registry_timeout))
 	{
-		DBG2(DBG_LIB, "Timeout while waiting for key %s\\%s", adapter_reg_key, "IpConfig");
-		goto close_reg_keys;
+		DBG2(DBG_LIB, "Timeout while waiting for key %s\\%s", buf, "IpConfig");
+		goto close_reg_key;
 	}
+	RegCloseKey(reg_hkey);
 	
 	if (!(reg_value_type &= (REG_SZ | REG_EXPAND_SZ | REG_MULTI_SZ)))
 	{
 		DBG2(DBG_LIB, "Invalid type %u for key %s\\%s",
 			reg_value_type,
-			adapter_reg_key,
+			buf,
 			"IpConfig");
-		goto close_reg_keys;
+		goto close_reg_key;
 	}
 	
         /* tcpipInterfaceRegKeyName */
-	ignore_result(snprintf(ipconfig_reg_key, sizeof(ipconfig_reg_key),
+	ignore_result(snprintf(buf, sizeof(buf),
 		"SYSTEM\\CurrentControlSet\\Services\\%s", ipconfig_value));
 	
-	if(!(ipconfig_reg_hkey = registry_open_wait(HKEY_LOCAL_MACHINE, ipconfig_reg_key, 0, registry_timeout)))
+	if(!(reg_hkey = registry_open_wait(HKEY_LOCAL_MACHINE, buf, 0, registry_timeout)))
 	{
-		DBG2(DBG_LIB, "Timeout while waiting for key %s to be accessible", ipconfig_reg_key);
-		goto close_reg_keys;
+		DBG2(DBG_LIB, "Timeout while waiting for key %s to be accessible", buf);
+		goto close_reg_key;
 	}
 	
 	/* EnableDeadGWDetect */
 	ret=0;
-	if((ret=RegSetValueExA(ipconfig_reg_hkey, "EnableDeadGWDetect", 0, REG_DWORD, (BYTE *)&ret, sizeof(ret))) != ERROR_SUCCESS)
+	if((ret=RegSetValueExA(reg_hkey, "EnableDeadGWDetect", 0, REG_DWORD, (BYTE *)&ret, sizeof(ret))) != ERROR_SUCCESS)
 	{
 		DBG1(DBG_LIB, "Failed to set EnableDeadGWDetect to 0 (%d): %s", ret, human_readable_error(buf, ret, sizeof(buf)));
 	}
 	ret=sizeof(buf);
-	if ((ret=RegQueryValueExA(ipconfig_reg_hkey, "EnableDeadGWDetect", NULL, (LPDWORD) &index, buf, &ret)) != ERROR_SUCCESS)
+	if ((ret=RegQueryValueExA(reg_hkey, "EnableDeadGWDetect", NULL, (LPDWORD) &index, buf, &ret)) != ERROR_SUCCESS)
 	{
 		DBG1(DBG_LIB, "Failed to retrieve type and value of EnableDeadGWDetect. Ret is %d", ret);
 	} else {
@@ -933,18 +944,10 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 	device_id = malloc(strlen(buf)+1);
         memcpy(device_id, buf, strlen(buf)+1);
 	
-close_reg_keys :
-	if(handle_is_valid(drv_reg_key))
+close_reg_key :
+	if(handle_is_valid(reg_hkey))
 	{
-	    RegCloseKey(drv_reg_key);
-	}
-	if(ipconfig_reg_hkey)
-	{
-		RegCloseKey(ipconfig_reg_hkey);
-	}
-	if(adapter_reg_hkey)
-	{
-		RegCloseKey(adapter_reg_hkey);
+	    RegCloseKey(reg_hkey);
 	}
 
 delete_driver_info_list : ;
@@ -1095,7 +1098,7 @@ impersonate_as_system()
 
 bool configure_wintun(private_windows_wintun_device_t *this, const char *name_tmpl)
 {
-	char buf[512], NetCfgInstanceId[255], *interface_path = NULL, *device_id = NULL;
+	char buf[1024], NetCfgInstanceId[255], *interface_path = NULL, *device_id = NULL;
 	DWORD ret;
         size_t NetCfgInstanceId_length = sizeof(NetCfgInstanceId);
         if (!(device_id = create_wintun(NetCfgInstanceId, &NetCfgInstanceId_length)))
