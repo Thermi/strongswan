@@ -216,7 +216,7 @@ static job_requeue_t process_outbound(private_ipsec_processor_t *this)
 	sa = ipsec->sas->checkout_by_reqid(ipsec->sas, policy->get_reqid(policy),
 									   FALSE);
 	if (!sa)
-	{	/* TODO-IPSEC: send an acquire to upper layer */
+	{
 		this->lock->read_lock(this->lock);
 		if (this->acquire.cb)
 		{
