@@ -263,10 +263,9 @@ HKEY registry_open_wait(HKEY key, char *path, DWORD access, size_t timeout)
 						break;
 					}
 					/* Setup notifier */
-					if (!RegNotifyChangeKeyValue(key, FALSE, REG_NOTIFY_CHANGE_NAME, handle, true))
+					if ((function_ret_wait=RegNotifyChangeKeyValue(key, FALSE, REG_NOTIFY_CHANGE_NAME, handle, true)))
 					{
-						dlerror_mt(buf, sizeof(buf));
-						DBG1(DBG_LIB, "Failed to setup notify handle for REG_NOTIFY_CHANGE_NAME on %s using RegNotifyChangeKeyValue: %s", current_path, buf);
+						DBG1(DBG_LIB, "Failed to setup notify handle for REG_NOTIFY_CHANGE_NAME on %s using RegNotifyChangeKeyValue: %s", current_path, human_readable_error(buf, function_ret_wait, sizeof(buf)));
 						goto cleanup;
 					}
 					/* Check if we can access the key */
@@ -302,10 +301,19 @@ HKEY registry_open_wait(HKEY key, char *path, DWORD access, size_t timeout)
 								goto cleanup;
 							}
 							function_ret_wait = WaitForSingleObjectEx(handle, ms_to_deadline, FALSE);
+							switch(function_ret_wait)
+							{
+								case WAIT_OBJECT_0:
+									break;
+								case WAIT_TIMEOUT:
+									DBG1(DBG_LIB, "Failed to wait for event (WaitForSingleObjectEx() for path %s: %ld): The time limit (timeout) was reached", current_path, function_ret_wait);
+									break;
+								case WAIT_FAILED:
+									DBG1(DBG_LIB, "Failed to wait for event (WaitForSingleObjectEx() for path %s: %ld): %s", function_ret_wait, current_path, dlerror_mt(buf, sizeof(buf)));
+									break;
+							}
 							if(function_ret_wait != WAIT_OBJECT_0)
 							{
-								dlerror_mt(buf, sizeof(buf));
-								DBG1(DBG_LIB, "Failed to wait for event (WaitForSingleObjectEx(): %ld): %s", function_ret_wait, buf);
 								goto cleanup;
 							}
 							break;
