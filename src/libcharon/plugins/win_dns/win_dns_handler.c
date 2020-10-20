@@ -90,6 +90,29 @@ typedef struct {
 } dns_server_t;
 
 /**
+ * Generate the path to netsh
+ * @return	pointer to allocated string with the path, or NULL if it failed
+ */
+char *generate_netsh_path()
+{	
+	char *path = malloc(MAX_PATH*sizeof(char)), *exe = "system32\\netsh.exe";
+	int len = GetSystemWindowsDirectory(path, MAX_PATH);
+	if (len == 0 || len >= sizeof(path) - strlen(exe))
+	{
+		DBG1(DBG_LIB, "resolving Windows directory failed: 0x%08x",
+			 GetLastError());
+		free(path);
+		return NULL;
+	}
+	if (path[len + 1] != '\\')
+	{
+		strncat(path, "\\", sizeof(path) - len++);
+	}
+	strncat(path, exe, sizeof(path) - len);
+	return path;
+}
+
+/**
  * Finds the newest DNS server
  */
 static dns_server_t *find_newest_server(private_win_dns_handler_t *this, char *index)
@@ -124,31 +147,77 @@ static bool compare_dns_servers_by_unique_id_and_address(void *a, void *b)
 /**
  * Install the DNS server on the interface specified in %s.
  */
-static bool set_dns_server(private_win_dns_handler_t *this, host_t *addr, NET_IFINDEX index)
-{
+static bool set_dns_server(private_win_dns_handler_t *this, host_t *addr, NET_IFINDEX index) {
 	int ret;
+	char *netsh_path = generate_netsh_path();
 	process_t *process;
-
-	process = process_start_shell(NULL, NULL, NULL, NULL, "netsh interface ip set dns name=%d static %H validate=no",
-		index, addr);
-	if (process->wait(process, &ret))
+	
+	if (!netsh_path)
 	{
-		DBG1(DBG_IKE, "Failed to handle DNS server: ret=%d", ret);
+		DBG1(DBG_LIB, "Failed to generate netsh path");
 		return FALSE;
 	}
 	
+	if (addr->get_family(addr) == AF_INET)
+	{
+		process = process_start_shell(NULL, NULL, NULL, NULL,
+					 "%s interface ipv4 set dns %d static 172.16.25.1 none no",
+		netsh_path, index, addr);
+	} else {
+		process = process_start_shell(NULL, NULL, NULL, NULL,
+					 "%s interface ipv6 set dns %d static %H none no",
+		netsh_path, index, addr);
+	}
+	free(netsh_path);
+	if (process) {
+		process->wait(process, &ret);
+		if (ret) {
+			DBG1(DBG_IKE, "Failed to handle DNS server: ret=%d", ret);
+			return FALSE;
+		}
+	} else {
+		DBG1(DBG_IKE, "Failed to handle DNS server, netsh process could not"
+			"be started");
+		return FALSE;
+	}
 	return TRUE;
 }
 
-static bool clear_dns_server(NET_IFINDEX index)
+static bool clear_dns_server(host_t *addr, NET_IFINDEX index)
 {
 	int ret;
-	process_t *process = process_start_shell(NULL, NULL, NULL, NULL, "netsh interface ip set dns name=%d clear",
-		index);
-	if (process->wait(process, &ret))
+	char *netsh_path = generate_netsh_path();
+	process_t *process;
+	if (!netsh_path)
 	{
-		DBG1(DBG_IKE, "Failed to handle DNS server: ret=%d", ret);
+		DBG1(DBG_LIB, "Failed to generate netsh path");
 		return FALSE;
+	}
+	if (addr->get_family(addr) == AF_INET)
+	{
+		process = process_start_shell(NULL, NULL, NULL, NULL,
+					 "%s interface ipv4 set dns %d clear",
+					 netsh_path, index);
+	} else {
+		process = process_start_shell(NULL, NULL, NULL, NULL,
+					 "%s interface ipv6 set dns %d clear",
+					 netsh_path, index);
+	}
+	
+	free(netsh_path);
+	if (process) {
+		process->wait(process, &ret);
+		if (ret) {
+			free(netsh_path);
+			DBG1(DBG_IKE, "Failed to handle DNS server: ret=%d",
+				ret);
+			return FALSE;
+		}
+	} else {
+
+			DBG1(DBG_IKE, "Failed to handle DNS server,"
+				"netsh process could not be spawned");
+			return FALSE;
 	}
 	
 	return TRUE;
@@ -161,13 +230,13 @@ static bool guid2index(GUID guid, NET_IFINDEX *index)
 	NET_LUID interface_luid;
 	NETIO_STATUS ret;
 	char buf[512];
-	if(!(ret=ConvertInterfaceGuidToLuid(&guid, &interface_luid)))
+	if((ret=ConvertInterfaceGuidToLuid(&guid, &interface_luid)) != NO_ERROR)
 	{
 		DBG1(DBG_NET, "Failed to convert GUID to LUID (%d): %s",
 			ret, dlerror_mt(buf, sizeof(buf)));
 		return FALSE;
 	}
-	if(!(ret=ConvertInterfaceLuidToIndex(&interface_luid, index)))
+	if((ret=ConvertInterfaceLuidToIndex(&interface_luid, index)) != NO_ERROR)
 	{
 		switch(ret)
 		{
@@ -215,14 +284,19 @@ METHOD(attribute_handler_t, handle, bool,
 		DESTROY_IF(addr);
 		return FALSE;
 	}
-	
-	if (!charon->kernel->get_interface(charon->kernel,
-		ike_sa->get_my_host(ike_sa), &iface))
+	/* Check if we use a tun device and if we do, install the DNS server there */
+	if (lib->get(lib, "kernel-libipsec-tun"))
 	{
-		DBG1(DBG_IKE, "Can't install DNS server, interface does not exist!");
-		return FALSE;
+		iface=lib->settings->get_str(lib->settings, "%s.install_virtual_ip_on",
+						   NULL, lib->ns);
+	} else {
+		if (!charon->kernel->get_interface(charon->kernel,
+			ike_sa->get_my_host(ike_sa), &iface))
+		{
+			DBG1(DBG_IKE, "Can't install DNS server, interface does not exist!");
+			return FALSE;
+		}
 	}
-
 	
 	if (!guidfromstring(&guid, iface, TRUE))
 	{
@@ -255,6 +329,8 @@ METHOD(attribute_handler_t, handle, bool,
 	if (!handled)
 	{
 		DBG1(DBG_IKE, "adding DNS server failed");
+	} else {
+		DBG1(DBG_IKE, "Added DNS server %H on interface %d", addr, index);
 	}
 	return handled;
 }
@@ -282,13 +358,20 @@ METHOD(attribute_handler_t, release, void,
 			return;
 	}
 	addr = host_create_from_chunk(family, data, 0);
-	
-	if (!charon->kernel->get_interface(charon->kernel,
-		ike_sa->get_my_host(ike_sa), &iface))
+
+	/* Check if we use a tun device and if we do, install the DNS server there */
+	if (lib->get(lib, "kernel-libipsec-tun"))
 	{
-		DBG1(DBG_IKE, "Can't remove DNS server, interface does not exist!");
-		addr->destroy(addr);
-		return;
+		iface=lib->settings->get_str(lib->settings, "%s.install_virtual_ip_on",
+						   NULL, lib->ns);
+	} else {
+		if (!charon->kernel->get_interface(charon->kernel,
+			ike_sa->get_my_host(ike_sa), &iface))
+		{
+			DBG1(DBG_IKE, "Can't remove DNS server, interface does not exist!");
+			addr->destroy(addr);
+			return;
+		}
 	}
 		
 	if (!guidfromstring(&guid, iface, TRUE))
@@ -319,14 +402,25 @@ METHOD(attribute_handler_t, release, void,
 	if(!this->servers->remove(this->servers, found, compare_dns_servers_by_unique_id_and_address))
 	{
 		DBG1(DBG_IKE, "Failed to find DNS server in list.");
+	} else {
+		DBG1(DBG_IKE, "Removed DNS server %H from interface %d", addr, index);
 	}
 	
 	entry = find_newest_server(this, iface);
 	if (entry)
 	{
-		set_dns_server(this, entry->address, index);
+
+		if (set_dns_server(this, entry->address, index))
+		{
+			DBG1(DBG_IKE, "Installed now newest DNS server %H on"
+				" interface %d", addr, index);
+		}
 	} else {
-		clear_dns_server(index);
+		if (clear_dns_server(addr, index))
+		{
+			DBG1(DBG_IKE, "Cleared all DNS servers from interface"
+				" %d", index);
+		}
 	}
 	
 	this->mutex->unlock(this->mutex);
