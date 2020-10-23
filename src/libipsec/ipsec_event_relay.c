@@ -110,7 +110,6 @@ static job_requeue_t handle_events(private_ipsec_event_relay_t *this)
 	enumerator_t *enumerator;
 	ipsec_event_listener_t *current;
 	ipsec_event_t *event;
-
 	event = this->queue->dequeue(this->queue);
 
 	this->lock->read_lock(this->lock);
@@ -197,7 +196,6 @@ ipsec_event_relay_t *ipsec_event_relay_create()
 		.lock = rwlock_create(RWLOCK_TYPE_DEFAULT),
 		.queue = blocking_queue_create(),
 	);
-
 	lib->processor->queue_job(lib->processor,
 		(job_t*)callback_job_create((callback_job_cb_t)handle_events, this,
 			NULL, (callback_job_cancel_t)return_false));

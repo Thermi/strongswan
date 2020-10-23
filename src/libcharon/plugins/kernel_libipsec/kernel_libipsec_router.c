@@ -16,6 +16,11 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#ifdef WIN32
+#include <signal.h>
+#include <synchapi.h>
+#endif
+
 #include "kernel_libipsec_router.h"
 
 #include <daemon.h>
@@ -25,6 +30,7 @@
 #include <threading/rwlock.h>
 #include <threading/thread.h>
 #include <processing/jobs/callback_job.h>
+#include <processing/jobs/acquire_job.h>
 
 typedef struct private_kernel_libipsec_router_t private_kernel_libipsec_router_t;
 
@@ -35,7 +41,11 @@ typedef struct {
 	/** virtual IP (points to internal data of tun) */
 	host_t *addr;
 	/** underlying TUN file descriptor (cached from tun) */
+#ifdef WIN32
+	HANDLE handle;
+#else
 	int fd;
+#endif /* !WIN32 */
 	/** TUN device */
 	tun_device_t *tun;
 } tun_entry_t;
@@ -71,10 +81,44 @@ struct private_kernel_libipsec_router_t {
 	 */
 	rwlock_t *lock;
 
+#ifdef WIN32
+	/**
+	 * Event we use to signal handle_plain() about changes regarding tun devices
+	 */
+	HANDLE event;
+	
+	/**
+	 * This is a notification value that we atomically set and reset if we don't use events right now.
+	 * It's used so we can avoid using WaitFor* functions when busy looping.
+	 */
+	volatile bool notify;
+	
+	/**
+	 * Setting for waiting on event or using busy loop
+	 */
+	bool use_events;
+	
+	/**
+	 * Whether a packet could be read from any of the tun devices in the last
+	 * iteration of handle_plain
+	 */
+	bool got_result;
+	
+	/**
+	 * How long the spinloop should run in microseconds after failing to
+	 * get a packet before it waits for events again.
+	 */
+	uint64_t spinloop_threshold;
+	
+	LARGE_INTEGER switching_time;
+	
+	bool windows_close;
+#else
 	/**
 	 * Pipe to signal handle_plain() about changes regarding TUN devices
 	 */
 	int notify[2];
+#endif
 };
 
 /**
@@ -99,6 +143,19 @@ static bool tun_entry_equals(tun_entry_t *a, tun_entry_t *b)
 static void send_esp(void *data, esp_packet_t *packet)
 {
 	charon->sender->send_no_marker(charon->sender, (packet_t*)packet);
+}
+
+/**
+ * Raise an acquire event
+ */
+static void raise_acquire(void *data, uint32_t reqid,
+			  traffic_selector_t *source_ts,
+			  traffic_selector_t *destination_ts)
+{
+	lib->processor->queue_job(lib->processor, (job_t *) acquire_job_create(
+		 reqid,
+		 source_ts,
+		 destination_ts));
 }
 
 /**
@@ -152,6 +209,24 @@ static void process_plain(tun_device_t *tun)
 	}
 }
 
+static bool process_plain_wintun(tun_device_t *tun)
+{
+	chunk_t raw;
+	if (tun->read_packet(tun, &raw))
+	{
+		ip_packet_t *packet;
+
+		packet = ip_packet_create(raw);
+		if (packet)
+		{
+			ipsec->processor->queue_outbound(ipsec->processor, packet);
+		}
+		return TRUE;
+	}
+	return FALSE;
+}
+
+#ifndef WIN32
 /**
  * Find flagged revents in a pollfd set by fd
  */
@@ -168,6 +243,7 @@ static int find_revents(struct pollfd *pfd, int count, int fd)
 	}
 	return 0;
 }
+#endif
 
 /**
  * Job handling outbound plaintext packets
@@ -176,13 +252,13 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 {
 	enumerator_t *enumerator;
 	tun_entry_t *entry;
-	bool oldstate;
 	int count = 0;
+#ifndef WIN32
+	bool oldstate;
 	char buf[1];
 	struct pollfd *pfd;
 
 	this->lock->read_lock(this->lock);
-
 	pfd = alloca(sizeof(*pfd) * (this->tuns->get_count(this->tuns) + 2));
 	pfd[count].fd = this->notify[0];
 	pfd[count].events = POLLIN;
@@ -190,7 +266,6 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 	pfd[count].fd = this->tun.fd;
 	pfd[count].events = POLLIN;
 	count++;
-
 	enumerator = this->tuns->create_enumerator(this->tuns);
 	while (enumerator->enumerate(enumerator, NULL, &entry))
 	{
@@ -234,8 +309,180 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 		}
 	}
 	enumerator->destroy(enumerator);
-	this->lock->unlock(this->lock);
+#else
+	LARGE_INTEGER StartingTime = { .QuadPart = 0 },
+		EndingTime = { .QuadPart = 0 },
+		ElapsedMicroseconds = { .QuadPart = 0},
+		Frequency = { .QuadPart = 0};
+	uint64_t processed_packets = 0, failed_calls = 0;
+	
+	QueryPerformanceFrequency(&Frequency); 	
+	
+	this->lock->read_lock(this->lock);
+	if(this->use_events || !this->got_result) {
+		DBG0(DBG_LIB, "Running in event driven mode.");
+		QueryPerformanceCounter(&this->switching_time);
+		HANDLE *tun_handles;
+		DWORD ret;
+		/* Check if any of the TUN devices has data for reading */
+		tun_handles = alloca(sizeof(HANDLE)* (this->tuns->get_count(this->tuns)+2));
+		tun_handles[count] = this->event;
+		count++;
+		tun_handles[count] = this->tun.handle;
+		count++;
+		enumerator = this->tuns->create_enumerator(this->tuns);
+		while (enumerator->enumerate(enumerator, NULL, &entry))
+		{
+			tun_handles[count] = entry->handle;
+			count++;
+		}
 
+		enumerator->destroy(enumerator);
+		this->lock->unlock(this->lock);
+		QueryPerformanceCounter(&StartingTime);
+		ret = WaitForMultipleObjects(count, tun_handles, FALSE, INFINITE);
+		QueryPerformanceCounter(&EndingTime);
+		ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+		ElapsedMicroseconds.QuadPart *= 1000000000;
+		ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+		DBG1(DBG_LIB, "Waited for %lld nanoseconds (%lld miliseconds)", ElapsedMicroseconds.QuadPart, ElapsedMicroseconds.QuadPart/1000000);
+		this->lock->read_lock(this->lock);
+		if (ret >= WAIT_OBJECT_0 || ret <= WAIT_OBJECT_0 + count -1)
+		{
+			int offset = ret - WAIT_OBJECT_0;
+			this->got_result = TRUE;
+			switch(offset)
+			{
+				case 0:
+					DBG0(DBG_LIB, "Interrupt job from event");
+					ResetEvent(tun_handles[offset]);
+					break;
+				case 1:
+					DBG0(DBG_LIB, "got packet in event mode");
+					process_plain(this->tun.tun);
+					break;
+				default:
+					DBG0(DBG_LIB, "got packet in event mode");
+					enumerator = this->tuns->create_enumerator(this->tuns);
+					while (enumerator->enumerate(enumerator, NULL, &entry))
+					{
+						if (WaitForSingleObjectEx(entry->handle, 0, FALSE) == WAIT_OBJECT_0)
+						{
+							process_plain(entry->tun);
+						}
+					}
+					enumerator->destroy(enumerator);
+					break;
+			}
+		} else if (ret >= WAIT_ABANDONED_0 || ret <= WAIT_ABANDONED_0 + count -1)
+		{
+			int offset = ret - WAIT_ABANDONED_0;
+			this->got_result = FALSE;
+			switch(offset)
+			{
+				case 0:
+					DBG2(DBG_LIB, "Notify handle closed.");
+					break;
+				case 1:
+					DBG2(DBG_LIB, "Primary tun handle closed");
+					break;
+				default:
+					DBG2(DBG_LIB, "Other tun handle closed at offset %d", offset);
+					break;
+			}
+			return JOB_REQUEUE_NONE;
+		}
+		else if (ret == WAIT_FAILED)
+		{
+			char error_buf[512];
+			DBG1(DBG_LIB, "Failed to wait for tun devices to be ready for reading: %s",
+			dlerror_mt(error_buf, sizeof(error_buf)));
+		}
+		QueryPerformanceCounter(&this->switching_time);
+	} else {
+		/* TODO: Set realtime priority for charon-svc.exe
+		 * (otherwise Windows suspends the process after only a couple
+		 * of processes or stops waking up the process events)
+		 */
+		this->lock->read_lock(this->lock);
+		/* Check each handle individually */
+		QueryPerformanceCounter(&EndingTime);
+		ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - this->switching_time.QuadPart;
+		ElapsedMicroseconds.QuadPart *= 1000000000;
+		ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+		DBG1(DBG_LIB, "Delay between switching is %lld nanoseconds", ElapsedMicroseconds.QuadPart);
+		do {
+			/* Because the NT kernel scheduler stops waking up the process
+			 * if we wait too often, we need to avoid calling any WaitFor* functions.
+			 * Thus we busy loop in user space until we get no result for some time */
+			this->got_result = FALSE;
+			if(process_plain_wintun(this->tun.tun))
+			{
+				this->got_result |= TRUE;
+				processed_packets++;
+			} else {
+				failed_calls++;
+			}
+			
+			ResetEvent(this->tun.handle);
+			enumerator = this->tuns->create_enumerator(this->tuns);
+			while(enumerator->enumerate(enumerator, NULL, &entry))
+			{
+				if (process_plain_wintun(entry->tun))
+				{
+					processed_packets++;
+					this->got_result |= TRUE;
+				} else {
+					failed_calls++;
+				}
+				ResetEvent(entry->handle);
+			}
+			enumerator->destroy(enumerator);
+			
+			if (!this->got_result)
+			{
+				if(!StartingTime.QuadPart) {
+					QueryPerformanceCounter(&StartingTime);
+				} else {
+					QueryPerformanceCounter(&EndingTime);
+					ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
+					ElapsedMicroseconds.QuadPart *= 1000000000;
+					ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
+				}
+				enumerator = this->tuns->create_enumerator(this->tuns);
+				while(enumerator->enumerate(enumerator, NULL, &entry))
+				{
+					ResetEvent(entry->handle);
+				}
+				enumerator->destroy(enumerator);
+				if (ElapsedMicroseconds.QuadPart >= this->spinloop_threshold)
+				{
+					DBG0(DBG_LIB, "Processed %lld packets,"
+						" failed %lld calls to read packets"
+					 " Reached threshold at %lld nanoseconds, switching"
+					 " back to events.",
+					 processed_packets,
+					 failed_calls,
+					 ElapsedMicroseconds.QuadPart);
+					ResetEvent(this->event);
+					this->notify = FALSE;
+					break;
+				}
+			}
+			if(this->notify)
+			{
+				DBG0(DBG_LIB, "Processed %lld packets, Interrupt job from bool", processed_packets);
+				ResetEvent(this->event);
+				this->notify = FALSE;
+				break;
+			}
+
+		}
+		while(TRUE);
+	}
+
+#endif /* WIN32 */
+	this->lock->unlock(this->lock);
 	return JOB_REQUEUE_DIRECT;
 }
 
@@ -243,14 +490,20 @@ METHOD(kernel_listener_t, tun, bool,
 	private_kernel_libipsec_router_t *this, tun_device_t *tun, bool created)
 {
 	tun_entry_t *entry, lookup;
+#ifndef WIN32
 	char buf[] = {0x01};
+#endif
 
 	this->lock->write_lock(this->lock);
 	if (created)
 	{
 		INIT(entry,
 			.addr = tun->get_address(tun, NULL),
+#ifdef WIN32
+			.handle = tun->get_handle(tun),
+#else
 			.fd = tun->get_fd(tun),
+#endif /* !WIN32 */
 			.tun = tun,
 		);
 		this->tuns->put(this->tuns, entry, entry);
@@ -262,7 +515,12 @@ METHOD(kernel_listener_t, tun, bool,
 		free(entry);
 	}
 	/* notify handler thread to recreate FD set */
+#ifdef WIN32
+	SetEvent(this->event);
+	this->notify = TRUE;
+#else
 	ignore_result(write(this->notify[1], buf, sizeof(buf)));
+#endif
 	this->lock->unlock(this->lock);
 	return TRUE;
 }
@@ -297,15 +555,25 @@ METHOD(kernel_libipsec_router_t, destroy, void,
 										 (ipsec_outbound_cb_t)send_esp);
 	ipsec->processor->unregister_inbound(ipsec->processor,
 										 (ipsec_inbound_cb_t)deliver_plain);
+	ipsec->processor->unregister_acquire(ipsec->processor,
+		 (ipsec_acquire_cb_t)raise_acquire);
 	charon->kernel->remove_listener(charon->kernel, &this->public.listener);
-	this->lock->destroy(this->lock);
-	this->tuns->destroy(this->tuns);
+#ifdef WIN32
+	SetEvent(this->event);
+	this->tun.tun->destroy(this->tun.tun);
+	CloseHandle(this->tun.handle);
+	CloseHandle(this->event);
+#else
 	close(this->notify[0]);
 	close(this->notify[1]);
+#endif
+	this->lock->destroy(this->lock);
+	this->tuns->destroy(this->tuns);	
 	router = NULL;
 	free(this);
 }
 
+#ifndef WIN32
 /**
  * Set O_NONBLOCK on the given socket.
  */
@@ -314,6 +582,24 @@ static bool set_nonblock(int socket)
 	int flags = fcntl(socket, F_GETFL);
 	return flags != -1 && fcntl(socket, F_SETFL, flags | O_NONBLOCK) != -1;
 }
+#endif
+
+#ifdef WIN32
+/**
+ * See header file
+ */
+METHOD(kernel_libipsec_router_t, reload, void,
+	private_kernel_libipsec_router_t *this)
+{
+	this->use_events = lib->settings->get_bool(
+		lib->settings, "%s.use_events", FALSE, lib->ns);
+	this->spinloop_threshold = lib->settings->get_int(
+		lib->settings, "%s.spinloop_threshold", 4000000, lib->ns);
+	DBG1(DBG_LIB, "Read new use_events setting %d and spinloop_threshold %lld",
+	this->use_events, this->spinloop_threshold);
+}
+
+#endif
 
 /*
  * See header file
@@ -329,12 +615,25 @@ kernel_libipsec_router_t *kernel_libipsec_router_create()
 			},
 			.get_tun_name = _get_tun_name,
 			.destroy = _destroy,
+			.reload = _reload,
 		},
 		.tun = {
 			.tun = lib->get(lib, "kernel-libipsec-tun"),
-		}
+		},
+#ifdef WIN32
+		.notify = FALSE,
+#endif
 	);
-
+	this->public.reload(&this->public);
+#ifdef WIN32
+	this->tun.handle = this->tun.tun->get_handle(this->tun.tun);
+        if (!(this->event = CreateEvent(NULL, FALSE, FALSE, FALSE)))
+        {
+            DBG1(DBG_KNL, "creating notify event for kernel-libipsec router failed");
+            free(this);
+            return NULL;
+        }
+#else
 	if (pipe(this->notify) != 0 ||
 		!set_nonblock(this->notify[0]) || !set_nonblock(this->notify[1]))
 	{
@@ -344,7 +643,7 @@ kernel_libipsec_router_t *kernel_libipsec_router_create()
 	}
 
 	this->tun.fd = this->tun.tun->get_fd(this->tun.tun);
-
+#endif /* !WIN32 */
 	this->tuns = hashtable_create((hashtable_hash_t)tun_entry_hash,
 								  (hashtable_equals_t)tun_entry_equals, 4);
 	this->lock = rwlock_create(RWLOCK_TYPE_DEFAULT);
@@ -353,6 +652,7 @@ kernel_libipsec_router_t *kernel_libipsec_router_create()
 	ipsec->processor->register_outbound(ipsec->processor, send_esp, NULL);
 	ipsec->processor->register_inbound(ipsec->processor,
 									(ipsec_inbound_cb_t)deliver_plain, this);
+	ipsec->processor->register_acquire(ipsec->processor, raise_acquire, NULL);
 	charon->receiver->add_esp_cb(charon->receiver,
 									(receiver_esp_cb_t)receiver_esp_cb, NULL);
 	lib->processor->queue_job(lib->processor,

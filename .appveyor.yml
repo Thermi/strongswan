@@ -1,11 +1,14 @@
 image:
   - Visual Studio 2017
-  - Ubuntu
+  - Ubuntu2004
 
 clone_depth: 50
 
+max_jobs: 4
+
 environment:
   global:
+    docker_ipv6: true
     MONOLITHIC: no
     TESTS_REDUCED_KEYLENGTHS: yes
     TZ: Europe/Zurich
@@ -16,6 +19,16 @@ environment:
     DEPS_BUILD_DIR: ./dependencies/
 
   matrix:
+    - TEST: win64
+      MONOLITHIC: yes
+    - TEST: wintun
+      MONOLITHIC: yes
+    - TEST: printf-builtin
+      MONOLITHIC: yes
+    - TEST: sonarcloud
+      MONOLITHIC: no
+    - TEST: wintun-sonarcloud
+      MONOLITHIC: yes      
     - TEST: all
     - TEST: all
       MONOLITHIC: yes
@@ -31,18 +44,10 @@ environment:
       LEAK_DETECTIVE: yes
     - TEST: apidoc
       MONOLITHIC: no
-    - TEST: win64
-      MONOLITHIC: yes
-    - TEST: wintun
-      MONOLITHIC: yes
-    - TEST: printf-builtin
-      MONOLITHIC: yes
-    - TEST: sonarcloud
-      MONOLITHIC: no
 
 matrix:
   exclude:
-    - image: Ubuntu
+    - image: Ubuntu2004
       TEST: wintun
     - image: Visual Studio 2017
       TEST: botan
@@ -60,6 +65,9 @@ matrix:
     - image: Visual Studio 2017
       TEST: sonarcloud
       MONOLITHIC: no
+    - image: Ubuntu2004
+      TEST: wintun-sonarcloud
+      MONOLITHIC: yes
 
 # Don't build if it's a push with a tag
 skip_tags: true
@@ -67,7 +75,7 @@ skip_tags: true
 for:
 - matrix:
     only:
-      - image: Ubuntu
+      - image: Ubuntu2004
       - TEST: sonarcloud
   clone_depth: 0
   cache:
@@ -84,12 +92,12 @@ for:
   test_script:
     - ./scripts/test.sh
   #build_cloud: 
-  environment:
-    APPVEYOR_BUILD_WORKER_IMAGE: appveyor/build-image:minimal-ubuntu-18.04
+  #environment:
+  #  APPVEYOR_BUILD_WORKER_IMAGE: Linux-Our-Cloud
 
 - matrix:
     only:
-      - image: Ubuntu
+      - image: Ubuntu2004
   cache:
   - /home/appveyor/.ccache
   - dependencies -> scripts/test.sh
@@ -104,8 +112,8 @@ for:
   test_script:
     - ./scripts/test.sh
   #build_cloud: 
-  environment:
-    APPVEYOR_BUILD_WORKER_IMAGE: appveyor/build-image:minimal-ubuntu-18.04
+  #environment:
+  #  APPVEYOR_BUILD_WORKER_IMAGE: Linux-Our-Cloud
 
 - matrix:
     only:
@@ -121,4 +129,5 @@ for:
     - set CCACHE_DIR=C:\CCACHE
     - set MSYS_SH=C:\msys%BITS%\usr\bin\sh.exe
     - set MSYSTEM=MINGW%BITS%
-    - set TEST=win%BITS%
+artifacts:
+    - path: config.h

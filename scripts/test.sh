@@ -2,10 +2,19 @@
 # Build script for Travis CI
 set -x
 
+fix_msys2() {
+        curl -O https://www2.futureware.at/~nickoe/msys2-mirror/msys/i686/msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz | exit 1
+        curl -O https://www2.futureware.at/~nickoe/msys2-mirror/msys/i686/msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig | exit 1
+        pacman-key --verify msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig || exit 1
+        pacman -U --noconfirm msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz
+        rm msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz*
+        pacman --noconfirm -Sydd pacman
+}
+
 build_botan()
 {
 	# same revision used in the build recipe of the testing environment
-	BOTAN_REV=2.14.0
+	BOTAN_REV=2.15.0
 	BOTAN_DIR=$DEPS_BUILD_DIR/botan
 
 	if test -d "$BOTAN_DIR"; then
@@ -54,12 +63,20 @@ build_wolfssl()
 
 		WOLFSSL_CFLAGS="-DWOLFSSL_PUBLIC_MP -DWOLFSSL_DES_ECB"
 		WOLFSSL_CONFIG="--prefix=$DEPS_PREFIX
-						--enable-keygen --enable-rsapss --enable-aesccm
-						--enable-aesctr --enable-des3 --enable-camellia
-						--enable-curve25519 --enable-ed25519"
-
-
-
+			--disable-crypttests --disable-examples
+			--enable-keygen --enable-rsapss --enable-aesccm
+			--enable-aesctr --enable-des3 --enable-camellia
+			--enable-curve25519 --enable-ed25519
+			--enable-curve448 --enable-ed448
+			--enable-sha3 --enable-shake256"
+		git clone https://github.com/wolfSSL/wolfssl.git $WOLFSSL_DIR &&
+		cd $WOLFSSL_DIR &&
+		git checkout -qf $WOLFSSL_REV &&
+		./autogen.sh &&
+		./configure C_EXTRA_FLAGS="$WOLFSSL_CFLAGS" $WOLFSSL_CONFIG &&
+		make -j4 >/dev/null		
+	fi
+	
 	ret=$?
 	if [ $ret != 0 ]
 	then
@@ -72,7 +89,7 @@ build_wolfssl()
 
 build_tss2()
 {
-	TSS2_REV=2.3.3
+	TSS2_REV=2.4.1
 	TSS2_PKG=tpm2-tss-$TSS2_REV
 	TSS2_DIR=$DEPS_BUILD_DIR/$TSS2_PKG
 	TSS2_SRC=https://github.com/tpm2-software/tpm2-tss/releases/download/$TSS2_REV/$TSS2_PKG.tar.gz
@@ -107,15 +124,15 @@ fix_timezone() {
 	if test -n "$TZ"; then
 		echo "TZ var not set. Defaulting to UTC timezone." >&2
 	fi
-: ${TZ=UTC}
+	: ${TZ:=UTC}
 	echo "$TZ" > /etc/timezone
-	dpkg-reconfigure -f noninteractive tzdata
+	dpkg-reconfigure -f noninteractive tzdata || true
 }
 
 install_deps() {
 	# configure.ac checks against the easy_install file in $PATH, which is only provided by the PIP egg, not the Ubuntu package!
 	: ${DEPS:=FOO}
-	case "${TRAVIS_OS_NAME}" in
+	case "$TRAVIS_OS_NAME" in
 	osx)
 		brew update && \
 		brew install ${DEPS}
@@ -125,26 +142,35 @@ install_deps() {
 		pkg install -y bison flex gperf gettext ${DEPS}
 		;;
 	linux)
-		sudo apt-get update -qq && \
-		sudo apt-get install -qq bison flex gperf gettext ${DEPS}
+		$sudo apt-get update -qq && \
+		$sudo apt-get install -qq bison flex gperf gettext ${DEPS}
 		;;
 	esac
 
-    case "${APPVEYOR}" in
+    case "$APPVEYOR" in
     true)
         sudo apt-get install -qq bison flex gperf gettext pkg-config ${DEPS}
         ;;
     True)
-        pacman --noconfirm -Sy bison flex gperf gettext mingw-w64-x86_64-gmp gmp ccache
+        pacman --noconfirm -Sy bison flex gperf gettext mingw-w64-x86_64-gmp gmp ccache unzip
         ;;
     esac
 }
 
 appveyor_set_vars() {
-	if test -n "${APPVEYOR}"
+    if test -n "$APPVEYOR"
     then
-        declare -g TRAVIS_OS_NAME=linux TRAVIS_COMMIT="${APPVEYOR_REPO_COMMIT}" \
-            TRAVIS_BUILD_NUMBER="${APPVEYOR_BUILD_NUMBER}" 
+        case "$APPVEYOR" in
+        True)
+            declare -g TRAVIS_OS_NAME=windows
+        ;;   
+        *)
+            # Ubuntu or unknown
+            declare -g TRAVIS_OS_NAME=linux
+        ;;
+        esac
+        declare -g TRAVIS_COMMIT="$APPVEYOR_REPO_COMMIT" \
+                TRAVIS_BUILD_NUMBER="$APPVEYOR_BUILD_NUMBER"
     fi
 }
 : ${TRAVIS_BUILD_DIR=$PWD}
@@ -162,11 +188,18 @@ CFLAGS="-g -O2 -Wall -Wno-format -Wno-format-security -Wno-pointer-sign -Werror"
 #True is Windows, true is Ubuntu
 # no sudo on Windows
 if test "$APPVEYOR" = "True"; then
-    export sudo=""
+    declare -g sudo=""
 else
-    export sudo="sudo"
+    declare -g sudo="sudo"
 fi
 export DEBIAN_FRONTEND=noninteractive
+
+# Make sure the printf-builtin test on AppVeyor (Windows platform) runs the
+# windows compatible path and not the Linux/Unix specific path
+if test "$TEST" == "printf-builtin" -a "$APPVEYOR" == "True"
+then
+    TEST=win64
+fi
 
 case "$TEST" in
 default)
@@ -241,34 +274,44 @@ all|coverage|sonarcloud)
 	fi
 	;;
 win*)
-	CONFIG="--disable-defaults --enable-svc --enable-ikev2
-			--enable-ikev1 --enable-static --enable-test-vectors --enable-nonce
-			--enable-constraints --enable-revocation --enable-pem --enable-pkcs1
-			--enable-pkcs8 --enable-x509 --enable-pubkey --enable-acert
-			--enable-eap-tnc --enable-eap-ttls --enable-eap-identity
-			--enable-updown --enable-ext-auth --enable-libipsec
-			--enable-tnccs-20 --enable-imc-attestation --enable-imv-attestation
-			--enable-imc-os --enable-imv-os --enable-tnc-imv --enable-tnc-imc
-			--enable-pki --enable-swanctl --enable-socket-win
-			--enable-kernel-iph --enable-kernel-wfp --enable-winhttp"
-	if test "$TARGET" = "wintun"; then
-		CONFIG="$CONFIG --enable-wintun --enable-kernel-libipsec --enable-libipsec"
+        CONFIG="--disable-defaults --enable-svc --enable-ikev2
+                        --enable-ikev1 --enable-static --enable-test-vectors --enable-nonce
+                        --enable-constraints --enable-revocation --enable-pem --enable-pkcs1
+                        --enable-pkcs8 --enable-x509 --enable-pubkey --enable-acert
+                        --enable-eap-tnc --enable-eap-ttls --enable-eap-identity
+                        --enable-updown --enable-ext-auth --enable-libipsec
+                        --enable-tnccs-20 --enable-imc-attestation --enable-imv-attestation
+                        --enable-imc-os --enable-imv-os --enable-tnc-imv --enable-tnc-imc
+                        --enable-pki --enable-swanctl --enable-socket-win
+                        --enable-kernel-iph --enable-kernel-wfp --enable-winhttp"
+        if [[ "$TEST" == wintun* ]]; then
+                CONFIG="$CONFIG --enable-wintun --enable-kernel-libipsec --enable-libipsec"
+
+        fi
+        # no make check for Windows binaries unless we run on a windows host
+        #CCACHE=ccache
+        if test "$APPVEYOR" != "True"; then
+                TARGET=
+        else
+                CONFIG="$CONFIG --enable-openssl"
+                CFLAGS="$CFLAGS -I/c/OpenSSL-$TEST/include"
+                LDFLAGS="-L/c/OpenSSL-$TEST"
+                export LDFLAGS
+        fi
+        CFLAGS="$CFLAGS -mno-ms-bitfields  -DNOCRYPT -DWIN32 -lwinpthread"
+        DEPS="gcc-mingw-w64-base ccache"
+        CONFIG="--host=x86_64-w64-mingw32 $CONFIG --enable-dbghelp-backtraces"
+        DEPS="gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 mingw-w64-x86-64-dev $DEPS"
+        #CC="$CCACHE x86_64-w64-mingw32-gcc"
+        CC="x86_64-w64-mingw32-gcc"
+	;;
+android)
+	DEPS="$DEPS openjdk-8-jdk"
+	if test "$1" = "deps"; then
+		git clone git://git.strongswan.org/android-ndk-boringssl.git -b ndk-static \
+			src/frontends/android/app/src/main/jni/openssl
 	fi
-	# no make check for Windows binaries unless we run on a windows host
-    CCACHE=ccache
-	if test "$APPVEYOR" != "True"; then
-		TARGET=
-	else
-		CONFIG="$CONFIG --enable-openssl"
-		CFLAGS="$CFLAGS -I/c/OpenSSL-$TEST/include"
-		LDFLAGS="-L/c/OpenSSL-$TEST"
-		export LDFLAGS
-	fi
-	CFLAGS="$CFLAGS -mno-ms-bitfields"
-	DEPS="gcc-mingw-w64-base ccache"
-	CONFIG="--host=x86_64-w64-mingw32 $CONFIG --enable-dbghelp-backtraces"
-	DEPS="gcc-mingw-w64-x86-64 binutils-mingw-w64-x86-64 mingw-w64-x86-64-dev $DEPS"
-	CC="$CCACHE x86_64-w64-mingw32-gcc"
+	TARGET=distdir
 	;;
 osx)
 	# this causes a false positive in ip-packet.c since Xcode 8.3
@@ -387,8 +430,8 @@ lgtm)
 			-H 'Accept: application/json' \
 			-H "Authorization: Bearer ${LGTM_TOKEN}" > lgtm.res || exit $?
 		lgtm_check_url=$(jq -r '."task-result-url"' lgtm.res)
-		if [ "$lgtm_check_url" = "null" ]; then
-			cat lgtm.res | jq
+		if [ -z "$lgtm_check_url" -o "$lgtm_check_url" = "null" ]; then
+			cat lgtm.res
 			exit 1
 		fi
 		lgtm_url=$(jq -r '."task-result"."results-url"' lgtm.res)
@@ -428,17 +471,41 @@ lgtm)
 	;;
 esac
 
-if [ "$1" = "deps" ]; then
-	install_deps
-	fix_timezone
-	exit 0
-fi
-
-
-if test "$1" = "pydeps"; then
+case "$1" in
+deps)
+	case "$TRAVIS_OS_NAME" in
+	linux)
+		$sudo apt-get update -qq && \
+		$sudo apt-get install -qq bison flex gperf gettext $DEPS
+		install_deps
+		fix_timezone
+		exit 0
+		;;
+	osx)
+		brew update && \
+		brew install $DEPS
+		;;
+	freebsd)
+		pkg install -y automake autoconf libtool pkgconf && \
+		pkg install -y bison flex gperf gettext $DEPS
+		;;
+        windows)
+                fix_msys2
+                install_deps
+                ;;
+	esac
+	exit $?
+	;;
+pydeps)
 	test -z "$PYDEPS" || pip -q install --user $PYDEPS
 	exit $?
-fi
+	;;
+build-deps)
+	exit
+	;;
+*)
+	;;
+esac
 
 CONFIG="$CONFIG
 	--disable-dependency-tracking
@@ -466,32 +533,49 @@ esac
 
 echo "$ make $TARGET"
 case "$TEST" in
-sonarcloud)
-        if test -n "${APPVEYOR}"
+*sonarcloud)
+        export SONAR_SCANNER_VERSION=4.2.0.1873
+        # This implicitely (based on .appveyor.yml) only runs on Windows platforms, so travis won't ever run this
+        if [[ "$TEST" == win* ]]
         then
-            export SONAR_SCANNER_VERSION=4.2.0.1873
-            export SONAR_SCANNER_HOME=$HOME/.sonar/sonar-scanner-$SONAR_SCANNER_VERSION-linux
-            curl --create-dirs -sSLo $HOME/.sonar/sonar-scanner.zip \
-                https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/\
-sonar-scanner-cli-$SONAR_SCANNER_VERSION-linux.zip || exit $?
-            unzip -o $HOME/.sonar/sonar-scanner.zip -d $HOME/.sonar/ || exit $?
+            export SONAR_SCANNER_HOME=$DEPS_BUILD_DIR/.sonar/sonar-scanner-$SONAR_SCANNER_VERSION-windows
+            curl --create-dirs -sSLo $DEPS_BUILD_DIR/.sonar/sonar-scanner.zip \
+https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/\sonar-scanner-cli-\
+$SONAR_SCANNER_VERSION-windows.zip || exit $?
+            unzip -o $DEPS_BUILD_DIR/.sonar/sonar-scanner.zip -d $DEPS_BUILD_DIR/.sonar/ || exit $?
             export PATH=$SONAR_SCANNER_HOME/bin:$PATH
             export SONAR_SCANNER_OPTS="-server"
+            curl --create-dirs -sSLo $DEPS_BUILD_DIR/.sonar/build-wrapper-win-x86.zip \
+                    https://sonarcloud.io/static/cpp/build-wrapper-win-x86.zip
+            unzip -o $DEPS_BUILD_DIR/.sonar/build-wrapper-win-x86.zip -d $DEPS_BUILD_DIR/.sonar/
+            export PATH=$DEPS_BUILD_DIR/.sonar/build-wrapper-win-x86:$PATH
+            build-wrapper-win-x86-64.exe --out-dir bw-output make -j4 || exit $?
+        else
+            if test -n "$APPVEYOR"
+            then
+                export SONAR_SCANNER_HOME=$HOME/.sonar/sonar-scanner-$SONAR_SCANNER_VERSION-linux
+                curl --create-dirs -sSLo $HOME/.sonar/sonar-scanner.zip \
+                    https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/\
+sonar-scanner-cli-$SONAR_SCANNER_VERSION-linux.zip || exit $?
+                unzip -o $HOME/.sonar/sonar-scanner.zip -d $HOME/.sonar/ || exit $?
+                export PATH=$SONAR_SCANNER_HOME/bin:$PATH
+                export SONAR_SCANNER_OPTS="-server"
 
-            curl --create-dirs -sSLo $HOME/.sonar/build-wrapper-linux-x86.zip \
-                https://sonarcloud.io/static/cpp/build-wrapper-linux-x86.zip
-            unzip -o $HOME/.sonar/build-wrapper-linux-x86.zip -d $HOME/.sonar/
-            export PATH=$HOME/.sonar/build-wrapper-linux-x86:$PATH
+                curl --create-dirs -sSLo $HOME/.sonar/build-wrapper-linux-x86.zip \
+                    https://sonarcloud.io/static/cpp/build-wrapper-linux-x86.zip
+                unzip -o $HOME/.sonar/build-wrapper-linux-x86.zip -d $HOME/.sonar/
+                export PATH=$HOME/.sonar/build-wrapper-linux-x86:$PATH
+            fi
+            # there is an issue with the platform detection that causes sonarqube to
+            # fail on bionic with "ERROR: ld.so: object '...libinterceptor-${PLATFORM}.so'
+            # from LD_PRELOAD cannot be preloaded (cannot open shared object file)"
+            # https://jira.sonarsource.com/browse/CPP-2027
+            BW_PATH=$(dirname $(which build-wrapper-linux-x86-64))
+            cp $BW_PATH/libinterceptor-x86_64.so $BW_PATH/libinterceptor-haswell.so
+            # without target, coverage is currently not supported anyway because
+            # sonarqube only supports gcov, not lcov
+            build-wrapper-linux-x86-64 --out-dir bw-output make -j4 || exit $?
         fi
-	# there is an issue with the platform detection that causes sonarqube to
-	# fail on bionic with "ERROR: ld.so: object '...libinterceptor-${PLATFORM}.so'
-	# from LD_PRELOAD cannot be preloaded (cannot open shared object file)"
-	# https://jira.sonarsource.com/browse/CPP-2027
-	BW_PATH=$(dirname $(which build-wrapper-linux-x86-64))
-	cp $BW_PATH/libinterceptor-x86_64.so $BW_PATH/libinterceptor-haswell.so
-	# without target, coverage is currently not supported anyway because
-	# sonarqube only supports gcov, not lcov
-	build-wrapper-linux-x86-64 --out-dir bw-output make -j4 || exit $?
 	;;
 *)
 	make -j4 $TARGET || exit $?
@@ -506,20 +590,42 @@ apidoc)
 	fi
 	rm make.warnings
 	;;
-sonarcloud)
-    sonar-scanner \
-        -Dsonar.organization=contauro-ag \
-        -Dsonar.projectKey=contauro-ag_strongswan \
-        -Dsonar.projectVersion="$(git describe)+${TRAVIS_BUILD_NUMBER}" \
-        -Dsonar.sources=. \
-        -Dsonar.cfamily.threads=2 \
-        -Dsonar.cfamily.cache.enabled=true \
-        -Dsonar.host.url=https://sonarcloud.io \
-        -Dsonar.cfamily.cache.path=$HOME/.sonar-cache \
-        -Dsonar.cfamily.build-wrapper-output=bw-output \
-        "-Dsonar.branch.name=${APPVEYOR_REPO_BRANCH}" \
-        -Dsonar.login=${SONARCLOUD_LOGIN}  || exit $?
+*sonarcloud)
+           case "$TEST" in
+            win*)
+                sonar-scanner.bat -Dsonar.organization=contauro-ag \
+                -Dsonar.projectKey=contauro-ag_strongswan \
+                -Dsonar.projectVersion="$(git describe)+${TRAVIS_BUILD_NUMBER}" \
+                -Dsonar.sources=. \
+                -Dsonar.cfamily.threads=2 \
+                -Dsonar.cfamily.cache.enabled=true \
+                -Dsonar.host.url=https://sonarcloud.io \
+                -Dsonar.cfamily.cache.path=$HOME/.sonar-cache \
+                -Dsonar.cfamily.build-wrapper-output=bw-output \
+                -Dsonar.branch.name=${APPVEYOR_REPO_BRANCH} \
+                -Dsonar.login=${SONARCLOUD_LOGIN}
+            ;;
+            *)
+                sonar-scanner -Dsonar.organization=contauro-ag \
+                -Dsonar.projectKey=contauro-ag_strongswan \
+                -Dsonar.projectVersion="$(git describe)+${TRAVIS_BUILD_NUMBER}" \
+                -Dsonar.sources=. \
+                -Dsonar.cfamily.threads=2 \
+                -Dsonar.cfamily.cache.enabled=true \
+                -Dsonar.host.url=https://sonarcloud.io \
+                -Dsonar.cfamily.cache.path=$HOME/.sonar-cache \
+                -Dsonar.cfamily.build-wrapper-output=bw-output \
+                -Dsonar.branch.name=${APPVEYOR_REPO_BRANCH} \
+                -Dsonar.login=${SONARCLOUD_LOGIN}
+            ;;
+            esac
 	rm -r bw-output .scannerwork
+	;;
+android)
+	rm -r strongswan-*
+	cd src/frontends/android
+	echo "$ ./gradlew build"
+	NDK_CCACHE=ccache ./gradlew build
 	;;
 *)
 	;;

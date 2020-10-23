@@ -104,6 +104,12 @@ struct private_task_manager_t {
 		u_int retransmitted;
 
 		/**
+		 * TRUE if any retransmits have been sent for this message (counter is
+		 * reset if deferred)
+		 */
+		bool retransmit_sent;
+
+		/**
 		 * packet(s) for retransmission
 		 */
 		array_t *packets;
@@ -373,7 +379,7 @@ METHOD(task_manager_t, retransmit, status_t,
 								   packet);
 				return DESTROY_ME;
 			}
-			if (this->retransmit_tries_max &&
+			if (!this->retransmit_tries_max ||
 				this->initiating.retransmitted <= this->retransmit_tries_max)
 			{
 				timeout = (uint32_t)(this->retransmit_timeout * 1000.0 *
@@ -394,6 +400,7 @@ METHOD(task_manager_t, retransmit, status_t,
 					 this->initiating.retransmitted, message_id);
 				charon->bus->alert(charon->bus, ALERT_RETRANSMIT_SEND, packet,
 								   this->initiating.retransmitted);
+				this->initiating.retransmit_sent = TRUE;
 			}
 			if (!mobike)
 			{
@@ -409,7 +416,7 @@ METHOD(task_manager_t, retransmit, status_t,
 						 "deferred");
 					this->ike_sa->set_condition(this->ike_sa, COND_STALE, TRUE);
 					this->initiating.deferred = TRUE;
-					return SUCCESS;
+					return INVALID_STATE;
 				}
 				else if (mobike->is_probing(mobike))
 				{
@@ -443,7 +450,7 @@ METHOD(task_manager_t, retransmit, status_t,
 					 "deferred");
 				this->ike_sa->set_condition(this->ike_sa, COND_STALE, TRUE);
 				this->initiating.deferred = TRUE;
-				return SUCCESS;
+				return INVALID_STATE;
 			}
 		}
 
@@ -451,8 +458,9 @@ METHOD(task_manager_t, retransmit, status_t,
 		job = (job_t*)retransmit_job_create(this->initiating.mid,
 											this->ike_sa->get_id(this->ike_sa));
 		lib->scheduler->schedule_job_ms(lib->scheduler, job, timeout);
+		return SUCCESS;
 	}
-	return SUCCESS;
+	return INVALID_STATE;
 }
 
 METHOD(task_manager_t, initiate, status_t,
@@ -634,6 +642,7 @@ METHOD(task_manager_t, initiate, status_t,
 	message->set_exchange_type(message, exchange);
 	this->initiating.type = exchange;
 	this->initiating.retransmitted = 0;
+	this->initiating.retransmit_sent = FALSE;
 	this->initiating.deferred = FALSE;
 
 	enumerator = array_create_enumerator(this->active_tasks);
@@ -754,7 +763,7 @@ static status_t process_response(private_task_manager_t *this,
 	}
 	enumerator->destroy(enumerator);
 
-	if (this->initiating.retransmitted > 1)
+	if (this->initiating.retransmit_sent)
 	{
 		packet_t *packet = NULL;
 		array_get(this->initiating.packets, 0, &packet);

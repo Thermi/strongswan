@@ -19,8 +19,11 @@
 
 #include <daemon.h>
 #include <ipsec.h>
+#ifdef WIN32
+#include <networking/windows_tun.h>
+#else
 #include <networking/tun_device.h>
-
+#endif
 #define TUN_DEFAULT_MTU 1400
 
 typedef struct private_kernel_libipsec_plugin_t private_kernel_libipsec_plugin_t;
@@ -95,12 +98,22 @@ METHOD(plugin_t, destroy, void,
 	free(this);
 }
 
+#ifdef WIN32
+METHOD(plugin_t, reload, bool,
+	private_kernel_libipsec_plugin_t *this)
+{
+	this->router->reload(this->router);
+	return TRUE;
+}
+#endif
 /*
  * see header file
  */
 plugin_t *kernel_libipsec_plugin_create()
 {
 	private_kernel_libipsec_plugin_t *this;
+	char buf[512];
+	HANDLE pseudohandle = GetCurrentProcess();
 
 	if (!lib->caps->check(lib->caps, CAP_NET_ADMIN))
 	{	/* required to create TUN devices */
@@ -115,6 +128,9 @@ plugin_t *kernel_libipsec_plugin_create()
 				.get_name = _get_name,
 				.get_features = _get_features,
 				.destroy = _destroy,
+#ifdef WIN32
+				.reload = _reload,
+#endif
 			},
 		},
 	);
@@ -130,6 +146,17 @@ plugin_t *kernel_libipsec_plugin_create()
 	if (!this->tun)
 	{
 		DBG1(DBG_KNL, "failed to create TUN device");
+		if (lib->settings->get_bool(lib->settings, "%s.use_wintun", FALSE,
+					 lib->ns))
+		{
+			/** Windows is incredibly wonky and a lot of memory allocation
+			 * goes wrong is anything goes wrong in setupapi when setting up wintun
+			 * so we need to bail out here and stop the whole process.
+			 * It's pointless to try to continue because the event handler won't be
+			 * set up properly (queue will not be allocated, lock will be a NULL pointer, ...)
+			 */
+			charon->bus->alert(charon->bus, ALERT_SHUTDOWN_SIGNAL);
+		}
 		destroy(this);
 		return NULL;
 	}
@@ -145,5 +172,14 @@ plugin_t *kernel_libipsec_plugin_create()
 	/* set TUN device as default to install VIPs */
 	lib->settings->set_str(lib->settings, "%s.install_virtual_ip_on",
 						   this->tun->get_name(this->tun), lib->ns);
+	
+	/* Need highest priority (not realtime for now) 
+	 * to make sure strongSwan can always process packets */
+	if(!SetPriorityClass(pseudohandle, HIGH_PRIORITY_CLASS))
+	{
+		DBG1(DBG_LIB, "Failed to raise process priority: %s", dlerror_mt(buf, sizeof(buf)));
+	} else {
+		DBG1(DBG_LIB, "Raised process priority to HIGH_PRIORITY_CLASS");
+	}
 	return &this->public.plugin;
 }

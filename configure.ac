@@ -19,7 +19,7 @@
 #  initialize & set some vars
 # ============================
 
-AC_INIT([strongSwan],[5.8.4])
+AC_INIT([strongSwan],[5.9.0])
 AM_INIT_AUTOMAKE(m4_esyscmd([
 	echo tar-ustar
 	echo subdir-objects
@@ -247,6 +247,7 @@ ARG_ENABL_SET([dhcp],           [enable DHCP based attribute provider plugin.])
 ARG_ENABL_SET([osx-attr],       [enable OS X SystemConfiguration attribute handler.])
 ARG_ENABL_SET([p-cscf],         [enable plugin to request P-CSCF server addresses from an ePDG.])
 ARG_DISBL_SET([resolve],        [disable resolve DNS handler plugin.])
+ARG_ENABL_SET([win-dns],        [enables Windows DNS handler plugin.])
 ARG_ENABL_SET([unity],          [enables Cisco Unity extension plugin.])
 # TNC modules/plugins
 ARG_ENABL_SET([imc-test],       [enable IMC test module.])
@@ -326,6 +327,7 @@ ARG_ENABL_SET([tss-tss2],       [enable the use of the TSS 2.0 Trusted Software 
 
 # compile options
 ARG_ENABL_SET([coverage],       [enable lcov coverage report generation.])
+ARG_ENABL_SET([git-version],    [use output of 'git describe' as version information in executables.])
 ARG_ENABL_SET([leak-detective], [enable malloc hooks to find memory leaks.])
 ARG_ENABL_SET([lock-profiler],  [enable lock/mutex profiling code.])
 ARG_ENABL_SET([log-thread-ids], [use thread ID, if available, instead of an incremented value starting from 1, to identify threads.])
@@ -1385,6 +1387,24 @@ if test "x$ss_cv_static_plugin_constructors" = xyes; then
 	fi
 fi
 
+AC_MSG_CHECKING([version from Git repository])
+AC_SUBST(GIT_VERSION, [$($srcdir/scripts/git-version "$srcdir")])
+case "$GIT_VERSION" in
+	"$PACKAGE_VERSION"*)
+		AC_MSG_RESULT([$GIT_VERSION])
+		;;
+	UNKNOWN)
+		AC_MSG_RESULT([$GIT_VERSION (could be due to insufficient clone depth)])
+		;;
+	*)
+		AC_MSG_ERROR([$PACKAGE_VERSION is not a prefix of $GIT_VERSION, tag missing?])
+		;;
+esac
+
+if test x$git_version = xtrue -a "$GIT_VERSION" != "UNKNOWN"; then
+	AC_DEFINE_UNQUOTED(VERSION, ["$GIT_VERSION"])
+fi
+
 # ===============================================
 #  collect plugin list for strongSwan components
 # ===============================================
@@ -1485,6 +1505,7 @@ ADD_PLUGIN([kernel-pfkey],         [c charon starter nm cmd])
 ADD_PLUGIN([kernel-pfroute],       [c charon starter nm cmd])
 ADD_PLUGIN([kernel-netlink],       [c charon starter nm cmd])
 ADD_PLUGIN([resolve],              [c charon cmd])
+ADD_PLUGIN([win-dns],              [c charon])
 ADD_PLUGIN([save-keys],            [c])
 ADD_PLUGIN([socket-default],       [c charon nm cmd])
 ADD_PLUGIN([socket-dynamic],       [c charon cmd])
@@ -1727,6 +1748,7 @@ AM_CONDITIONAL(USE_FARP, test x$farp = xtrue)
 AM_CONDITIONAL(USE_ADDRBLOCK, test x$addrblock = xtrue)
 AM_CONDITIONAL(USE_UNITY, test x$unity = xtrue)
 AM_CONDITIONAL(USE_RESOLVE, test x$resolve = xtrue)
+AM_CONDITIONAL(USE_WIN_DNS, test x$win_dns = xtrue)
 AM_CONDITIONAL(USE_ATTR, test x$attr = xtrue)
 AM_CONDITIONAL(USE_ATTR_SQL, test x$attr_sql = xtrue)
 AM_CONDITIONAL(USE_COUNTERS, test x$counters = xtrue)
@@ -1787,7 +1809,7 @@ AM_CONDITIONAL(USE_PYTHON_EGGS, test x$python_eggs = xtrue)
 AM_CONDITIONAL(USE_PERL_CPAN, test x$perl_cpan = xtrue)
 AM_CONDITIONAL(USE_TOX, test "x$TOX" != x)
 AM_CONDITIONAL(USE_PY_TEST, test "x$PY_TEST" != x -a "x$TOX" = x)
-AM_CONDITIONAL(WINTUN, test "x$WINTUN" != x)
+AM_CONDITIONAL(USE_WINTUN, test "x$wintun" != x)
 
 # ========================
 #  set global definitions
@@ -1821,7 +1843,7 @@ if test x$imc_swima = xtrue -o x$imv_swima = xtrue; then
 	AC_DEFINE([USE_JSON], [], [build code for JSON])
 fi
 if test x$wintun = xtrue; then
-	AC_DEFINE([WINTUN], [], [Build in wintun TUN driver support])
+	AC_DEFINE([USE_WINTUN], [], [Build in wintun TUN driver support])
 fi
 
 # ====================================================
@@ -1844,6 +1866,7 @@ AM_COND_IF([USE_SCEPCLIENT], [strongswan_options=${strongswan_options}" scepclie
 AM_COND_IF([USE_PKI], [strongswan_options=${strongswan_options}" pki"])
 AM_COND_IF([USE_SWANCTL], [strongswan_options=${strongswan_options}" swanctl"])
 AM_COND_IF([USE_SYSTEMD], [strongswan_options=${strongswan_options}" charon-systemd"])
+AM_COND_IF([USE_SVC], [strongswan_options=${strongswan_options}" charon-svc"])
 
 AC_SUBST(strongswan_options)
 
@@ -2035,6 +2058,7 @@ AC_CONFIG_FILES([
 	src/libcharon/plugins/dhcp/Makefile
 	src/libcharon/plugins/load_tester/Makefile
 	src/libcharon/plugins/resolve/Makefile
+        src/libcharon/plugins/win_dns/Makefile
 	src/libcharon/plugins/attr/Makefile
 	src/libcharon/plugins/attr_sql/Makefile
 	src/libcharon/tests/Makefile

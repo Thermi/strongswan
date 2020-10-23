@@ -26,7 +26,9 @@
 #if !TARGET_OS_OSX
 #define TUN_DEVICE_NOT_SUPPORTED
 #endif
-#elif !defined(__linux__) && !defined(HAVE_NET_IF_TUN_H) && !defined(WINTUN)
+#endif
+
+#if ! (defined(__linux__) || defined(HAVE_NET_IF_TUN_H) || defined(USE_WINTUN))
 #define TUN_DEVICE_NOT_SUPPORTED
 #endif
 
@@ -46,13 +48,6 @@ tun_device_t *tun_device_create(const char *name_tmpl)
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#ifdef __WIN32__
-#include <tchar.h>
-#include <cfgmgr32.h>
-#include <ntstrsafe.h>
-#include <ddk/ndisguid.h>
-#define IFNAMSIZ 256
-#else
 #include <sys/ioctl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -71,8 +66,6 @@ tun_device_t *tun_device_create(const char *name_tmpl)
 #else
 #include <net/if_tun.h>
 #endif
-#endif /* !__WIN32__ */
-
 #define TUN_DEFAULT_MTU 1500
 
 typedef struct private_tun_device_t private_tun_device_t;
@@ -84,17 +77,6 @@ struct private_tun_device_t {
 	 */
 	tun_device_t public;
 
-#ifdef __WIN32__
-        /**
-         * The TUN device's HANDLE
-         */
-        HANDLE tun_handle;
-
-        /**
-         * The TUN device's rings
-         */
-        TUN_REGISTER_RINGS *rings;
-#else
 	/**
 	 * The TUN device's file descriptor
 	 */
@@ -104,7 +86,6 @@ struct private_tun_device_t {
 	 * Socket used for ioctl() to set interface addr, ...
 	 */
 	int sock;
-#endif /* !__WIN32__ */
 	/**
 	 * Name of the TUN device
 	 */
@@ -126,90 +107,6 @@ struct private_tun_device_t {
 	uint8_t netmask;
 };
 
-#ifdef __WIN32__
-
-METHOD(tun_device_t, set_mtu, bool,
-	private_tun_device_t *this, int mtu)
-{
-	return TRUE;
-}
-
-METHOD(tun_device_t, get_mtu, int,
-	private_tun_device_t *this)
-{
-        return TUN_MAX_IP_PACKET_SIZE;
-}
-
-static inline bool ring_over_capacity(TUN_RING *ring)
-{
-    return ((ring->Head >= TUN_RING_CAPACITY) || (ring->Tail >= TUN_RING_CAPACITY));
-}
-
-/* This is likely broken (!!!) */
-static bool write_to_ring(TUN_RING *ring, chunk_t packet) {
-        /* Check if packet fits */
-    TUN_PACKET *tun_packet;
-    /* TODO: if ring is full or over capacity, wait until wintun driver sends event */
-    if (ring_over_capacity(ring))
-    {
-        DBG1(DBG_LIB, "RING is over capacity!");
-    }
-    uint64_t aligned_packet_size = TUN_PACKET_ALIGN(packet.len);
-    uint64_t buffer_space = TUN_WRAP_POSITION(ring->Head - ring->Tail - TUN_PACKET_ALIGNMENT, TUN_RING_CAPACITY);
-    if (aligned_packet_size > buffer_space)
-    {
-        DBG1(DBG_LIB, "RING is full!");
-    }
-    
-    /* copy packet size and data into ring */
-    tun_packet = (TUN_PACKET *)&(ring->Data[ring->Tail]);
-    tun_packet->Size = packet.len;
-    memcpy(tun_packet->Data, packet.ptr, packet.len);
-    
-    /* move ring tail */
-    ring->Tail = TUN_WRAP_POSITION(ring->Tail + aligned_packet_size, TUN_RING_CAPACITY);
-    return TRUE;
-}
-
-static chunk_t *pop_from_ring(TUN_RING *ring)
-{
-        /* TODO: If ring is over capacity wait until event is sent */
-        chunk_t *chunk_packet;
-        /* Ring is empty if head == tail */
-        if (ring_over_capacity(ring)) {
-            DBG0(DBG_LIB, "RING is over capacity!");
-            return FALSE;
-        }
-        uint32_t length = TUN_WRAP_POSITION(ring->Tail - ring->Head,
-            TUN_RING_SIZE(ring, TUN_RING_CAPACITY));
-        if (length <sizeof(uint32_t))
-        {
-            DBG0(DBG_LIB, "RING contains incomplete packet header!");
-            /* Need to restart the driver here */
-        }
-        TUN_PACKET *packet = (TUN_PACKET *)&(ring->Data[ring->Head]);
-        if (packet->Size > TUN_MAX_IP_PACKET_SIZE)
-        {
-            DBG0(DBG_LIB, "RING contains packet larger than TUN_MAX_IP_PACKET_SIZE!");
-        }
-
-        size_t aligned_packet_size = TUN_PACKET_ALIGN(sizeof(uint32_t) + packet->Size);
-        if (aligned_packet_size > length)
-        {
-            DBG0(DBG_LIB, "Incomplete packet in ring!");
-        }
-
-        chunk_packet = malloc(sizeof(chunk_t));
-        chunk_packet->ptr = malloc(packet->Size);
-        chunk_packet->len = packet->Size;
-        memcpy(chunk_packet->ptr, packet->Data, chunk_packet->len);
-        /* Do we need to memset here? */
-        memset(packet->Data, 0, packet->Size);
-        /* move ring head */
-        ring->Head = TUN_WRAP_POSITION(ring->Head + aligned_packet_size);
-        return chunk_packet;
-}
-#else
 /**
  * FreeBSD 10 deprecated the SIOCSIFADDR etc. commands.
  */
@@ -423,66 +320,6 @@ METHOD(tun_device_t, get_name, char*,
 {
 	return this->if_name;
 }
-#endif /* !__WIN32__ */
-#ifdef __WIN32__
-METHOD(tun_device_t, get_handle, HANDLE,
-        private_tun_device_t *this)
-{
-        return this->tun_handle;
-}
-
-METHOD(tun_device_t, write_packet, bool,
-        private_tun_device_t *this, chunk_t packet)
-{
-        write_to_ring(this->rings->Receive.Ring, packet);
-        if (this->rings->Receive.Ring->Alertable) {
-            SetEvent(this->rings->Receive.TailMoved);
-        }
-        return TRUE;
-}
-METHOD(tun_device_t, read_packet, bool, 
-        private_tun_device_t *this, chunk_t *packet)
-{
-        chunk_t *next = pop_from_ring(this->rings->Send.Ring);
-        if (!next) {
-                this->rings->Send.Ring->Alertable = TRUE;
-            next = pop_from_ring(this->rings->Send.Ring);
-            if (!next) {
-                WaitForSingleObject(this->rings->Send.TailMoved, INFINITE);
-                this->rings->Send.Ring->Alertable = FALSE;
-            }
-            this->rings->Send.Ring->Alertable = FALSE,
-            ResetEvent(this->rings->Send.TailMoved);
-        }
-        packet = next;
-        return TRUE;
-}
-
-/* Bogus implementation because nobody should use this */
-METHOD(tun_device_t, get_name, char*,
-        private_tun_device_t *this)
-{
-        return this->if_name;
-}
-
-/* Bogus implementation because nobody should use this */
-METHOD(tun_device_t, set_address, bool,
-        private_tun_device_t *this,  host_t *addr, uint8_t netmask)
-{
-        return TRUE;
-}
-/* Bogus implementation because nobody should use this */
-METHOD(tun_device_t, get_address, host_t*,
-        private_tun_device_t *this, uint8_t *netmask)
-{
-    return NULL;
-}
-METHOD(tun_device_t, up, bool,
-        private_tun_device_t *this)
-{
-    return TRUE;
-}
-#else
 METHOD(tun_device_t, get_fd, int,
 	private_tun_device_t *this)
 {
@@ -539,17 +376,10 @@ METHOD(tun_device_t, read_packet, bool,
 	*packet = chunk_clone(data);
 	return TRUE;
 }
-#endif /* !__WIN32__ */
 
 METHOD(tun_device_t, destroy, void,
 	private_tun_device_t *this)
 {
-#ifdef __WIN32
-    /* https://docs.microsoft.com/en-us/windows/win32/api/setupapi/nf-setupapi-setupdiremovedevice */
-    if (this->tun_handle) {
-        /* dealloc tun device */
-    }
-#else
 	if (this->tunfd > 0)
 	{
 		close(this->tunfd);
@@ -572,103 +402,13 @@ METHOD(tun_device_t, destroy, void,
 	{
 		close(this->sock);
 	}
-#endif /* !__WIN32__ */
 	DESTROY_IF(this->address);
 	free(this);
 }
 
-#ifdef __WIN32__
-/**
- * Destroy the tun device
- */
-static bool destroy_wintun(TCHAR *GUID) {
-    return TRUE;
-}
-/**
- * Create the tun device and configure it as stored in the registry 
- */
-static bool create_wintun(TCHAR *GUID) {
-    return TRUE;
-}
-
-/**
- * Configure the tun device as stored in the registry
- */
-static bool config_wintun(TCHAR *GUID) {
-    return TRUE;
-}
-/**
- * Initialize the tun device
- */
-
-static bool search_interfaces(TCHAR *GUID)
+bool init_tun(private_tun_device_t *this, const char *name_tmpl)
 {
-        TCHAR *InterfaceList = NULL;
-        DWORD RequiredBytes = 0;
-        while (TRUE) {
-            if (InterfaceList) {
-                free(InterfaceList);
-                InterfaceList = NULL;
-            }
-            if (CM_Get_Device_Interface_List_Size(&RequiredBytes, (LPGUID)&GUID_DEVINTERFACE_NET,
-                GUID, CM_GET_DEVICE_INTERFACE_LIST_PRESENT) != CR_SUCCESS)
-                return NULL;
-            InterfaceList = calloc(sizeof(*InterfaceList), RequiredBytes);
-            if (!InterfaceList)
-                return NULL;
-            CONFIGRET Ret = CM_Get_Device_Interface_List((LPGUID)&GUID_DEVINTERFACE_NET, GUID,
-                            InterfaceList, RequiredBytes, CM_GET_DEVICE_INTERFACE_LIST_PRESENT);
-            if (Ret == CR_SUCCESS)
-                break;
-            if (Ret != CR_BUFFER_SMALL) {
-                free(InterfaceList);
-                return NULL;
-            }
-        }
-        return InterfaceList;
-}
-
-#endif  /* __WIN32__ */
-
-static bool init_tun(private_tun_device_t *this, const char *name_tmpl)
-{
-#ifdef __WIN32__
-        /* WINTUN driver specific stuff */
-        /* Check if the TUN device already exists */
-
-        /* If the TUN device already exists, delete it */
-        /* If the TUN device doesn't exist, create it */
-        TCHAR *InterfaceList = search_interfaces(PNP_INSTANCE_ID);
-        if (InterfaceList)
-        {
-            destroy_wintun(PNP_INSTANCE_ID);
-        }
-        InterfaceList = create_wintun(PNP_INSTANCE_ID);
-        config_wintun(PNP_INSTANCE_ID);
-        /* Open the handle by using the InterfaceList */
-        this->tun_handle = CreateFile(InterfaceList, GENERIC_READ | GENERIC_WRITE,
-                                         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                                         NULL, OPEN_EXISTING, 0, NULL);
-        /* Create structs for rings and the rings themselves */
-        this->rings = calloc(sizeof(TUN_REGISTER_RINGS), 1);
-        this->rings->Send.Ring = calloc(sizeof(TUN_RING), 1);
-        this->rings->Receive.Ring = calloc(sizeof(TUN_RING), 1);
-        
-        /* this->rings->Receive.Ring = malloc(TUN_RING_SIZE(this->rings->Receive, TUN_RING_CAPACITY));
-        this->rings->Send.Ring = malloc(TUN_RING_SIZE(this->rings->Send, TUN_RING_CAPACITY));
-        */
-        /* Tell driver about the rings */
-        DeviceIoControl(this->tun_handle,
-            TUN_IOCTL_REGISTER_RINGS,
-            &this->rings->Receive,
-            TUN_RING_SIZE(this->rings->Receive, TUN_RING_CAPACITY),
-            &this->rings->Send,
-            TUN_RING_SIZE(this->rings->Send, TUN_RING_CAPACITY),
-            NULL,
-            NULL
-            );
-        /* We're done now */
-#elif defined(__APPLE__)
+#if defined(__APPLE__)
 
 	struct ctl_info info;
 	struct sockaddr_ctl addr;
@@ -788,8 +528,7 @@ static bool init_tun(private_tun_device_t *this, const char *name_tmpl)
 		DBG1(DBG_LIB, "failed to open %s: %s", this->if_name, strerror(errno));
 	}
 	return this->tunfd > 0;
-
-#endif /* !__WIN32__*/
+#endif
 }
 
 /*
@@ -798,7 +537,7 @@ static bool init_tun(private_tun_device_t *this, const char *name_tmpl)
 tun_device_t *tun_device_create(const char *name_tmpl)
 {
 	private_tun_device_t *this;
-
+	
 	INIT(this,
 		.public = {
 			.read_packet = _read_packet,
@@ -806,22 +545,14 @@ tun_device_t *tun_device_create(const char *name_tmpl)
 			.get_mtu = _get_mtu,
 			.set_mtu = _set_mtu,
 			.get_name = _get_name,
-#ifdef __WIN32__
-                        .get_handle = _get_handle,
-#else
 			.get_fd = _get_fd,
-#endif /* !__WIN32__ */
 			.set_address = _set_address,
 			.get_address = _get_address,
 			.up = _up,
 			.destroy = _destroy,
 		},
-#ifdef __WIN32__
-                .tun_handle = NULL,
-#else
 		.tunfd = -1,
 		.sock = -1,
-#endif
 	);
 
 	if (!init_tun(this, name_tmpl))
@@ -830,8 +561,6 @@ tun_device_t *tun_device_create(const char *name_tmpl)
 		return NULL;
 	}
 	DBG1(DBG_LIB, "created TUN device: %s", this->if_name);
-#ifdef __WIN32__
-#else
 	this->sock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (this->sock < 0)
 	{
@@ -839,8 +568,6 @@ tun_device_t *tun_device_create(const char *name_tmpl)
 		destroy(this);
 		return NULL;
 	}
-#endif /* !__WIN32__ */
 	return &this->public;
 }
-
 #endif /* TUN devices supported */

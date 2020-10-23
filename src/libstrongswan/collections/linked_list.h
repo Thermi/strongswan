@@ -26,6 +26,7 @@
 typedef struct linked_list_t linked_list_t;
 
 #include <collections/enumerator.h>
+#include "../utils/utils/status.h"
 
 /**
  * Function to match elements in a linked list

@@ -22,6 +22,8 @@
 #ifndef STRING_H_
 #define STRING_H_
 
+#include "../../collections/linked_list.h"
+
 /**
  * Helper function that compares two strings for equality
  */
@@ -99,5 +101,15 @@ char *translate(char *str, const char *from, const char *to);
  * @return			allocated string, if anything got replaced, str otherwise
  */
 char *strreplace(const char *str, const char *search, const char *replace);
+
+/**
+ * Splits the string into tokens seperated by the given substring
+ * Returns a linked list containing the strings, allocated on the heap.
+ * 
+ * @param str           original string
+ * @param tokstr        String to split the original string with
+ * @return              linked list containing the strings
+ */
+linked_list_t *strsplit(const char *str, const char *tokstr);
 
 #endif /** STRING_H_ @} */
