@@ -18,6 +18,7 @@
  */
 
 #include <winsock2.h>
+#include <iphlpapi.h>
 #include <netioapi.h>
 
 #include "win_dns_handler.h"
@@ -89,6 +90,159 @@ typedef struct {
 
 } dns_server_t;
 
+
+/**
+ * Get the currently configured DNS servers of an interface, specified by IF_INDEX
+ * @param	index
+ * @return	linked_list_t containing the DNS server addresses as host_t, each allocated seperately
+ */
+linked_list_t *get_dns_servers(IF_INDEX index)
+{
+	linked_list_t *list = linked_list_create();
+	host_t *dns_server_addr;
+	chunk_t chk;
+	char buf[512];
+	DWORD dwRetVal = 0;
+
+	uint32_t i = 0;
+
+	// default to unspecified address family (both)
+	ULONG family = AF_UNSPEC;
+
+	PIP_ADAPTER_ADDRESSES pAddresses = NULL;
+	ULONG outBufLen = 15000;
+	ULONG Iterations = 0;
+
+	PIP_ADAPTER_ADDRESSES pCurrAddresses = NULL;
+	IP_ADAPTER_DNS_SERVER_ADDRESS *pDNSServer = NULL;
+
+	SOCKADDR_IN *sin;
+	SOCKADDR_IN6 *sin6;
+	do {
+
+	    pAddresses = (IP_ADAPTER_ADDRESSES *) malloc(outBufLen);
+	    if (pAddresses == NULL) {
+		    DBG1(DBG_LIB, "Memory allocation failed for IP_ADAPTER_ADDRESSES struct");
+		return list;
+	    }
+
+	    dwRetVal =
+		GetAdaptersAddresses(family, GAA_FLAG_INCLUDE_PREFIX, NULL, pAddresses, &outBufLen);
+
+	    if (dwRetVal == ERROR_BUFFER_OVERFLOW) {
+		free(pAddresses);
+		pAddresses = NULL;
+	    } else {
+		break;
+	    }
+
+	    Iterations++;
+
+	} while ((dwRetVal == ERROR_BUFFER_OVERFLOW) && (Iterations < 5));
+
+	if (dwRetVal == NO_ERROR) {
+	    // If successful, output some information from the data we received
+	    pCurrAddresses = pAddresses;
+	    while (pCurrAddresses) {
+		if (pCurrAddresses->IfIndex == index) {
+		    pDNSServer = pCurrAddresses->FirstDnsServerAddress;
+		    if (pDNSServer) {
+			family = AF_UNSPEC;
+			for (i = 0; pDNSServer != NULL; i++) {
+				switch (pDNSServer->Address.iSockaddrLength)
+				{
+					/* Old style sockaddr */
+					/*
+					case sizeof(SOCKADDR):
+						DBG1(DBG_LIB, "Old style sockaddr");
+						family = pDNSServer->Address.lpSockaddr->sa_family;
+						switch(family)
+						{
+							case AF_INET:
+								chk.ptr = pDNSServer->Address.lpSockaddr->sa_data;
+								chk.len = sizeof(pDNSServer->Address.lpSockaddr->sa_data);
+								break;
+							case AF_INET6:
+								sin6 = (SOCKADDR_IN6 *) pDNSServer->Address.lpSockaddr;
+								chk.ptr = &sin6->sin6_addr;
+								chk.len = sizeof(sin6->sin6_addr);
+								break;
+							default:
+								DBG1(DBG_LIB, "Unknown address family %u", family);
+								chk.ptr = NULL;
+								chk.len = 0;
+								break;
+						}
+						break;
+						*/
+					/* New style sockaddr */
+					case sizeof(SOCKADDR_IN):
+					case sizeof(SOCKADDR_IN6):
+						sin = (SOCKADDR_IN *) pDNSServer->Address.lpSockaddr;
+						sin6 = (SOCKADDR_IN6 *) pDNSServer->Address.lpSockaddr;
+						family = sin->sin_family;
+						switch(family)
+						{
+							/* IPv4 struct */
+							case AF_INET:
+								chk.ptr = (void *) &sin->sin_addr;
+								chk.len = sizeof(sin->sin_addr);
+								break;
+							/* IPv6 struct */
+							case AF_INET6:
+								chk.ptr = (void *) &sin6->sin6_addr;
+								chk.len = sizeof(sin6->sin6_addr);
+								break;
+							/** Different socket
+							 * family,
+							 * can't handle that */	
+							default:
+								DBG1(DBG_LIB, "Unknown address family %u", family);
+								chk.ptr = NULL;
+								chk.len = 0;
+								break;
+						}
+						break;
+					default:
+						DBG1(DBG_LIB, "Unknown struct size %d", pDNSServer->Address.iSockaddrLength);
+						chk.ptr = NULL;
+						chk.len = 0;
+						family = AF_UNSPEC;
+						break;
+						/** Unknown size, abort */
+				}
+				if (chk.ptr)
+				{
+					dns_server_addr = host_create_from_chunk(family, chk, 0);
+					list->insert_last(list, dns_server_addr);
+				}
+
+				pDNSServer = pDNSServer->Next;
+				}
+			}
+		    }
+		pCurrAddresses = pCurrAddresses->Next;
+	    }
+	} else {
+		DBG1(DBG_LIB, "Call to GetAdaptersAddresses failed with error: %u",
+		       dwRetVal);
+		if (dwRetVal == ERROR_NO_DATA) {
+		    DBG1(DBG_LIB, "No addresses were found for the requested parameters");
+		} else {
+			DBG1(DBG_LIB, "Detailed error message: %s", dlerror_mt(buf, sizeof(buf)));
+			if (pAddresses) {
+			    free(pAddresses);
+			}
+		}
+	}
+
+	if (pAddresses) {
+	    free(pAddresses);
+	}
+
+
+	return list;
+}
 /**
  * Generate the path to netsh
  * @return	pointer to allocated string with the path, or NULL if it failed
@@ -141,9 +295,94 @@ static bool compare_dns_servers_by_unique_id_and_address(void *a, void *b)
 {
 	dns_server_t *da = a;
 	dns_server_t *db = b;
-	return da->unique_id == db->unique_id && da->address == db->address;
+	return da->unique_id == db->unique_id && da->address->equals(da->address, db->address);
 }
 
+/*
+static bool compare_dns_servers_by_address_and_ifindex(void *a, void *b)
+{
+	dns_server_t *da = a;
+	dns_server_t *db = b;
+	DBG1(DBG_LIB, "da: %p db: %p *db: %p", da, db, *db);
+	return da->address->equals(da->address, db->address) && da->index == db->index;
+}
+ * linked_list_match_t
+*/
+
+CALLBACK(compare_dns_servers_by_address_and_ifindex, bool, void *item, va_list args)
+{
+	dns_server_t *a, *b;
+	VA_ARGS_VGET(args, a, b);
+	return a->address->equals(a->address, b->address) && a->index == b->index;
+}
+
+static bool compare_dns_servers_by_address_ifindex_priority(void *a, void *b)
+{
+	dns_server_t *da = a;
+	dns_server_t *db = b;
+	return da->address->equals(da->address, db->address) && da->index == db->index
+		&& da->priority == db->priority;
+}
+
+/**
+ * 
+ * @param this
+ * @param index
+ */
+static void store_existing_dns_server(private_win_dns_handler_t *this, NET_IFINDEX index)
+{
+	linked_list_t *existing_dns_servers = get_dns_servers(index), *to_store = linked_list_create();
+	enumerator_t *enumerator;
+	host_t *dns_server;
+	dns_server_t *dns_server_test_candidate = NULL, *ret = NULL;
+
+	if (!existing_dns_servers)
+	{
+		return;
+	}
+	enumerator = existing_dns_servers->create_enumerator(existing_dns_servers);
+	bool store = FALSE;
+	/* Check if any of the DNS servers is already stored */
+	while(enumerator->enumerate(enumerator, &dns_server))
+	{
+		INIT(dns_server_test_candidate,
+			.address = dns_server,
+			.index = index,
+			.priority = 0,
+		);
+		store = FALSE;
+		/* Check if that particular DNS server is stored at all */
+		if(!this->servers->find_first(this->servers, compare_dns_servers_by_address_and_ifindex, (void **)&ret, (void **)dns_server_test_candidate))
+		{
+			/* It's not stored, so it's not added by an IKE_SA, so
+			 so it can only be from the original config */
+			store = TRUE;
+		}
+		if (store)
+		{
+			/* Clone the settings and store them */
+			dns_server_test_candidate->address = dns_server->clone(dns_server);
+			dns_server_test_candidate->unique_id = 0;
+			dns_server_test_candidate->priority = 0;
+			to_store->insert_last(to_store, dns_server_test_candidate);
+		} else {
+			free(dns_server_test_candidate);
+		}
+		dns_server_test_candidate = NULL;		
+	}
+	enumerator->destroy(enumerator);	
+
+	enumerator = to_store->create_enumerator(to_store);
+	while(enumerator->enumerate(enumerator, &dns_server_test_candidate))
+	{
+		this->servers->insert_last(this->servers, dns_server_test_candidate);
+		existing_dns_servers->remove(existing_dns_servers, dns_server_test_candidate, NULL);
+	}
+	enumerator->destroy(enumerator);	
+	to_store->destroy(to_store);
+	/* This should be fine */	
+	existing_dns_servers->destroy_function(existing_dns_servers, (void (*) (void *)) dns_server->destroy);
+}
 /**
  * Install the DNS server on the interface specified in %s.
  */
@@ -157,11 +396,11 @@ static bool set_dns_server(private_win_dns_handler_t *this, host_t *addr, NET_IF
 		DBG1(DBG_LIB, "Failed to generate netsh path");
 		return FALSE;
 	}
-	
+	store_existing_dns_server(this, index);
 	if (addr->get_family(addr) == AF_INET)
 	{
 		process = process_start_shell(NULL, NULL, NULL, NULL,
-					 "%s interface ipv4 set dns %d static 172.16.25.1 none no",
+					 "%s interface ipv4 set dns %d static %H none no",
 		netsh_path, index, addr);
 	} else {
 		process = process_start_shell(NULL, NULL, NULL, NULL,
@@ -208,7 +447,6 @@ static bool clear_dns_server(host_t *addr, NET_IFINDEX index)
 	if (process) {
 		process->wait(process, &ret);
 		if (ret) {
-			free(netsh_path);
 			DBG1(DBG_IKE, "Failed to handle DNS server: ret=%d",
 				ret);
 			return FALSE;
@@ -324,7 +562,6 @@ METHOD(attribute_handler_t, handle, bool,
 	}
 	
 	this->mutex->unlock(this->mutex);
-	addr->destroy(addr);
 
 	if (!handled)
 	{
@@ -332,6 +569,7 @@ METHOD(attribute_handler_t, handle, bool,
 	} else {
 		DBG1(DBG_IKE, "Added DNS server %H on interface %d", addr, index);
 	}
+	addr->destroy(addr);
 	return handled;
 }
 
@@ -414,12 +652,16 @@ METHOD(attribute_handler_t, release, void,
 		{
 			DBG1(DBG_IKE, "Installed now newest DNS server %H on"
 				" interface %d", addr, index);
+		} else {
+			DBG1(DBG_IKE, "Could not find newest DNS server for interface %d.", index);
 		}
 	} else {
 		if (clear_dns_server(addr, index))
 		{
 			DBG1(DBG_IKE, "Cleared all DNS servers from interface"
 				" %d", index);
+		} else {
+			DBG1(DBG_IKE, "Could not clear DNS servers on interface %d.", index);
 		}
 	}
 	
