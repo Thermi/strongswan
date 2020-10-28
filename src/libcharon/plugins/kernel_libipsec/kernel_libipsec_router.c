@@ -320,7 +320,7 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 	
 	this->lock->read_lock(this->lock);
 	if(this->use_events || !this->got_result) {
-		DBG0(DBG_LIB, "Running in event driven mode.");
+		DBG2(DBG_LIB, "Running in event driven mode.");
 		QueryPerformanceCounter(&this->switching_time);
 		HANDLE *tun_handles;
 		DWORD ret;
@@ -345,7 +345,7 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 		ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - StartingTime.QuadPart;
 		ElapsedMicroseconds.QuadPart *= 1000000000;
 		ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
-		DBG1(DBG_LIB, "Waited for %lld nanoseconds (%lld miliseconds)", ElapsedMicroseconds.QuadPart, ElapsedMicroseconds.QuadPart/1000000);
+		DBG2(DBG_LIB, "Waited for %lld nanoseconds (%lld miliseconds)", ElapsedMicroseconds.QuadPart, ElapsedMicroseconds.QuadPart/1000000);
 		this->lock->read_lock(this->lock);
 		if (ret >= WAIT_OBJECT_0 || ret <= WAIT_OBJECT_0 + count -1)
 		{
@@ -354,15 +354,15 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 			switch(offset)
 			{
 				case 0:
-					DBG0(DBG_LIB, "Interrupt job from event");
+					DBG2(DBG_LIB, "Interrupt job from event");
 					ResetEvent(tun_handles[offset]);
 					break;
 				case 1:
-					DBG0(DBG_LIB, "got packet in event mode");
+					DBG2(DBG_LIB, "got packet in event mode");
 					process_plain(this->tun.tun);
 					break;
 				default:
-					DBG0(DBG_LIB, "got packet in event mode");
+					DBG2(DBG_LIB, "got packet in event mode");
 					enumerator = this->tuns->create_enumerator(this->tuns);
 					while (enumerator->enumerate(enumerator, NULL, &entry))
 					{
@@ -410,7 +410,7 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 		ElapsedMicroseconds.QuadPart = EndingTime.QuadPart - this->switching_time.QuadPart;
 		ElapsedMicroseconds.QuadPart *= 1000000000;
 		ElapsedMicroseconds.QuadPart /= Frequency.QuadPart;
-		DBG1(DBG_LIB, "Delay between switching is %lld nanoseconds", ElapsedMicroseconds.QuadPart);
+		DBG2(DBG_LIB, "Delay between switching is %lld nanoseconds", ElapsedMicroseconds.QuadPart);
 		do {
 			/* Because the NT kernel scheduler stops waking up the process
 			 * if we wait too often, we need to avoid calling any WaitFor* functions.
@@ -457,7 +457,7 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 				enumerator->destroy(enumerator);
 				if (ElapsedMicroseconds.QuadPart >= this->spinloop_threshold)
 				{
-					DBG0(DBG_LIB, "Processed %lld packets,"
+					DBG2(DBG_LIB, "Processed %lld packets,"
 						" failed %lld calls to read packets"
 					 " Reached threshold at %lld nanoseconds, switching"
 					 " back to events.",
@@ -471,7 +471,7 @@ static job_requeue_t handle_plain(private_kernel_libipsec_router_t *this)
 			}
 			if(this->notify)
 			{
-				DBG0(DBG_LIB, "Processed %lld packets, Interrupt job from bool", processed_packets);
+				DBG2(DBG_LIB, "Processed %lld packets, Interrupt job from bool", processed_packets);
 				ResetEvent(this->event);
 				this->notify = FALSE;
 				break;
