@@ -59,14 +59,9 @@ bool guidfromstring(GUID *guid, const char *str, bool with_braces)
 			&guid->Data4[0], &guid->Data4[1], &guid->Data4[2], &guid->Data4[3],
 			&guid->Data4[4], &guid->Data4[5], &guid->Data4[6], &guid->Data4[7],
                         &nchars);
-    DBG0(DBG_LIB, "Nfields: %d, nchars: %d", nfields, nchars);
-    DBG0(DBG_LIB, "nfields == 11: %d", nfields == 11);
-    DBG0(DBG_LIB, "nchars == 38: %d", nchars == 38);
     if (nfields == 11 && ((with_braces && nchars == 38) || (!with_braces && nchars == 36))) {
-        DBG0(DBG_LIB, "Returning True");
         return TRUE;
     }
-    DBG0(DBG_LIB, "Returning False");
     return FALSE;
 }
 /**
