@@ -35,6 +35,7 @@ networking/host.c networking/host_resolver.c networking/packet.c \
 networking/streams/stream_manager.c \
 networking/streams/stream.c networking/streams/stream_service.c \
 networking/streams/stream_tcp.c networking/streams/stream_service_tcp.c \
+networking/streams/stream_unix.c networking/streams/stream_service_unix.c \
 pen/pen.c plugins/plugin_loader.c plugins/plugin_feature.c processing/jobs/job.c \
 processing/jobs/callback_job.c processing/processor.c processing/scheduler.c \
 processing/watcher.c resolver/resolver_manager.c resolver/rr_set.c \
@@ -55,8 +56,6 @@ if !USE_WINDOWS
     threading/rwlock.c \
     threading/spinlock.c \
     threading/semaphore.c \
-    networking/streams/stream_unix.c \
-    networking/streams/stream_service_unix.c \
     networking/tun_device.c
 else
   libstrongswan_la_SOURCES += \

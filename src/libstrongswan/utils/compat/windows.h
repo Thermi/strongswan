@@ -35,6 +35,8 @@
 #include <sys/stat.h>
 #include <setupapi.h>
 
+#include "unix.h"
+
 /* undef Windows variants evaluating values more than once */
 #undef min
 #undef max
