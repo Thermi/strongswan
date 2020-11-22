@@ -311,8 +311,8 @@ static bool compare_dns_servers_by_address_and_ifindex(void *a, void *b)
 
 CALLBACK(compare_dns_servers_by_address_and_ifindex, bool, void *item, va_list args)
 {
-	dns_server_t *a, *b;
-	VA_ARGS_VGET(args, a, b);
+	dns_server_t *a, *b = item;
+	VA_ARGS_VGET(args, a);
 	return a->address->equals(a->address, b->address) && a->index == b->index;
 }
 
