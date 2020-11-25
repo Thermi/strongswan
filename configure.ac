@@ -248,6 +248,7 @@ ARG_ENABL_SET([osx-attr],       [enable OS X SystemConfiguration attribute handl
 ARG_ENABL_SET([p-cscf],         [enable plugin to request P-CSCF server addresses from an ePDG.])
 ARG_DISBL_SET([resolve],        [disable resolve DNS handler plugin.])
 ARG_ENABL_SET([win-dns],        [enables Windows DNS handler plugin.])
+ARG_ENABL_SET([route-monitoring],[enables Windows route monitoring plugin.])
 ARG_ENABL_SET([unity],          [enables Cisco Unity extension plugin.])
 # TNC modules/plugins
 ARG_ENABL_SET([imc-test],       [enable IMC test module.])
@@ -1506,6 +1507,7 @@ ADD_PLUGIN([kernel-pfroute],       [c charon starter nm cmd])
 ADD_PLUGIN([kernel-netlink],       [c charon starter nm cmd])
 ADD_PLUGIN([resolve],              [c charon cmd])
 ADD_PLUGIN([win-dns],              [c charon])
+ADD_PLUGIN([route-monitoring],              [c charon])
 ADD_PLUGIN([save-keys],            [c])
 ADD_PLUGIN([socket-default],       [c charon nm cmd])
 ADD_PLUGIN([socket-dynamic],       [c charon cmd])
@@ -1749,6 +1751,7 @@ AM_CONDITIONAL(USE_ADDRBLOCK, test x$addrblock = xtrue)
 AM_CONDITIONAL(USE_UNITY, test x$unity = xtrue)
 AM_CONDITIONAL(USE_RESOLVE, test x$resolve = xtrue)
 AM_CONDITIONAL(USE_WIN_DNS, test x$win_dns = xtrue)
+AM_CONDITIONAL(USE_ROUTE_MONITORING, test x$route_monitoring = xtrue)
 AM_CONDITIONAL(USE_ATTR, test x$attr = xtrue)
 AM_CONDITIONAL(USE_ATTR_SQL, test x$attr_sql = xtrue)
 AM_CONDITIONAL(USE_COUNTERS, test x$counters = xtrue)
@@ -2059,6 +2062,7 @@ AC_CONFIG_FILES([
 	src/libcharon/plugins/load_tester/Makefile
 	src/libcharon/plugins/resolve/Makefile
         src/libcharon/plugins/win_dns/Makefile
+        src/libcharon/plugins/route_monitoring/Makefile
 	src/libcharon/plugins/attr/Makefile
 	src/libcharon/plugins/attr_sql/Makefile
 	src/libcharon/tests/Makefile
