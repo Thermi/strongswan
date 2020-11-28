@@ -111,7 +111,7 @@ METHOD(listener_t, ike_updown, bool,
 /**
  * See header
  */
-block_dns_listener_t *block_dns_listener_create()
+block_dns_listener_t *block_dns_listener_create(block_dns_filter_t *filter)
 {
 	private_block_dns_listener_t *this;
 
@@ -123,6 +123,8 @@ block_dns_listener_t *block_dns_listener_create()
 			},
 			.destroy = _destroy,
 		},
+                .lock = mutex_create(MUTEX_TYPE_DEFAULT),
+                .filter = filter,
 	);
 
 	return &this->public;

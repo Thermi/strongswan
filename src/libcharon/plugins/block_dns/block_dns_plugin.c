@@ -98,7 +98,7 @@ plugin_t *block_dns_plugin_create()
 {
 	private_block_dns_plugin_t *this;
         block_dns_filter_t *filter = block_dns_filter_create();
-        block_dns_listener_t *listener = block_dns_listener_create();
+        block_dns_listener_t *listener = block_dns_listener_create(filter);
         
         if (!filter || !listener)
         {
