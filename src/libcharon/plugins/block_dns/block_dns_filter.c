@@ -72,6 +72,73 @@ DEFINE_GUID(
     0xb7, 0xf3, 0xbd, 0xa5, 0xd3, 0x28, 0x90, 0xa4
     );
 
+
+/* 1247d66d-0b60-4a15-8d44-7155d0f53a0c */
+DEFINE_GUID(
+   BLOCK_DNS_FWPM_LAYER_ALE_RESOURCE_ASSIGNMENT_V4,
+   0x1247d66d,
+   0x0b60,
+   0x4a15,
+   0x8d, 0x44, 0x71, 0x55, 0xd0, 0xf5, 0x3a, 0x0c
+);
+
+/* 0b5812a2-c3ff-4eca-b88d-c79e20ac6322 */
+DEFINE_GUID(
+   BLOCK_DNS_FWPM_LAYER_ALE_RESOURCE_ASSIGNMENT_V4_DISCARD,
+   0x0b5812a2,
+   0xc3ff,
+   0x4eca,
+   0xb8, 0x8d, 0xc7, 0x9e, 0x20, 0xac, 0x63, 0x22
+);
+
+/* 55a650e1-5f0a-4eca-a653-88f53b26aa8c */
+DEFINE_GUID(
+   BLOCK_DNS_FWPM_LAYER_ALE_RESOURCE_ASSIGNMENT_V6,
+   0x55a650e1,
+   0x5f0a,
+   0x4eca,
+   0xa6, 0x53, 0x88, 0xf5, 0x3b, 0x26, 0xaa, 0x8c
+);
+
+/* cbc998bb-c51f-4c1a-bb4f-9775fcacab2f */
+DEFINE_GUID(
+   BLOCK_DNS_FWPM_LAYER_ALE_RESOURCE_ASSIGNMENT_V6_DISCARD,
+   0xcbc998bb,
+   0xc51f,
+   0x4c1a,
+   0xbb, 0x4f, 0x97, 0x75, 0xfc, 0xac, 0xab, 0x2f
+);
+
+
+/* c6e63c8c-b784-4562-aa7d-0a67cfcaf9a3 */
+DEFINE_GUID(
+   BLOCK_DNS_FWPM_LAYER_ALE_CONNECT_REDIRECT_V4,
+   0xc6e63c8c,
+   0xb784,
+   0x4562,
+   0xaa, 0x7d, 0x0a, 0x67, 0xcf, 0xca, 0xf9, 0xa3
+);
+
+/* 587e54a7-8046-42ba-a0aa-b716250fc7fd */
+DEFINE_GUID(
+   BLOCK_DNS_FWPM_LAYER_ALE_CONNECT_REDIRECT_V6,
+   0x587e54a7,
+   0x8046,
+   0x42ba,
+   0xa0, 0xaa, 0xb7, 0x16, 0x25, 0x0f, 0xc7, 0xfd
+);
+
+
+/* 3971ef2b-623e-4f9a-8cb1-6e79b806b9a7 */
+DEFINE_GUID(
+   BLOCK_DNS_FWPM_CONDITION_IP_PROTOCOL,
+   0x3971ef2b,
+   0x623e,
+   0x4f9a,
+   0x8c, 0xb1, 0x6e, 0x79, 0xb8, 0x06, 0xb9, 0xa7
+);
+
+
 /* UUID of WFP sublayer used by all instances of strongSwan
  * ce1a169a-09fe-400e-816f-c49d806c0a7c */
 DEFINE_GUID(
@@ -124,7 +191,7 @@ DWORD add_block_dns_filters(block_dns_filter_t *this)
 {
     FWPM_SUBLAYER0 *sublayer_ptr = NULL;
     FWPM_FILTER0 Filter = {0};
-    FWPM_FILTER_CONDITION0 Condition[2] = {0};
+    FWPM_FILTER_CONDITION0 Condition[4] = {0};
     DWORD err = 0;
 
     /* Check sublayer exists and add one if it does not. */
@@ -151,90 +218,147 @@ DWORD add_block_dns_filters(block_dns_filter_t *this)
     
     /* Prepare filter. */
     Filter.subLayerKey = STRONGSWAN_BLOCK_OUTSIDE_DNS_SUBLAYER;
+    Filter.filterCondition = Condition;
+    Filter.numFilterConditions = 3;
     Filter.displayData.name = FIREWALL_NAME;
     Filter.weight.type = FWP_UINT8;
     Filter.weight.uint8 = 0xF;
-    Filter.filterCondition = Condition;
-    Filter.numFilterConditions = 2;
-
-    /* First filter. Permit IPv4 DNS queries from strongSwan itself. */
-    Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_AUTH_CONNECT_V4;
     Filter.action.type = FWP_ACTION_PERMIT;
 
+    
+    /* Prepare filters for permitting DNS queries to TUN interface */
     Condition[0].fieldKey = BLOCK_DNS_FWPM_CONDITION_IP_REMOTE_PORT;
     Condition[0].matchType = FWP_MATCH_EQUAL;
     Condition[0].conditionValue.type = FWP_UINT16;
-    Condition[0].conditionValue.uint16 = 53;
+    Condition[0].conditionValue.uint16 = htons(53);
 
+    Condition[1].fieldKey = BLOCK_DNS_FWPM_CONDITION_IP_LOCAL_INTERFACE;
+    Condition[1].matchType = FWP_MATCH_EQUAL;
+    Condition[1].conditionValue.type = FWP_UINT64;
+    Condition[1].conditionValue.byteBlob = NULL;
+    Condition[1].conditionValue.uint64 = &this->luid.Value;
+    
+    /* Match on UDP */
+    Condition[2].fieldKey = BLOCK_DNS_FWPM_CONDITION_IP_PROTOCOL;
+    Condition[2].matchType = FWP_MATCH_EQUAL;
+    Condition[2].conditionValue.type = FWP_UINT8;
+    Condition[2].conditionValue.uint8 = 17;
+    
+    /* DNS queries over TUN, IPv4, and UDP */
+    Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_RESOURCE_ASSIGNMENT_V4;
+    if ((err=FwpmFilterAdd0(this->engine, &Filter, NULL, &this->filterid))) {
+        DBG1(DBG_LIB, "block-dns: Add filter to permit IPv4 DNS traffic through TUN failed: %s", strerror(err));
+    }
+    
+    /* DNS queries over TUN and IPv6, and UDP */
+    Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_RESOURCE_ASSIGNMENT_V6;
+    if ((err=FwpmFilterAdd0(this->engine, &Filter, NULL, &this->filterid))) {
+        DBG1(DBG_LIB, "block-dns: Add filter to permit IPv6 DNS traffic through TUN failed: %s", strerror(err));
+    }
+
+    Filter.weight.uint8 = 0xE;
+
+    /* Match on TCP */
+    Condition[2].conditionValue.uint8 = 6;
+
+    /* DNS queries over TUN, IPv4, and TCP */
+    Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_RESOURCE_ASSIGNMENT_V4;
+    if ((err=FwpmFilterAdd0(this->engine, &Filter, NULL, &this->filterid))) {
+        DBG1(DBG_LIB, "block-dns: Add filter to permit IPv4 DNS traffic through TUN failed: %s", strerror(err));
+    }
+    
+    /* DNS queries over TUN and IPv6, and TCP */
+    Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_RESOURCE_ASSIGNMENT_V6;
+    if ((err=FwpmFilterAdd0(this->engine, &Filter, NULL, &this->filterid))) {
+        DBG1(DBG_LIB, "block-dns: Add filter to permit IPv6 DNS traffic through TUN failed: %s", strerror(err));
+    }
+
+    
+    DBG2(DBG_LIB, "block-dns: Added permit filters for TUN interface");
+
+    Filter.weight.uint8 = 0xD;
+    /* Prepare filter to permit DNS packets from strongSwan */
     Condition[1].fieldKey = BLOCK_DNS_FWPM_CONDITION_ALE_APP_ID;
     Condition[1].matchType = FWP_MATCH_EQUAL;
     Condition[1].conditionValue.type = FWP_BYTE_BLOB_TYPE;
     Condition[1].conditionValue.byteBlob = this->strongswanblob;
-
+    
+    /* Permit strongSwan DNS queries over IPv4, and TCP */
+    Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_AUTH_CONNECT_V4;
     if ((err=FwpmFilterAdd0(this->engine, &Filter, NULL, &this->filterid)))
     {
         DBG1(DBG_LIB, "block-dns: Add filter to permit IPv4 port 53 traffic from strongSwan failed: %s", strerror(err));
     }
     
-
-    /* Second filter. Permit IPv6 DNS queries from strongSwan itself. */
+    /* Permit strongSwan DNS queries over IPv6, and TCP */
     Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_AUTH_CONNECT_V6;
+    if ((err=FwpmFilterAdd0(this->engine, &Filter, NULL, &this->filterid))) {
+        DBG1(DBG_LIB, "block-dns: Add filter to permit IPv6 port 53 traffic from strongSwan failed: %s", strerror(err));
+    }
 
+    Condition[2].conditionValue.uint8 = 17;
+        
+    /* Permit strongSwan DNS queries over IPv4, and UDP */
+    Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_AUTH_CONNECT_V4;
+    if ((err=FwpmFilterAdd0(this->engine, &Filter, NULL, &this->filterid)))
+    {
+        DBG1(DBG_LIB, "block-dns: Add filter to permit IPv4 port 53 traffic from strongSwan failed: %s", strerror(err));
+    }
+    
+    /* Permit strongSwan DNS queries over IPv6, and UDP */
+    Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_AUTH_CONNECT_V6;
     if ((err=FwpmFilterAdd0(this->engine, &Filter, NULL, &this->filterid))) {
         DBG1(DBG_LIB, "block-dns: Add filter to permit IPv6 port 53 traffic from strongSwan failed: %s", strerror(err));
     }
 
     DBG2(DBG_LIB, "block-dns: Added permit filters for exe_path");
-
-    /* Third filter. Block all IPv4 DNS queries. */
-    Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_AUTH_CONNECT_V4;
-    Filter.action.type = FWP_ACTION_BLOCK;
-    Filter.weight.type = FWP_EMPTY;
-    Filter.numFilterConditions = 1;
-
-    if ((err=FwpmFilterAdd0(this->engine, &Filter, NULL, &this->filterid)));
-    {
-        DBG1(DBG_LIB, "block-dns: Add filter to block IPv4 DNS traffic failed: %s", strerror(err));
-    }
     
+    /* Prepare filter to block any DNS packets */
+    Filter.weight.uint8 = 0xD;
+    Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_CONNECT_REDIRECT_V4;
+    Filter.numFilterConditions = 2;
+    Filter.action.type = FWP_ACTION_BLOCK;
+    Condition[0].fieldKey = BLOCK_DNS_FWPM_CONDITION_IP_REMOTE_PORT;
+    Condition[0].matchType = FWP_MATCH_EQUAL;
+    Condition[0].conditionValue.type = FWP_UINT16;
+    Condition[0].conditionValue.uint16 = htons(53);
+    Condition[1].fieldKey = BLOCK_DNS_FWPM_CONDITION_IP_LOCAL_INTERFACE;
+    Condition[1].matchType = FWP_MATCH_NOT_EQUAL;
+    Condition[1].conditionValue.type = FWP_UINT64;
+    Condition[1].conditionValue.byteBlob = NULL;
+    Condition[1].conditionValue.uint64 = &this->luid.Value;
 
-    /* Forth filter. Block all IPv6 DNS queries. */
+    /* Drop DNS packets over IPv4, and UDP*/
+    Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_AUTH_CONNECT_V4;
+    if ((err=FwpmFilterAdd0(this->engine, &Filter, NULL, &this->filterid)))
+    {
+        DBG1(DBG_LIB, "block-dns: Add filter to drop all IPv4 port 53 traffic failed: %s", strerror(err));
+    }
+
+    /* Drop DNS packets over IPv6, and UDP */
     Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_AUTH_CONNECT_V6;
+    if ((err=FwpmFilterAdd0(this->engine, &Filter, NULL, &this->filterid)))
+    {
+        DBG1(DBG_LIB, "block-dns: Add filter to drop all IPv6 port 53 traffic failed: %s", strerror(err));
+    }
 
-    if ((err=FwpmFilterAdd0(this->engine, &Filter, NULL, &this->filterid))) {
-        DBG1(DBG_LIB, "block-dns: Add filter to block IPv6 DNS traffic failed: %s", strerror(err));
+
+    Condition[2].conditionValue.uint8 = 6;
+    /* Drop DNS packets over IPv4, and TCP */
+    Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_AUTH_CONNECT_V4;
+    if ((err=FwpmFilterAdd0(this->engine, &Filter, NULL, &this->filterid)))
+    {
+        DBG1(DBG_LIB, "block-dns: Add filter to drop all IPv4 port 53 traffic failed: %s", strerror(err));
+    }
+
+    /* Drop DNS packets over IPv6, and TCP */
+    Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_AUTH_CONNECT_V6;
+    if ((err=FwpmFilterAdd0(this->engine, &Filter, NULL, &this->filterid)))
+    {
+        DBG1(DBG_LIB, "block-dns: Add filter to drop all IPv6 port 53 traffic failed: %s", strerror(err));
     }
 
     DBG2(DBG_LIB, "block-dns: Added block filters for all interfaces");
-
-    /* Fifth filter. Permit IPv4 DNS queries from TUN.
-     * Use a non-zero weight so that the permit filters get higher priority
-     * over the block filter added with automatic weighting */
-
-    Filter.weight.type = FWP_UINT8;
-    Filter.weight.uint8 = 0xE;
-    Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_AUTH_CONNECT_V4;
-    Filter.action.type = FWP_ACTION_PERMIT;
-    Filter.numFilterConditions = 2;
-
-    Condition[1].fieldKey = BLOCK_DNS_FWPM_CONDITION_IP_LOCAL_INTERFACE;
-    Condition[1].matchType = FWP_MATCH_EQUAL;
-    Condition[1].conditionValue.type = FWP_UINT64;
-    Condition[1].conditionValue.uint64 = &this->luid.Value;
-
-    if ((err=FwpmFilterAdd0(this->engine, &Filter, NULL, &this->filterid))) {
-        DBG1(DBG_LIB, "block-dns: Add filter to permit IPv4 DNS traffic through TUN failed: %s", strerror(err));
-    }
-
-    /* Sixth filter. Permit IPv6 DNS queries from TUN.
-     * Use same weight as IPv4 filter */
-    Filter.layerKey = BLOCK_DNS_FWPM_LAYER_ALE_AUTH_CONNECT_V6;
-
-    if ((err=FwpmFilterAdd0(this->engine, &Filter, NULL, &this->filterid))) {
-        DBG1(DBG_LIB, "block-dns: Add filter to permit IPv6 DNS traffic through TUN failed: %s", strerror(err));
-    }
-
-    DBG2(DBG_LIB, "block-dns: Added permit filters for TUN interface");
 
     return err;
 }
