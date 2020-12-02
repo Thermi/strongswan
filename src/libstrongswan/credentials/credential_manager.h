@@ -66,6 +66,17 @@ typedef void (*credential_hook_t)(void *data, credential_hook_type_t type,
 								  certificate_t *cert);
 
 /**
+ * callback function to invoke when shared credentials need to be requested from a user
+ * because no matching ones were found.
+ * @param data                  user data supplied during hook registration
+ * @param 
+ * @return                          shared_key_t that contains credentials or 
+ *                                    NULL in case of failure
+ */
+typedef shared_key_t *prompt_callback_t(void *data, shared_key_type_t type, 
+            identification_t *me, identification_t *other);
+
+/**
  * Manages credentials using credential_sets.
  *
  * The credential manager is the entry point of the credential framework. It
@@ -321,6 +332,22 @@ struct credential_manager_t {
 	 */
 	void (*call_hook)(credential_manager_t *this, credential_hook_type_t type,
 					  certificate_t *cert);
+
+        /**
+         * Add a prompt callback
+         * @param cb            callback to call
+         * @param data          data to pass to the callback
+         */
+        void (*add_prompt)(credential_manager_t *this, prompt_callback_t *cb,
+            void *data);
+
+        /**
+         * Remove a previously registered prompt callback
+         * @param cb            callback of the prompt callback to remove
+         * @param data          data of the prompt callback to remove
+         */
+        void (*remove_prompt)(credential_manager_t *this, prompt_callback_t *cb,
+            void *data);
 
 	/**
 	 * Destroy a credential_manager instance.
