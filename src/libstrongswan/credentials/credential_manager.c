@@ -92,7 +92,17 @@ struct private_credential_manager_t {
 	 * Registered data to pass to hook
 	 */
 	void *hook_data;
+        
+        /**
+         * list of registered callbacks for prompts as prompt_callback_t
+         */
+        linked_list_t *prompt_callbacks;
 };
+
+typedef struct {
+    prompt_callback_t *cb;
+    void *data;
+} prompt_callback_data_t;
 
 /** data to pass to create_private_enumerator */
 typedef struct {
@@ -431,6 +441,20 @@ METHOD(credential_manager_t, get_shared, shared_key_t*,
 		}
 	}
 	enumerator->destroy(enumerator);
+        if (!found && this->prompt_callbacks->get_count(this->prompt_callbacks))
+        {
+            prompt_callback_data_t *data;
+            enumerator = this->prompt_callbacks->create_enumerator(this->prompt_callbacks);
+            while(enumerator->enumerate(enumerator, &data))
+            {
+                found = data->cb(data, type, me, other);
+                if (found)
+                {
+                    break;
+                }
+            }
+            enumerator->destroy(enumerator);
+        }
 	return found;
 }
 
@@ -1312,6 +1336,38 @@ METHOD(credential_manager_t, remove_validator, void,
 	this->lock->unlock(this->lock);
 }
 
+METHOD(credential_manager_t, add_prompt, void,
+        private_credential_manager_t *this, prompt_callback_t *cb, void *data)
+{
+    prompt_callback_data_t *cb_data;
+    INIT(cb_data, 
+            .cb = cb,
+            .data = data,
+    );
+    this->lock->write_lock(this->lock);
+    this->prompt_callbacks->insert_last(this->prompt_callbacks, cb_data);
+    this->lock->unlock(this->lock);
+}
+
+bool compare_prompt_callback_t(void *a, void *b)
+{
+    prompt_callback_data_t *da = a, *db = b;
+    return (da->cb == db->cb && da->data == db->data);
+}
+
+METHOD(credential_manager_t, remove_prompt, void,
+        private_credential_manager_t *this, prompt_callback_t *cb, void *data)
+{
+    prompt_callback_data_t *cb_data;
+    INIT(cb_data, 
+            .cb = cb,
+            .data = data,
+    );    
+    this->lock->write_lock(this->lock);
+    this->prompt_callbacks->remove(this->prompt_callbacks, cb_data, compare_prompt_callback_t);
+    this->lock->unlock(this->lock);
+}
+
 METHOD(credential_manager_t, destroy, void,
 	private_credential_manager_t *this)
 {
@@ -1328,6 +1384,7 @@ METHOD(credential_manager_t, destroy, void,
 	this->validators->destroy(this->validators);
 	this->lock->destroy(this->lock);
 	this->queue_mutex->destroy(this->queue_mutex);
+        this->prompt_callbacks->destroy_function(this->prompt_callbacks, free);
 	free(this);
 }
 
@@ -1359,6 +1416,8 @@ credential_manager_t *credential_manager_create()
 			.remove_validator = _remove_validator,
 			.set_hook = _set_hook,
 			.call_hook = _call_hook,
+                        .add_prompt = _add_prompt,
+                        .remove_prompt = _remove_prompt,
 			.destroy = _destroy,
 		},
 		.sets = linked_list_create(),
@@ -1366,6 +1425,7 @@ credential_manager_t *credential_manager_create()
 		.cache_queue = linked_list_create(),
 		.lock = rwlock_create(RWLOCK_TYPE_DEFAULT),
 		.queue_mutex = mutex_create(MUTEX_TYPE_DEFAULT),
+                .prompt_callbacks = linked_list_create(),
 	);
 
 	this->local_sets = thread_value_create((thread_cleanup_t)this->sets->destroy);
