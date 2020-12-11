@@ -147,7 +147,7 @@ struct vici_dispatcher_t {
 	 * @param id			client connection ID, 0 for all
 	 * @param message		event message to send, gets destroyed
 	 */
-	void (*raise_event)(vici_dispatcher_t *this, char *name, u_int id,
+	bool (*raise_event)(vici_dispatcher_t *this, char *name, u_int id,
 						vici_message_t *message);
 
 	/**
