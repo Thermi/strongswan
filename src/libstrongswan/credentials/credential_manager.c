@@ -443,17 +443,19 @@ METHOD(credential_manager_t, get_shared, shared_key_t*,
 	enumerator->destroy(enumerator);
         if (!found && this->prompt_callbacks->get_count(this->prompt_callbacks))
         {
+            this->lock->read_lock(this->lock);
             prompt_callback_data_t *data;
             enumerator = this->prompt_callbacks->create_enumerator(this->prompt_callbacks);
             while(enumerator->enumerate(enumerator, &data))
             {
-                found = data->cb(data, type, me, other);
+                found = data->cb(data->data, type, me, other);
                 if (found)
                 {
                     break;
                 }
             }
             enumerator->destroy(enumerator);
+            this->lock->unlock(this->lock);
         }
 	return found;
 }
