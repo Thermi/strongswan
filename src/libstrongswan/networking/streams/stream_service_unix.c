@@ -74,7 +74,7 @@ bool change_owner(int fd, struct sockaddr_un *addr)
 		DBG1(DBG_LIB, "Failed to set ACL entries: %s", human_readable_error(buf, ret, sizeof(buf)));
 		goto cleanup;		
 	}
-	if ((ret=SetSecurityDescriptorDacl(security_descriptor, TRUE, pACL, FALSE)))
+	if (!(ret=SetSecurityDescriptorDacl(security_descriptor, TRUE, pACL, FALSE)))
 	{
 		DBG1(DBG_LIB, "Failed to set security descriptor in ACL: %s", dlerror_mt(buf, sizeof(buf)));
 		goto cleanup;
@@ -87,7 +87,7 @@ bool change_owner(int fd, struct sockaddr_un *addr)
         DACL_SECURITY_INFORMATION,
         NULL, NULL,                  
         pACL,                        
-        NULL))
+        NULL) != ERROR_SUCCESS)
         {
             ret = TRUE;
         }
