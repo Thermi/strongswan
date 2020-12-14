@@ -136,7 +136,6 @@ static void manage_command(private_vici_prompt_t *this,
 {
 	this->dispatcher->manage_command(this->dispatcher, name,
 									 reg ? cb : NULL, this, register_cb, user);
-        DBG1(DBG_LIB, "register_cb: %p", register_cb);
 }
 
 bool compare_and_free_prompt_client_t_and_u_int(void *a, void *b)
