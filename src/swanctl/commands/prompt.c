@@ -46,7 +46,7 @@ CALLBACK(prompt_cb, void,
         printf("Their identity: %s\n", their_identity);
         printf("Our identity: %s\n", our_identity);
         /** Read credentials; One line (password or pin) */
-        a = getpass("Please enter the secret");
+        a = strdup(getpass("Please enter the secret"));
         /** ? Need to convert from wide characters (UTF-16) to UTF-8 ? */
         // a = fgets(buf, sizeof(buf), stdin);
         req = vici_begin("prompt-reply");
