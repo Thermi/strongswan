@@ -346,7 +346,7 @@ shared_key_t *prompt(void *data, shared_key_type_t type, identification_t *me,
     vici_builder_t *builder;
     vici_message_t *message;
     shared_key_t *result = NULL;
-    timeval_t now, then, timeout;
+    timeval_t then;
     u_int tmp;
 
     time_monotonic(&then);
@@ -361,7 +361,7 @@ shared_key_t *prompt(void *data, shared_key_type_t type, identification_t *me,
     builder = vici_builder_create();
     builder->add_kv(builder, "remote-identity", "%Y", other);
     builder->add_kv(builder, "local-identity", "%Y", me);
-    builder->add_kv(builder, "secret-type", type == SHARED_EAP ? "password" : "PIN");
+    builder->add_kv(builder, "secret-type", "%s", type == SHARED_EAP ? "password" : "PIN");
     message = builder->finalize(builder);
 
     INIT(in_progress,
@@ -426,17 +426,10 @@ shared_key_t *prompt(void *data, shared_key_type_t type, identification_t *me,
         {
             break;
         }
-        DBG2(DBG_LIB, "Was waken up but did not find a valid reply for prompt request");
+        DBG2(DBG_LIB, "Was woken up but did not find a valid reply for prompt request");
         this->lock->unlock(this->lock);
-        time_monotonic(&now);
-        timeval_subtract(&timeout, &then, &now);
-        timeout.tv_sec = then.tv_sec - now.tv_sec;
-        timeout.tv_usec = then.tv_usec - now.tv_usec;
-    } while (this->cond->timed_wait_abs(this->cond, this->mutex, timeout));
-    
-    if (!result) {
-        DBG1(DBG_LIB, "Timed out while waiting for credentials for %Y %Y", me, other);
     }
+    while(!this->cond->timed_wait_abs(this->cond, this->mutex, then));
     this->mutex->unlock(this->mutex);
 
 out:;
@@ -461,7 +454,6 @@ void manage_commands(private_vici_prompt_t *this, bool reg)
 {
     this->dispatcher->manage_event(this->dispatcher, "prompt-request", reg);
     this->dispatcher->manage_event(this->dispatcher, "prompt-reply", reg);
-/*    manage_command(this, "prompt-request", prompt_request, reg); */
     manage_command(this, "prompt-request", prompt_request, reg, register_cb, this);    
     manage_command(this, "prompt-reply", prompt_reply, reg, register_cb, this);        
 }
