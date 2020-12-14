@@ -409,6 +409,7 @@ block_dns_filter_t *block_dns_filter_create()
 {
     block_dns_filter_t *this;
     wchar_t exe[512];
+    DWORD err;
     tun_device_t *tun;
     tun = lib->get(lib, "kernel-libipsec-tun");
     char *tun_guid = tun->get_name(tun);
@@ -434,9 +435,9 @@ block_dns_filter_t *block_dns_filter_create()
 
     this->session.flags = FWPM_SESSION_FLAG_DYNAMIC;
 
-    if(!FwpmEngineOpen0(NULL, RPC_C_AUTHN_WINNT, NULL, &this->session, &this->engine))
+    if((err=FwpmEngineOpen0(NULL, RPC_C_AUTHN_WINNT, NULL, &this->session, &this->engine)) != ERROR_SUCCESS)
     {
-        DBG1(DBG_LIB, "block-dns: Failed to open fwp session");
+        DBG1(DBG_LIB, "block-dns: Failed to open fwp session (%u): %s", err, strerror(err));
     }    
     
     return this;
