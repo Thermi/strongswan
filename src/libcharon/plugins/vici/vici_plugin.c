@@ -163,6 +163,7 @@ static bool register_vici(private_vici_plugin_t *this,
 		charon->backends->remove_backend(charon->backends,
 										 &this->config->backend);
 
+                this->prompt->destroy(this->prompt);
 		this->logger->destroy(this->logger);
 		this->attrs->destroy(this->attrs);
 		this->config->destroy(this->config);
