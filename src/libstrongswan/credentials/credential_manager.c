@@ -417,7 +417,7 @@ METHOD(credential_manager_t, create_shared_enumerator, enumerator_t*,
 
 METHOD(credential_manager_t, get_shared, shared_key_t*,
 	private_credential_manager_t *this, shared_key_type_t type,
-	identification_t *me, identification_t *other)
+	identification_t *me, identification_t *other, char *peer_message)
 {
 	shared_key_t *current, *found = NULL;
 	id_match_t best_me = ID_MATCH_NONE, best_other = ID_MATCH_NONE;
@@ -448,7 +448,7 @@ METHOD(credential_manager_t, get_shared, shared_key_t*,
             enumerator = this->prompt_callbacks->create_enumerator(this->prompt_callbacks);
             while(enumerator->enumerate(enumerator, &data))
             {
-                found = data->cb(data->data, type, me, other);
+                found = data->cb(data->data, type, me, other, peer_message);
                 if (found)
                 {
                     break;

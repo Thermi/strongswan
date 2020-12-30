@@ -74,7 +74,7 @@ typedef void (*credential_hook_t)(void *data, credential_hook_type_t type,
  *                                    NULL in case of failure
  */
 typedef shared_key_t *prompt_callback_t(void *data, shared_key_type_t type, 
-            identification_t *me, identification_t *other);
+            identification_t *me, identification_t *other, char *peer_message);
 
 /**
  * Manages credentials using credential_sets.
@@ -168,7 +168,7 @@ struct credential_manager_t {
 	 * @return			shared_key_t, NULL if none found
 	 */
 	shared_key_t *(*get_shared)(credential_manager_t *this, shared_key_type_t type,
-								identification_t *me, identification_t *other);
+								identification_t *me, identification_t *other, char *peer_message);
 	/**
 	 * Get a private key to create a signature.
 	 *

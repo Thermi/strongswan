@@ -78,7 +78,7 @@ METHOD(authenticator_t, build, status_t,
 	other_id = this->ike_sa->get_other_id(this->ike_sa);
 	DBG1(DBG_IKE, "authentication of '%Y' (myself) with %N",
 		 my_id, auth_method_names, AUTH_PSK);
-	key = lib->credmgr->get_shared(lib->credmgr, SHARED_IKE, my_id, other_id);
+	key = lib->credmgr->get_shared(lib->credmgr, SHARED_IKE, my_id, other_id, "");
 	if (!key)
 	{
 		DBG1(DBG_IKE, "no shared key found for '%Y' - '%Y'", my_id, other_id);
