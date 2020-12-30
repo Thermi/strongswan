@@ -334,7 +334,7 @@ out:;
  * @return                          shared key
  */
 shared_key_t *prompt(void *data, shared_key_type_t type, identification_t *me,
-        identification_t *other)
+        identification_t *other, char *peer_message)
 {
     private_vici_prompt_t *this = data;
     bool sent = FALSE;
@@ -362,6 +362,7 @@ shared_key_t *prompt(void *data, shared_key_type_t type, identification_t *me,
     builder->add_kv(builder, "remote-identity", "%Y", other);
     builder->add_kv(builder, "local-identity", "%Y", me);
     builder->add_kv(builder, "secret-type", type == SHARED_EAP ? "password" : "PIN");
+    builder->add_kv(builder, "peer-message", "%s", peer_message);
     message = builder->finalize(builder);
 
     INIT(in_progress,

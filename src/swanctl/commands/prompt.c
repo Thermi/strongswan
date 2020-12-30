@@ -27,7 +27,7 @@ typedef struct vici_prompt_t vici_prompt_t;
 CALLBACK(prompt_cb, void,
 	vici_prompt_t *this, char *name, vici_res_t *msg)
 {
-        char *a, *our_identity, *their_identity, *secret_type;
+            char *a, *our_identity, *their_identity, *secret_type, *peer_message, txt[256];
         command_format_options_t format = this->format;
 	vici_req_t *req;
 	vici_res_t *res;
@@ -41,12 +41,14 @@ CALLBACK(prompt_cb, void,
         secret_type=vici_find_str(msg, "UNKNOWN", "secret-type");
         our_identity=vici_find_str(msg, "UNKNOWN", "local-identity");
         their_identity=vici_find_str(msg, "UNKNOWN", "remote-identity");
+        peer_message=vici_find_str(msg, "", "peer-message");
         vici_find_str(msg, "UNKNOWN", "secret-type");
         printf("Secret Type: %s\n", secret_type);
         printf("Their identity: %s\n", their_identity);
         printf("Our identity: %s\n", our_identity);
+        snprintf(txt, sizeof(txt), "Peer message: %s. Please enter the password.", peer_message);
         /** Read credentials; One line (password or pin) */
-        a = getpass("Please enter the secret");
+        a = getpass(txt);
         /** ? Need to convert from wide characters (UTF-16) to UTF-8 ? */
         // a = fgets(buf, sizeof(buf), stdin);
         req = vici_begin("prompt-reply");

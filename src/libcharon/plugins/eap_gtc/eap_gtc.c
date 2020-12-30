@@ -96,13 +96,19 @@ METHOD(eap_method_t, initiate_server, status_t,
 METHOD(eap_method_t, process_peer, status_t,
 	private_eap_gtc_t *this, eap_payload_t *in, eap_payload_t **out)
 {
+        char msg[512];
 	eap_gtc_header_t *res;
 	shared_key_t *shared;
-	chunk_t key;
+	chunk_t key, data;
 	size_t len;
 
+        data = in->get_data(in);
+
+        memset(msg, 0, sizeof(msg));
+        memcpy(msg, data.ptr, min(sizeof(msg)-1, data.len));
+
 	shared = lib->credmgr->get_shared(lib->credmgr, SHARED_EAP,
-									  this->peer, this->server);
+									  this->peer, this->server, msg);
 	if (shared == NULL)
 	{
 		DBG1(DBG_IKE, "no EAP key found for '%Y' - '%Y'",
