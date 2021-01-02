@@ -102,7 +102,7 @@ cleanup:
 				  lib->caps->get_gid(lib->caps)) != 0)
 		{
 			DBG1(DBG_NET, "changing socket owner/group for '%s' failed: %s",
-				 uri, strerror(errno));
+				 addr->sun_path, strerror(errno));
 		}
 	}
 	else
@@ -110,7 +110,7 @@ cleanup:
 		if (chown(addr->sun_path, -1, lib->caps->get_gid(lib->caps)) != 0)
 		{
 			DBG1(DBG_NET, "changing socket group for '%s' failed: %s",
-				 uri, strerror(errno));
+				 addr->sun_path, strerror(errno));
 		}
 	}
         return TRUE;
