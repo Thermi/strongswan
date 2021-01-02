@@ -57,6 +57,7 @@ struct vici_config_t {
  */
 vici_config_t *vici_config_create(vici_dispatcher_t *dispatcher,
 								  vici_authority_t *authority,
-								  vici_cred_t *cred);
+								  vici_cred_t *cred,
+								  vici_dispatcher_t *dispatcher_unprivileged);
 
 #endif /** VICI_CONFIG_H_ @}*/

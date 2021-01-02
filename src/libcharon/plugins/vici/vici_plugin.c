@@ -68,16 +68,31 @@ struct private_vici_plugin_t {
 	 * Dispatcher, creating socket
 	 */
 	vici_dispatcher_t *dispatcher;
-
-	/**
+        
+        /**
+	 * Dispatcher, creating socket for unprivileged usage
+	 */
+	vici_dispatcher_t *dispatcher_unprivileged;
+        
+        /**
 	 * Query commands
 	 */
 	vici_query_t *query;
 
-	/**
+        /**
+	 * Query commands
+	 */
+	vici_query_t *query_unprivileged;
+
+        /**
 	 * Control commands
 	 */
 	vici_control_t *control;
+
+        /**
+	 * Control commands
+	 */
+	vici_control_t *control_unprivileged;
 
 	/**
 	 * Credential backend
@@ -104,10 +119,20 @@ struct private_vici_plugin_t {
 	 */
 	vici_logger_t *logger;
         
+	/**
+	 * Generic debug logger
+	 */
+	vici_logger_t *logger_unprivileged;
+
         /**
          * User prompt
          */
         vici_prompt_t *prompt;
+        
+        /**
+         * User prompt
+         */
+        vici_prompt_t *prompt_unprivileged;
 };
 
 METHOD(plugin_t, get_name, char*,
@@ -124,25 +149,33 @@ static bool register_vici(private_vici_plugin_t *this,
 {
 	if (reg)
 	{
-		char *uri;
+		char *uri, *unprivileged_uri;
 
 		uri = lib->settings->get_str(lib->settings, "%s.plugins.vici.socket",
 									 VICI_DEFAULT_URI, lib->ns);
+                unprivileged_uri = lib->settings->get_str(lib->settings, "%s.plugins.vici.unprivileged_socket",
+									 VICI_UNPRIVILEGED_DEFAULT_URI, lib->ns);
 		this->dispatcher = vici_dispatcher_create(uri);
+                this->dispatcher_unprivileged = vici_dispatcher_create(unprivileged_uri);
 		if (this->dispatcher)
 		{
 			this->query = vici_query_create(this->dispatcher);
+                        this->query_unprivileged = vici_query_create(this->dispatcher_unprivileged);
 			this->control = vici_control_create(this->dispatcher);
-			this->authority = vici_authority_create(this->dispatcher);
-			this->cred = vici_cred_create(this->dispatcher, this->authority);
+                        this->control_unprivileged = vici_control_create(this->dispatcher_unprivileged);
+			this->authority = vici_authority_create(this->dispatcher, this->dispatcher_unprivileged);
+			this->cred = vici_cred_create(this->dispatcher, this->authority, this->dispatcher_unprivileged);
 			lib->credmgr->add_set(lib->credmgr, &this->cred->set);
 			lib->credmgr->add_set(lib->credmgr, &this->authority->set);
 			this->config = vici_config_create(this->dispatcher, this->authority,
-											  this->cred);
+											  this->cred,
+											  this->dispatcher_unprivileged);
 			this->attrs = vici_attribute_create(this->dispatcher);
 			this->logger = vici_logger_create(this->dispatcher);
+                        this->logger_unprivileged = vici_logger_create(this->dispatcher_unprivileged);
                         
                         this->prompt = vici_prompt_create(this->dispatcher);
+                        this->prompt_unprivileged = vici_prompt_create(this->dispatcher_unprivileged);
 
 			charon->backends->add_backend(charon->backends,
 										  &this->config->backend);
@@ -152,6 +185,7 @@ static bool register_vici(private_vici_plugin_t *this,
 			charon->bus->add_listener(charon->bus, &this->query->listener);
 			return TRUE;
 		}
+                
 		return FALSE;
 	}
 	else
@@ -164,7 +198,9 @@ static bool register_vici(private_vici_plugin_t *this,
 										 &this->config->backend);
 
                 this->prompt->destroy(this->prompt);
+                this->prompt_unprivileged->destroy(this->prompt_unprivileged);
 		this->logger->destroy(this->logger);
+                this->logger_unprivileged->destroy(this->logger_unprivileged);
 		this->attrs->destroy(this->attrs);
 		this->config->destroy(this->config);
 		lib->credmgr->remove_set(lib->credmgr, &this->cred->set);
@@ -172,8 +208,11 @@ static bool register_vici(private_vici_plugin_t *this,
 		this->authority->destroy(this->authority);
 		this->cred->destroy(this->cred);
 		this->control->destroy(this->control);
+                this->control_unprivileged->destroy(this->control_unprivileged);
 		this->query->destroy(this->query);
+                this->query_unprivileged->destroy(this->query_unprivileged);
 		this->dispatcher->destroy(this->dispatcher);
+                this->dispatcher_unprivileged->destroy(this->dispatcher_unprivileged);
 	}
 	return TRUE;
 }

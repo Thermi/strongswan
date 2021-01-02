@@ -63,6 +63,7 @@ struct vici_cred_t {
  * @return					credential backend
  */
 vici_cred_t *vici_cred_create(vici_dispatcher_t *dispatcher,
-							  vici_authority_t *authority);
+							  vici_authority_t *authority,
+							  vici_dispatcher_t *dispatcher_unprivileged);
 
 #endif /** VICI_CRED_H_ @}*/

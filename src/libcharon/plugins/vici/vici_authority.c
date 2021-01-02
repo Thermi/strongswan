@@ -43,6 +43,11 @@ struct private_vici_authority_t {
 	 */
 	vici_dispatcher_t *dispatcher;
 
+        /**
+	 * Dispatcher
+	 */
+	vici_dispatcher_t *dispatcher_unprivileged;
+
 	/**
 	 * List of certification authorities (authority_t*)
 	 */
@@ -714,17 +719,27 @@ static void manage_command(private_vici_authority_t *this,
 									 reg ? cb : NULL, this, NULL, NULL);
 }
 
+static void manage_command_unprivileged(private_vici_authority_t *this,
+						   char *name, vici_command_cb_t cb, bool reg)
+{
+	this->dispatcher_unprivileged->manage_command(this->dispatcher_unprivileged, name,
+									 reg ? cb : NULL, this, NULL, NULL);
+}
+
 /**
  * (Un-)register dispatcher functions
  */
 static void manage_commands(private_vici_authority_t *this, bool reg)
 {
 	this->dispatcher->manage_event(this->dispatcher, "list-authority", reg);
+        this->dispatcher_unprivileged->manage_event(this->dispatcher_unprivileged, "list-authority", reg);
 
 	manage_command(this, "load-authority", load_authority, reg);
 	manage_command(this, "unload-authority", unload_authority, reg);
 	manage_command(this, "get-authorities", get_authorities, reg);
+        manage_command_unprivileged(this, "get-authorities", get_authorities, reg);
 	manage_command(this, "list-authorities", list_authorities, reg);
+        manage_command_unprivileged(this, "list-authorities", list_authorities, reg);
 }
 
 /**
@@ -900,7 +915,7 @@ METHOD(vici_authority_t, destroy, void,
 /**
  * See header
  */
-vici_authority_t *vici_authority_create(vici_dispatcher_t *dispatcher)
+vici_authority_t *vici_authority_create(vici_dispatcher_t *dispatcher, vici_dispatcher_t *dispatcher_unprivileged)
 {
 	private_vici_authority_t *this;
 
@@ -918,6 +933,7 @@ vici_authority_t *vici_authority_create(vici_dispatcher_t *dispatcher)
 			.destroy = _destroy,
 		},
 		.dispatcher = dispatcher,
+                .dispatcher_unprivileged = dispatcher_unprivileged,
 		.authorities = linked_list_create(),
 		.certs = linked_list_create(),
 		.lock = rwlock_create(RWLOCK_TYPE_DEFAULT),

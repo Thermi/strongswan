@@ -102,6 +102,11 @@ struct private_vici_config_t {
 	 */
 	vici_dispatcher_t *dispatcher;
 
+        /**
+	 * Dispatcher
+	 */
+	vici_dispatcher_t *dispatcher_unprivileged;
+
 	/**
 	 * Hashtable of loaded connections, as peer_cfg_t
 	 */
@@ -2724,6 +2729,13 @@ static void manage_command(private_vici_config_t *this,
 									 reg ? cb : NULL, this, NULL, NULL);
 }
 
+static void manage_command_unprivileged(private_vici_config_t *this,
+						   char *name, vici_command_cb_t cb, bool reg)
+{
+	this->dispatcher_unprivileged->manage_command(this->dispatcher_unprivileged, name,
+									 reg ? cb : NULL, this, NULL, NULL);
+}
+
 /**
  * (Un-)register dispatcher functions
  */
@@ -2732,7 +2744,9 @@ static void manage_commands(private_vici_config_t *this, bool reg)
 	manage_command(this, "load-conn", load_conn, reg);
 	manage_command(this, "unload-conn", unload_conn, reg);
 	manage_command(this, "get-conns", get_conns, reg);
+        manage_command_unprivileged(this, "get-conns", get_conns, reg);
 }
+
 
 CALLBACK(destroy_conn, void,
 	peer_cfg_t *cfg, const void *key)
@@ -2755,7 +2769,8 @@ METHOD(vici_config_t, destroy, void,
  */
 vici_config_t *vici_config_create(vici_dispatcher_t *dispatcher,
 								  vici_authority_t *authority,
-								  vici_cred_t *cred)
+								  vici_cred_t *cred,
+								  vici_dispatcher_t *dispatcher_unprivileged)
 {
 	private_vici_config_t *this;
 
@@ -2769,6 +2784,7 @@ vici_config_t *vici_config_create(vici_dispatcher_t *dispatcher,
 			.destroy = _destroy,
 		},
 		.dispatcher = dispatcher,
+                .dispatcher_unprivileged = dispatcher_unprivileged,
 		.conns = hashtable_create(hashtable_hash_str, hashtable_equals_str, 32),
 		.lock = rwlock_create(RWLOCK_TYPE_DEFAULT),
 		.condvar = rwlock_condvar_create(),

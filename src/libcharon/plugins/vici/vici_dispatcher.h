@@ -64,8 +64,10 @@ typedef void (*vici_register_cb_t)(void *user, char *name, u_int id, bool reg);
  */
 #ifdef WIN32
 # define VICI_DEFAULT_URI "tcp://127.0.0.1:4502"
+# define VICI_UNPRIVILEGED_DEFAULT_URI "tcp://127.0.0.1:4503"
 #else
 # define VICI_DEFAULT_URI "unix://" IPSEC_PIDDIR "/charon.vici"
+# define VICI_UNPRIVILEGED_DEFAULT_URI "unix://" IPSEC_PIDDIR "/charon.unprivileged_vici"
 #endif
 
 /**

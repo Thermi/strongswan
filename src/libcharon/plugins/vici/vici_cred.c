@@ -52,6 +52,11 @@ struct private_vici_cred_t {
 	vici_dispatcher_t *dispatcher;
 
 	/**
+	 * Dispatcher
+	 */
+	vici_dispatcher_t *dispatcher_unprivileged;
+        
+	/**
 	 * CA certificate store
 	 */
 	vici_authority_t *authority;
@@ -576,6 +581,14 @@ static void manage_command(private_vici_cred_t *this,
 									 reg ? cb : NULL, this, NULL, NULL);
 }
 
+
+static void manage_command_unprivileged(private_vici_cred_t *this,
+						   char *name, vici_command_cb_t cb, bool reg)
+{
+	this->dispatcher_unprivileged->manage_command(this->dispatcher_unprivileged, name,
+									 reg ? cb : NULL, this, NULL, NULL);
+}
+
 /**
  * (Un-)register dispatcher functions
  */
@@ -587,10 +600,12 @@ static void manage_commands(private_vici_cred_t *this, bool reg)
 	manage_command(this, "load-key", load_key, reg);
 	manage_command(this, "unload-key", unload_key, reg);
 	manage_command(this, "get-keys", get_keys, reg);
+	manage_command_unprivileged(this, "get-keys", get_keys, reg);        
 	manage_command(this, "load-token", load_token, reg);
 	manage_command(this, "load-shared", load_shared, reg);
 	manage_command(this, "unload-shared", unload_shared, reg);
 	manage_command(this, "get-shared", get_shared, reg);
+        manage_command_unprivileged(this, "get-shared", get_shared, reg);
 }
 
 METHOD(vici_cred_t, add_cert, certificate_t*,
@@ -615,7 +630,8 @@ METHOD(vici_cred_t, destroy, void,
  * See header
  */
 vici_cred_t *vici_cred_create(vici_dispatcher_t *dispatcher,
-							  vici_authority_t *authority)
+							  vici_authority_t *authority,
+							  vici_dispatcher_t *dispatcher_unprivileged)
 {
 	private_vici_cred_t *this;
 
@@ -632,6 +648,7 @@ vici_cred_t *vici_cred_create(vici_dispatcher_t *dispatcher,
 			.destroy = _destroy,
 		},
 		.dispatcher = dispatcher,
+                .dispatcher_unprivileged = dispatcher_unprivileged,
 		.authority = authority,
 		.creds = mem_cred_create(),
 		.pins = mem_cred_create(),

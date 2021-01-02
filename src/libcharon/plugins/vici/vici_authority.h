@@ -62,6 +62,6 @@ struct vici_authority_t {
  * @param dispatcher		dispatcher to receive requests from
  * @return					authority backend
  */
-vici_authority_t *vici_authority_create(vici_dispatcher_t *dispatcher);
+vici_authority_t *vici_authority_create(vici_dispatcher_t *dispatcher, vici_dispatcher_t *dispatcher_unprivileged);
 
 #endif /** VICI_AUTHORITY_H_ @}*/
