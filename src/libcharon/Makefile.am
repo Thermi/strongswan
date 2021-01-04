@@ -744,6 +744,13 @@ if USE_ROUTE_MONITORING
   SUBDIRS += plugins/route_monitoring
 if MONOLITHIC
   libcharon_la_LIBADD += plugins/route_monitoring/libstrongswan-route-monitoring.la
+  endif
+  endif
+  
+if USE_BLOCK_DNS
+  SUBDIRS += plugins/block_dns
+if MONOLITHIC
+  libcharon_la_LIBADD += plugins/block_dns/libstrongswan-block-dns.la
 endif
 endif
 

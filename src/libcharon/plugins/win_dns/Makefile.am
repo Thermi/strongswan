@@ -1,7 +1,8 @@
 AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/libstrongswan \
-	-I$(top_srcdir)/src/libcharon
-
+	-I$(top_srcdir)/src/libcharon \
+	-DIPSEC_PIDDIR=\"${piddir}\"
+	
 AM_CFLAGS = \
 	$(PLUGIN_CFLAGS)
 

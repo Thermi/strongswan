@@ -74,7 +74,7 @@ bool change_owner(int fd, struct sockaddr_un *addr)
 		DBG1(DBG_LIB, "Failed to set ACL entries: %s", human_readable_error(buf, ret, sizeof(buf)));
 		goto cleanup;		
 	}
-	if ((ret=SetSecurityDescriptorDacl(security_descriptor, TRUE, pACL, FALSE)))
+	if (!(ret=SetSecurityDescriptorDacl(security_descriptor, TRUE, pACL, FALSE)))
 	{
 		DBG1(DBG_LIB, "Failed to set security descriptor in ACL: %s", dlerror_mt(buf, sizeof(buf)));
 		goto cleanup;
@@ -87,7 +87,7 @@ bool change_owner(int fd, struct sockaddr_un *addr)
         DACL_SECURITY_INFORMATION,
         NULL, NULL,                  
         pACL,                        
-        NULL))
+        NULL) != ERROR_SUCCESS)
         {
             ret = TRUE;
         }
@@ -102,7 +102,7 @@ cleanup:
 				  lib->caps->get_gid(lib->caps)) != 0)
 		{
 			DBG1(DBG_NET, "changing socket owner/group for '%s' failed: %s",
-				 uri, strerror(errno));
+				 addr->sun_path, strerror(errno));
 		}
 	}
 	else
@@ -110,7 +110,7 @@ cleanup:
 		if (chown(addr->sun_path, -1, lib->caps->get_gid(lib->caps)) != 0)
 		{
 			DBG1(DBG_NET, "changing socket group for '%s' failed: %s",
-				 uri, strerror(errno));
+				 addr->sun_path, strerror(errno));
 		}
 	}
         return TRUE;

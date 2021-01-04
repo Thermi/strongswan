@@ -503,7 +503,7 @@ METHOD(attribute_handler_t, handle, bool,
 	NET_IFINDEX index;
 	char *iface;
 	GUID guid;
-	bool handled;
+	bool handled = FALSE;
 
 	switch (type)
 	{
@@ -535,40 +535,46 @@ METHOD(attribute_handler_t, handle, bool,
 			return FALSE;
 		}
 	}
-	
-	if (!guidfromstring(&guid, iface, TRUE))
-	{
-		return FALSE;
-	}
-	if(!guid2index(guid, &index))
-	{
-		return FALSE;
-	}
-		
-	this->mutex->lock(this->mutex);
-	/** Check if the interface currently has a DNS server. If so, store
-	    it in the linked list */
+	if (!iface)
+        {
+            DBG1(DBG_LIB, "Indeterminate interface, can't install DNS server %H", addr);
+        } else {
+            if (!guidfromstring(&guid, iface, TRUE))
+            {
+                    addr->destroy(addr);
+                    return FALSE;
+            }
+            if(!guid2index(guid, &index))
+            {
+                    addr->destroy(addr);
+                    return FALSE;
+            }
 
-	handled = set_dns_server(this, addr, index);
-	if (handled)
-	{
-		INIT(found,
-			.address = addr->clone(addr),
-			.index = index,
-			.priority = this->cnt++,
-			.unique_id = ike_sa->get_unique_id(ike_sa),
-		);
-		this->servers->insert_last(this->servers, found);
-	}
-	
-	this->mutex->unlock(this->mutex);
+            this->mutex->lock(this->mutex);
+            /** Check if the interface currently has a DNS server. If so, store
+                it in the linked list */
 
-	if (!handled)
-	{
-		DBG1(DBG_IKE, "adding DNS server failed");
-	} else {
-		DBG1(DBG_IKE, "Added DNS server %H on interface %d", addr, index);
-	}
+            handled = set_dns_server(this, addr, index);
+            if (handled)
+            {
+                    INIT(found,
+                            .address = addr->clone(addr),
+                            .index = index,
+                            .priority = this->cnt++,
+                            .unique_id = ike_sa->get_unique_id(ike_sa),
+                    );
+                    this->servers->insert_last(this->servers, found);
+            }
+
+            this->mutex->unlock(this->mutex);
+
+            if (!handled)
+            {
+                    DBG1(DBG_IKE, "adding DNS server failed");
+            } else {
+                    DBG1(DBG_IKE, "Added DNS server %H on interface %d", addr, index);
+            }
+        }
 	addr->destroy(addr);
 	return handled;
 }
@@ -611,62 +617,66 @@ METHOD(attribute_handler_t, release, void,
 			return;
 		}
 	}
-		
-	if (!guidfromstring(&guid, iface, TRUE))
-	{
-		return;
-	}
+        if (!iface) {
+            DBG1(DBG_LIB, "Indeterminate interface, can't install DNS server %H", addr);
+        } else {
+            if (!guidfromstring(&guid, iface, TRUE))
+            {
+                    addr->destroy(addr);
+                    return;
+            }
 
-	if (!guid2index(guid, &index))
-	{
-		DBG1(DBG_IKE, "Can't remove DNS server, failed to convert guid to index");
-		addr->destroy(addr);
-		return;
-	}
-	this->mutex->lock(this->mutex);
+            if (!guid2index(guid, &index))
+            {
+                    DBG1(DBG_IKE, "Can't remove DNS server, failed to convert guid to index");
+                    addr->destroy(addr);
+                    return;
+            }
+            this->mutex->lock(this->mutex);
 
-	/** Look for the DNS server installed from this unique_id and check if it is 
-	 * the best one.
-	 * If it is the best one, remove it from the list, look for the next best one and install that one, if it exists.
-	 * Otherwise, just clear the DNS servers for that interface (because right now,
-	 * this plugin can only install one DNS server on an interface (restriction caused by netsh)
-	 */
-	
-	INIT(found,
-		.address = addr,
-		.index = index,
-		.unique_id = ike_sa->get_unique_id(ike_sa),
-	);
-	if(!this->servers->remove(this->servers, found, compare_dns_servers_by_unique_id_and_address))
-	{
-		DBG1(DBG_IKE, "Failed to find DNS server in list.");
-	} else {
-		DBG1(DBG_IKE, "Removed DNS server %H from interface %d", addr, index);
-	}
-	
-	entry = find_newest_server(this, iface);
-	if (entry)
-	{
+            /** Look for the DNS server installed from this unique_id and check if it is 
+             * the best one.
+             * If it is the best one, remove it from the list, look for the next best one and install that one, if it exists.
+             * Otherwise, just clear the DNS servers for that interface (because right now,
+             * this plugin can only install one DNS server on an interface (restriction caused by netsh)
+             */
 
-		if (set_dns_server(this, entry->address, index))
-		{
-			DBG1(DBG_IKE, "Installed now newest DNS server %H on"
-				" interface %d", addr, index);
-		} else {
-			DBG1(DBG_IKE, "Could not find newest DNS server for interface %d.", index);
-		}
-	} else {
-		if (clear_dns_server(addr, index))
-		{
-			DBG1(DBG_IKE, "Cleared all DNS servers from interface"
-				" %d", index);
-		} else {
-			DBG1(DBG_IKE, "Could not clear DNS servers on interface %d.", index);
-		}
-	}
-	
-	this->mutex->unlock(this->mutex);
-	free(found);
+            INIT(found,
+                    .address = addr,
+                    .index = index,
+                    .unique_id = ike_sa->get_unique_id(ike_sa),
+            );
+            if(!this->servers->remove(this->servers, found, compare_dns_servers_by_unique_id_and_address))
+            {
+                    DBG1(DBG_IKE, "Failed to find DNS server in list.");
+            } else {
+                    DBG1(DBG_IKE, "Removed DNS server %H from interface %d", addr, index);
+            }
+
+            entry = find_newest_server(this, iface);
+            if (entry)
+            {
+
+                    if (set_dns_server(this, entry->address, index))
+                    {
+                            DBG1(DBG_IKE, "Installed now newest DNS server %H on"
+                                    " interface %d", addr, index);
+                    } else {
+                            DBG1(DBG_IKE, "Could not find newest DNS server for interface %d.", index);
+                    }
+            } else {
+                    if (clear_dns_server(addr, index))
+                    {
+                            DBG1(DBG_IKE, "Cleared all DNS servers from interface"
+                                    " %d", index);
+                    } else {
+                            DBG1(DBG_IKE, "Could not clear DNS servers on interface %d.", index);
+                    }
+            }
+
+            this->mutex->unlock(this->mutex);
+            free(found);
+        }
 	addr->destroy(addr);
 }
 
