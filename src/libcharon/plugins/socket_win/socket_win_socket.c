@@ -208,6 +208,8 @@ METHOD(socket_t, sender, status_t,
 	uint16_t port;
 	int i = -1, j;
 	host_t *src, *dst;
+	char errbuf[512];
+	int err;
 	WSAMSG msg;
 	DWORD len;
 	WSABUF data;
@@ -310,7 +312,8 @@ METHOD(socket_t, sender, status_t,
 	if (this->WSASendMsg(this->socks[i], &msg, 0, &len,
 						 NULL, NULL) == SOCKET_ERROR)
 	{
-		DBG1(DBG_NET, "sending packet failed: %d", WSAGetLastError());
+		err = WSAGetLastError();
+		DBG1(DBG_NET, "sending packet failed: (%d) %s", err, human_readable_error(errbuf, err, sizeof(errbuf)));
 		return FAILED;
 	}
 	return SUCCESS;

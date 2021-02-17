@@ -13,6 +13,7 @@ options = \
 	options/charon.opt \
 	options/charon-logging.opt \
 	options/charon-nm.opt \
+	options/charon-svc.opt \
 	options/charon-systemd.opt \
 	options/imcv.opt \
 	options/imv_policy_manager.opt \

@@ -48,6 +48,14 @@ struct kernel_libipsec_router_t {
 	 * Destroy the given instance
 	 */
 	void (*destroy)(kernel_libipsec_router_t *this);
+
+#ifdef WIN32	
+	/**
+	 * Reload the configuration of the router 
+	 */
+	void (*reload)(kernel_libipsec_router_t *this);
+#endif
+
 };
 
 /**

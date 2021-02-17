@@ -26,7 +26,9 @@
 #if !TARGET_OS_OSX
 #define TUN_DEVICE_NOT_SUPPORTED
 #endif
-#elif !defined(__linux__) && !defined(HAVE_NET_IF_TUN_H)
+#endif
+
+#if ! (defined(__linux__) || defined(HAVE_NET_IF_TUN_H) || defined(USE_WINTUN))
 #define TUN_DEVICE_NOT_SUPPORTED
 #endif
 
@@ -42,15 +44,14 @@ tun_device_t *tun_device_create(const char *name_tmpl)
 
 #include <errno.h>
 #include <fcntl.h>
-#include <netinet/in.h>
 #include <string.h>
-#include <sys/ioctl.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include <net/if.h>
-
 #ifdef __APPLE__
 #include <net/if_utun.h>
 #include <netinet/in_var.h>
@@ -65,7 +66,6 @@ tun_device_t *tun_device_create(const char *name_tmpl)
 #else
 #include <net/if_tun.h>
 #endif
-
 #define TUN_DEFAULT_MTU 1500
 
 typedef struct private_tun_device_t private_tun_device_t;
@@ -83,14 +83,13 @@ struct private_tun_device_t {
 	int tunfd;
 
 	/**
-	 * Name of the TUN device
-	 */
-	char if_name[IFNAMSIZ];
-
-	/**
 	 * Socket used for ioctl() to set interface addr, ...
 	 */
 	int sock;
+	/**
+	 * Name of the TUN device
+	 */
+	char if_name[IFNAMSIZ];
 
 	/**
 	 * The current MTU
@@ -222,31 +221,8 @@ static bool set_address_impl(private_tun_device_t *this, host_t *addr,
 		return FALSE;
 	}
 	return TRUE;
-}
 
 #endif /* __FreeBSD__ */
-
-METHOD(tun_device_t, set_address, bool,
-	private_tun_device_t *this, host_t *addr, uint8_t netmask)
-{
-	if (!set_address_impl(this, addr, netmask))
-	{
-		return FALSE;
-	}
-	DESTROY_IF(this->address);
-	this->address = addr->clone(addr);
-	this->netmask = netmask;
-	return TRUE;
-}
-
-METHOD(tun_device_t, get_address, host_t*,
-	private_tun_device_t *this, uint8_t *netmask)
-{
-	if (netmask && this->address)
-	{
-		*netmask = this->netmask;
-	}
-	return this->address;
 }
 
 METHOD(tun_device_t, up, bool,
@@ -315,12 +291,35 @@ METHOD(tun_device_t, get_mtu, int,
 	return this->mtu;
 }
 
+
+METHOD(tun_device_t, set_address, bool,
+	private_tun_device_t *this, host_t *addr, uint8_t netmask)
+{
+	if (!set_address_impl(this, addr, netmask))
+	{
+		return FALSE;
+	}
+	DESTROY_IF(this->address);
+	this->address = addr->clone(addr);
+	this->netmask = netmask;
+	return TRUE;
+}
+
+METHOD(tun_device_t, get_address, host_t*,
+	private_tun_device_t *this, uint8_t *netmask)
+{
+	if (netmask && this->address)
+	{
+		*netmask = this->netmask;
+	}
+	return this->address;
+}
+
 METHOD(tun_device_t, get_name, char*,
 	private_tun_device_t *this)
 {
 	return this->if_name;
 }
-
 METHOD(tun_device_t, get_fd, int,
 	private_tun_device_t *this)
 {
@@ -330,8 +329,7 @@ METHOD(tun_device_t, get_fd, int,
 METHOD(tun_device_t, write_packet, bool,
 	private_tun_device_t *this, chunk_t packet)
 {
-	ssize_t s;
-
+        ssize_t s;
 #ifdef __APPLE__
 	/* UTUN's expect the packets to be prepended by a 32-bit protocol number
 	 * instead of parsing the packet again, we assume IPv4 for now */
@@ -408,12 +406,9 @@ METHOD(tun_device_t, destroy, void,
 	free(this);
 }
 
-/**
- * Initialize the tun device
- */
-static bool init_tun(private_tun_device_t *this, const char *name_tmpl)
+bool init_tun(private_tun_device_t *this, const char *name_tmpl)
 {
-#ifdef __APPLE__
+#if defined(__APPLE__)
 
 	struct ctl_info info;
 	struct sockaddr_ctl addr;
@@ -533,8 +528,7 @@ static bool init_tun(private_tun_device_t *this, const char *name_tmpl)
 		DBG1(DBG_LIB, "failed to open %s: %s", this->if_name, strerror(errno));
 	}
 	return this->tunfd > 0;
-
-#endif /* !__APPLE__ */
+#endif
 }
 
 /*
@@ -543,7 +537,7 @@ static bool init_tun(private_tun_device_t *this, const char *name_tmpl)
 tun_device_t *tun_device_create(const char *name_tmpl)
 {
 	private_tun_device_t *this;
-
+	
 	INIT(this,
 		.public = {
 			.read_packet = _read_packet,
@@ -567,7 +561,6 @@ tun_device_t *tun_device_create(const char *name_tmpl)
 		return NULL;
 	}
 	DBG1(DBG_LIB, "created TUN device: %s", this->if_name);
-
 	this->sock = socket(AF_INET, SOCK_DGRAM, 0);
 	if (this->sock < 0)
 	{
@@ -577,5 +570,4 @@ tun_device_t *tun_device_create(const char *name_tmpl)
 	}
 	return &this->public;
 }
-
 #endif /* TUN devices supported */

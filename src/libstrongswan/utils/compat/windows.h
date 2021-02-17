@@ -21,12 +21,16 @@
 #ifndef WINDOWS_H_
 #define WINDOWS_H_
 
+#include <errno.h>
+
 #include <winsock2.h>
+#include <devpropdef.h>
 #include <ws2tcpip.h>
 #include <direct.h>
 #include <inttypes.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <setupapi.h>
 
 /* undef Windows variants evaluating values more than once */
 #undef min
@@ -38,6 +42,8 @@
 
 /* used by Windows API, but we have our own */
 #undef CALLBACK
+
+#include <utils/utils.h>
 
 /* UID/GID types for capabilities, even if not supported */
 typedef u_int uid_t;
@@ -253,6 +259,24 @@ void* dlsym(void *handle, const char *symbol);
 char* dlerror(void);
 
 /**
+ * thread save dlerror variant, uses caller supplied buffer
+ * @param	buf 	caller supplied buffer
+ * @param 	buf_len	length of caller supplied buffer
+ * @return             caller supplied buffer
+ */
+char *dlerror_mt(char *buf, size_t buf_len);
+
+/**
+ * function for translating the given error into a human readable error message
+ * using FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, ...)
+ * @param	buf	caller supplied buffer
+ * @param	err	caller supplied erorr value to translate
+ * @param 	buf_len	length of caller supplied buffer
+ * @return             caller supplied buffer
+ */
+char *human_readable_error(char *buf, DWORD err, size_t buf_len);
+
+/**
  * dlclose() from <dlfcn.h>
  */
 int dlclose(void *handle);
@@ -267,6 +291,27 @@ int socketpair(int domain, int type, int protocol, int sv[2]);
  */
 char* getpass(const char *prompt);
 #define HAVE_GETPASS
+
+ WINSETUPAPI BOOL WINAPI SetupDiGetDeviceInterfacePropertyW(
+  HDEVINFO                  DeviceInfoSet,
+  PSP_DEVICE_INTERFACE_DATA DeviceInterfaceData,
+  const DEVPROPKEY          *PropertyKey,
+  DEVPROPTYPE               *PropertyType,
+  PBYTE                     PropertyBuffer,
+  DWORD                     PropertyBufferSize,
+  PDWORD                    RequiredSize,
+  DWORD                     Flags
+);
+
+ WINAPI LSTATUS RegSetKeyValueA(
+  HKEY    hKey,
+  LPCSTR  lpSubKey,
+  LPCSTR  lpValueName,
+  DWORD   dwType,
+  LPCVOID lpData,
+  DWORD   cbData
+) __attribute__((dllimport));
+ 
 
 /**
  * Map MSG_DONTWAIT to the reserved, but deprecated MSG_INTERRUPT

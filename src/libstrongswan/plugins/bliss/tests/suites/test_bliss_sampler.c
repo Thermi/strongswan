@@ -89,7 +89,7 @@ Suite *bliss_sampler_suite_create()
 	s = suite_create("bliss_sampler");
 
 	tc = tcase_create("sampler_gaussian");
-	tcase_set_timeout(tc, 30);
+	tcase_set_timeout(tc, 60);
 	tcase_add_loop_test(tc, test_bliss_sampler_gaussian, 0, countof(key_size));
 	suite_add_tcase(s, tc);
 

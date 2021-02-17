@@ -199,7 +199,7 @@ Suite *bliss_sign_suite_create()
 	s = suite_create("bliss_sign");
 
 	tc = tcase_create("sign_all");
-	test_case_set_timeout(tc, 30);
+	test_case_set_timeout(tc, 60);
 	tcase_add_loop_test(tc, test_bliss_sign_all, 0, countof(key_type));
 	suite_add_tcase(s, tc);
 
