@@ -209,6 +209,7 @@ static void process_plain(tun_device_t *tun)
 	}
 }
 
+#ifdef WIN32
 static bool process_plain_wintun(tun_device_t *tun)
 {
 	chunk_t raw;
@@ -225,6 +226,7 @@ static bool process_plain_wintun(tun_device_t *tun)
 	}
 	return FALSE;
 }
+#endif
 
 #ifndef WIN32
 /**

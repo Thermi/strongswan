@@ -112,8 +112,8 @@ METHOD(plugin_t, reload, bool,
 plugin_t *kernel_libipsec_plugin_create()
 {
 	private_kernel_libipsec_plugin_t *this;
-	char buf[512];
 #ifdef WIN32
+	char buf[512];
 	HANDLE pseudohandle = GetCurrentProcess();
 #endif
 	if (!lib->caps->check(lib->caps, CAP_NET_ADMIN))
