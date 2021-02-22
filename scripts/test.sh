@@ -141,7 +141,7 @@ all|coverage|sonarcloud)
 			--disable-unwind-backtraces
 			--disable-svc --disable-dbghelp-backtraces --disable-socket-win
 			--disable-kernel-wfp --disable-kernel-iph --disable-winhttp
-			--disable-python-eggs-install"
+			--disable-wintun --disable-python-eggs-install"
 	# not enabled on the build server
 	CONFIG="$CONFIG --disable-af-alg"
 	if test "$TEST" != "coverage"; then
