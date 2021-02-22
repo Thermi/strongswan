@@ -25,6 +25,9 @@
 
 #include <networking/host.h>
 
+#ifdef WIN32
+#include "windows_tun.h"
+#else
 typedef struct tun_device_t tun_device_t;
 
 /**
@@ -121,4 +124,5 @@ struct tun_device_t {
  */
 tun_device_t *tun_device_create(const char *name_tmpl);
 
+#endif /* !WIN32 */
 #endif /** TUN_DEVICE_H_ @}*/

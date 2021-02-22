@@ -331,6 +331,8 @@ ARG_ENABL_SET([leak-detective], [enable malloc hooks to find memory leaks.])
 ARG_ENABL_SET([lock-profiler],  [enable lock/mutex profiling code.])
 ARG_ENABL_SET([log-thread-ids], [use thread ID, if available, instead of an incremented value starting from 1, to identify threads.])
 ARG_ENABL_SET([monolithic],     [build monolithic version of libstrongswan that includes all enabled plugins. Similarly, the plugins of charon are assembled in libcharon.])
+# enable WINTUN TUN driver support
+ARG_ENABL_SET([wintun],		[enable wintun TUN driver support.])
 
 # ===================================
 #  option to disable default options
@@ -1357,8 +1359,7 @@ if test x$python_eggs = xtrue; then
 	PYTHON_PACKAGE_VERSION=`echo "$PACKAGE_VERSION" | $SED 's/dr/.dev/'`
 	AC_SUBST([PYTHON_PACKAGE_VERSION])
 	if test x$python_eggs_install = xtrue; then
-		AC_PATH_PROG([EASY_INSTALL], [easy_install], [], [$PATH:/bin:/usr/bin:/usr/local/bin])
-		if test x$EASY_INSTALL = x; then
+		if ! python -c "import setuptools"; then
 			AC_MSG_ERROR(Python easy_install not found)
 		fi
 	fi
@@ -1810,6 +1811,7 @@ AM_CONDITIONAL(USE_PYTHON_EGGS, test x$python_eggs = xtrue)
 AM_CONDITIONAL(USE_PERL_CPAN, test x$perl_cpan = xtrue)
 AM_CONDITIONAL(USE_TOX, test "x$TOX" != x)
 AM_CONDITIONAL(USE_PY_TEST, test "x$PY_TEST" != x -a "x$TOX" = x)
+AM_CONDITIONAL(USE_WINTUN, test "x$wintun" != x)
 
 # ========================
 #  set global definitions
@@ -1842,6 +1844,9 @@ fi
 if test x$imc_swima = xtrue -o x$imv_swima = xtrue; then
 	AC_DEFINE([USE_JSON], [], [build code for JSON])
 fi
+if test x$wintun = xtrue; then
+	AC_DEFINE([USE_WINTUN], [], [Build in wintun TUN driver support])
+fi
 
 # ====================================================
 #  options for enabled modules (see conf/Makefile.am)
@@ -1863,6 +1868,7 @@ AM_COND_IF([USE_SCEPCLIENT], [strongswan_options=${strongswan_options}" scepclie
 AM_COND_IF([USE_PKI], [strongswan_options=${strongswan_options}" pki"])
 AM_COND_IF([USE_SWANCTL], [strongswan_options=${strongswan_options}" swanctl"])
 AM_COND_IF([USE_SYSTEMD], [strongswan_options=${strongswan_options}" charon-systemd"])
+AM_COND_IF([USE_SVC], [strongswan_options=${strongswan_options}" charon-svc"])
 
 AC_SUBST(strongswan_options)
 

@@ -16,10 +16,7 @@
 /* WSAPoll() */
 #define _WIN32_WINNT 0x0600
 
-#include <utils/utils.h>
-
-#include <errno.h>
-
+#include "windows.h"
 /**
  * See header
  */
@@ -180,6 +177,41 @@ char* dlerror(void)
 		snprintf(buf, sizeof(buf), "(%u)", err);
 	}
 	return buf;
+}
+
+/**
+ * MT safe dlerror variant with caller supplied buffer
+ * See header
+ */
+char *dlerror_mt(char *buf, size_t buf_len)
+{
+	return human_readable_error(buf, GetLastError(), buf_len);
+}
+
+/**
+ *
+ * MT safe variant that only performs GetLastError() for the supplied
+ * variable in the system error message catalogue
+ * See header.
+ */
+char *human_readable_error(char *buf, DWORD err, size_t buf_len)
+{
+	char *pos;
+
+	if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+					  NULL, err, 0, buf, buf_len, NULL) > 0)
+	{
+		pos = strchr(buf, '\n');
+		if (pos)
+		{
+			*pos = '\0';
+		}
+	}
+	else
+	{
+		snprintf(buf, buf_len, "(%u)", err);
+	}
+        return buf;
 }
 
 /**
