@@ -931,6 +931,13 @@ char *create_wintun(char *NetCfgInstanceId, size_t *NetCfgInstanceId_length)
 		DBG1(DBG_LIB, "EnableDeadGWDetect is type %d with value %d", index, buf);
 	}
 
+        ret=1;
+        /** Set interface metric for IPv4 (Different folder for IPv6) to 1 to make sure it is preferred for DNS resolution */
+        if((ret=RegSetValueExA(reg_hkey, "InterfaceMetric", 0, REG_DWORD, (BYTE *)&ret, sizeof(ret))) != ERROR_SUCCESS)
+        {
+                DBG1(DBG_LIB, "Failed to set InterfaceMetric to 1 (%d): %s", ret, human_readable_error(buf, ret, sizeof(buf)));
+        }
+
 	if(!SetupDiGetDeviceInstanceIdA(
 	    dev_info_set,
 	    &dev_info_data,
