@@ -178,7 +178,7 @@ win*)
 			--enable-tnccs-20 --enable-imc-attestation --enable-imv-attestation
 			--enable-imc-os --enable-imv-os --enable-tnc-imv --enable-tnc-imc
 			--enable-pki --enable-swanctl --enable-socket-win
-			--enable-kernel-iph --enable-kernel-wfp --enable-winhttp"
+			--enable-kernel-iph --enable-kernel-wfp --enable-winhttp --enable-wintun"
 	# no make check for Windows binaries unless we run on a windows host
 	if test "$APPVEYOR" != "True"; then
 		TARGET=
