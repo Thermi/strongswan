@@ -113,8 +113,9 @@ plugin_t *kernel_libipsec_plugin_create()
 {
 	private_kernel_libipsec_plugin_t *this;
 	char buf[512];
+#ifdef WIN32
 	HANDLE pseudohandle = GetCurrentProcess();
-
+#endif
 	if (!lib->caps->check(lib->caps, CAP_NET_ADMIN))
 	{	/* required to create TUN devices */
 		DBG1(DBG_KNL, "kernel-libipsec plugin requires CAP_NET_ADMIN "
@@ -146,6 +147,7 @@ plugin_t *kernel_libipsec_plugin_create()
 	if (!this->tun)
 	{
 		DBG1(DBG_KNL, "failed to create TUN device");
+#ifdef WIN32
 		if (lib->settings->get_bool(lib->settings, "%s.use_wintun", FALSE,
 					 lib->ns))
 		{
@@ -157,6 +159,7 @@ plugin_t *kernel_libipsec_plugin_create()
 			 */
 			charon->bus->alert(charon->bus, ALERT_SHUTDOWN_SIGNAL);
 		}
+#endif
 		destroy(this);
 		return NULL;
 	}
@@ -175,11 +178,14 @@ plugin_t *kernel_libipsec_plugin_create()
 
 	/* Need highest priority (not realtime for now)
 	 * to make sure strongSwan can always process packets */
+
+#ifdef WIN32
 	if(!SetPriorityClass(pseudohandle, HIGH_PRIORITY_CLASS))
 	{
 		DBG1(DBG_LIB, "Failed to raise process priority: %s", dlerror_mt(buf, sizeof(buf)));
 	} else {
 		DBG1(DBG_LIB, "Raised process priority to HIGH_PRIORITY_CLASS");
 	}
+#endif
 	return &this->public.plugin;
 }
