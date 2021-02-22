@@ -76,19 +76,18 @@ bool change_owner(int fd, struct sockaddr_un *addr)
 		DBG1(DBG_LIB, "Failed to set security descriptor in ACL: %s", dlerror_mt(buf, sizeof(buf)));
 		goto cleanup;
 	}
-	security_attributes.lpSecurityDescriptor = security_descriptor; 
 
-        if(SetNamedSecurityInfo(
-        addr->sun_path,
-        SE_FILE_OBJECT,
-        DACL_SECURITY_INFORMATION,
-        NULL, NULL,                  
-        pACL,                        
-        NULL) != ERROR_SUCCESS)
-        {
-            ret = TRUE;
-        }
-        
+    if(SetNamedSecurityInfo(
+    addr->sun_path,
+    SE_FILE_OBJECT,
+    DACL_SECURITY_INFORMATION,
+    NULL, NULL,                  
+    pACL,                        
+    NULL) == ERROR_SUCCESS)
+    {
+        ret = TRUE;
+    }
+    
 cleanup:
         FreeSid(pAdminSID);
         return ret;
