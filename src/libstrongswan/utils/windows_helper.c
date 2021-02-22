@@ -397,5 +397,5 @@ int ascii2utf16(LPWSTR *dst, size_t dst_len, const char *str, const size_t str_l
  */
 bool handle_is_valid(HKEY handle)
 {
-    return (handle != NULL && (long long) handle > 1);
+    return (handle != NULL && handle > (HKEY) 1);
 }
