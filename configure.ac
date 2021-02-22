@@ -1811,7 +1811,7 @@ AM_CONDITIONAL(USE_PYTHON_EGGS, test x$python_eggs = xtrue)
 AM_CONDITIONAL(USE_PERL_CPAN, test x$perl_cpan = xtrue)
 AM_CONDITIONAL(USE_TOX, test "x$TOX" != x)
 AM_CONDITIONAL(USE_PY_TEST, test "x$PY_TEST" != x -a "x$TOX" = x)
-AM_CONDITIONAL(USE_WINTUN, test "x$wintun" != x)
+AM_CONDITIONAL(USE_WINTUN, test "x$wintun" = xtrue)
 
 # ========================
 #  set global definitions
