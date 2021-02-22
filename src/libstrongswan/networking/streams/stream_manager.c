@@ -17,10 +17,9 @@
 
 #include "stream_tcp.h"
 #include "stream_service_tcp.h"
-#ifndef WIN32
-# include "stream_unix.h"
-# include "stream_service_unix.h"
-#endif
+#include "stream_unix.h"
+#include "stream_service_unix.h"
+
 #ifdef USE_SYSTEMD
 # include "stream_service_systemd.h"
 #endif
@@ -205,10 +204,8 @@ METHOD(stream_manager_t, destroy, void,
 {
 	remove_stream(this, stream_create_tcp);
 	remove_service(this, stream_service_create_tcp);
-#ifndef WIN32
 	remove_stream(this, stream_create_unix);
 	remove_service(this, stream_service_create_unix);
-#endif
 #ifdef USE_SYSTEMD
 	remove_service(this, stream_service_create_systemd);
 #endif
@@ -243,10 +240,8 @@ stream_manager_t *stream_manager_create()
 
 	add_stream(this, "tcp://", stream_create_tcp);
 	add_service(this, "tcp://", stream_service_create_tcp);
-#ifndef WIN32
 	add_stream(this, "unix://", stream_create_unix);
 	add_service(this, "unix://", stream_service_create_unix);
-#endif
 #ifdef USE_SYSTEMD
 	add_service(this, "systemd://", stream_service_create_systemd);
 #endif

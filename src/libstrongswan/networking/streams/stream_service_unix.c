@@ -18,10 +18,104 @@
 
 #include <errno.h>
 #include <unistd.h>
+
+#ifndef WIN32
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/stat.h>
+#else
+#include <windows.h>
+#include <accctrl.h>
+#include <aclapi.h>
+#endif
 
+bool change_owner(int fd, struct sockaddr_un *addr)
+{
+#ifdef WIN32
+    /* Change owner of socket */
+    /* https://docs.microsoft.com/en-us/windows/win32/secauthz/taking-object-ownership-in-c-- */
+	SECURITY_DESCRIPTOR *security_descriptor = malloc(SECURITY_DESCRIPTOR_MIN_LENGTH);
+	SECURITY_ATTRIBUTES security_attributes = {
+		.nLength = sizeof(SECURITY_ATTRIBUTES),
+		.bInheritHandle = FALSE,
+	};;
+	PACL pACL = NULL;
+	EXPLICIT_ACCESS ea[2];
+	SID *pAdminSID = NULL;
+	SID_IDENTIFIER_AUTHORITY SIDAuthNT = SECURITY_NT_AUTHORITY;
+
+	char buf[512];
+	int ret;
+        /* BUILTIN\Administrator  */
+	if(!AllocateAndInitializeSid(&SIDAuthNT, 2,
+                     SECURITY_BUILTIN_DOMAIN_RID,
+                     DOMAIN_ALIAS_RID_ADMINS,
+                     0, 0, 0, 0, 0, 0,
+                     (void **) &pAdminSID)) 
+	{
+		DBG1(DBG_LIB, "Failed to initialize SID: %s", dlerror_mt(buf, sizeof(buf)));
+		goto cleanup;
+	}
+
+	memset(ea, 0, sizeof(EXPLICIT_ACCESS));
+	ea[0].grfAccessPermissions = KEY_ALL_ACCESS;
+	ea[0].grfAccessMode = SET_ACCESS;
+	ea[0].grfInheritance= NO_INHERITANCE;
+	ea[0].Trustee.TrusteeForm = TRUSTEE_IS_SID;
+	ea[0].Trustee.TrusteeType = TRUSTEE_IS_GROUP;
+	ea[0].Trustee.ptstrName  = (LPTSTR) pAdminSID;
+	if (!InitializeSecurityDescriptor(security_descriptor, SECURITY_DESCRIPTOR_REVISION))
+	{
+		DBG1(DBG_LIB, "Failed to initialize security descriptor: %s", dlerror_mt(buf, sizeof(buf)));
+		goto cleanup;
+	}
+	if ((ret=SetEntriesInAcl(1, ea, NULL, &pACL)) != ERROR_SUCCESS)
+	{
+		DBG1(DBG_LIB, "Failed to set ACL entries: %s", human_readable_error(buf, ret, sizeof(buf)));
+		goto cleanup;		
+	}
+	if (!(ret=SetSecurityDescriptorDacl(security_descriptor, TRUE, pACL, FALSE)))
+	{
+		DBG1(DBG_LIB, "Failed to set security descriptor in ACL: %s", dlerror_mt(buf, sizeof(buf)));
+		goto cleanup;
+	}
+	security_attributes.lpSecurityDescriptor = security_descriptor; 
+
+        if(SetNamedSecurityInfo(
+        addr->sun_path,
+        SE_FILE_OBJECT,
+        DACL_SECURITY_INFORMATION,
+        NULL, NULL,                  
+        pACL,                        
+        NULL) != ERROR_SUCCESS)
+        {
+            ret = TRUE;
+        }
+        
+cleanup:
+        FreeSid(pAdminSID);
+        return ret;
+#else
+	if (lib->caps->check(lib->caps, CAP_CHOWN))
+	{
+		if (chown(addr->sun_path, lib->caps->get_uid(lib->caps),
+				  lib->caps->get_gid(lib->caps)) != 0)
+		{
+			DBG1(DBG_NET, "changing socket owner/group for '%s' failed: %s",
+				 addr->sun_path, strerror(errno));
+		}
+	}
+	else
+	{
+		if (chown(addr->sun_path, -1, lib->caps->get_gid(lib->caps)) != 0)
+		{
+			DBG1(DBG_NET, "changing socket group for '%s' failed: %s",
+				 addr->sun_path, strerror(errno));
+		}
+	}
+        return TRUE;
+#endif
+}
 /**
  * See header
  */
@@ -64,23 +158,10 @@ stream_service_t *stream_service_create_unix(char *uri, int backlog)
 	 * dropping caps. This requires the user that charon starts as to:
 	 * a) Have write access to the socket dir.
 	 * b) Belong to the group that charon will run under after dropping caps. */
-	if (lib->caps->check(lib->caps, CAP_CHOWN))
-	{
-		if (chown(addr.sun_path, lib->caps->get_uid(lib->caps),
-				  lib->caps->get_gid(lib->caps)) != 0)
-		{
-			DBG1(DBG_NET, "changing socket owner/group for '%s' failed: %s",
-				 uri, strerror(errno));
-		}
-	}
-	else
-	{
-		if (chown(addr.sun_path, -1, lib->caps->get_gid(lib->caps)) != 0)
-		{
-			DBG1(DBG_NET, "changing socket group for '%s' failed: %s",
-				 uri, strerror(errno));
-		}
-	}
+        if (!change_owner(fd, &addr))
+        {
+            DBG1(DBG_NET, "Failed to change owner of socket '%s': %s", uri, strerror(errno));
+        }
 	if (listen(fd, backlog) < 0)
 	{
 		DBG1(DBG_NET, "listen on socket '%s' failed: %s", uri, strerror(errno));

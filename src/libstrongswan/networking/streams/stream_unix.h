@@ -20,8 +20,11 @@
 
 #ifndef STREAM_UNIX_H_
 #define STREAM_UNIX_H_
-
+#ifdef WIN32
+#include <utils/compat/unix.h>
+#else
 #include <sys/un.h>
+#endif
 
 /**
  * Create a stream for UNIX sockets.
