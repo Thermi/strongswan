@@ -35,17 +35,14 @@ bool change_owner(int fd, struct sockaddr_un *addr)
     /* Change owner of socket */
     /* https://docs.microsoft.com/en-us/windows/win32/secauthz/taking-object-ownership-in-c-- */
 	SECURITY_DESCRIPTOR *security_descriptor = malloc(SECURITY_DESCRIPTOR_MIN_LENGTH);
-	SECURITY_ATTRIBUTES security_attributes = {
-		.nLength = sizeof(SECURITY_ATTRIBUTES),
-		.bInheritHandle = FALSE,
-	};;
+
 	PACL pACL = NULL;
 	EXPLICIT_ACCESS ea[2];
 	SID *pAdminSID = NULL;
 	SID_IDENTIFIER_AUTHORITY SIDAuthNT = SECURITY_NT_AUTHORITY;
 
 	char buf[512];
-	int ret;
+	int ret = FALSE;
         /* BUILTIN\Administrator  */
 	if(!AllocateAndInitializeSid(&SIDAuthNT, 2,
                      SECURITY_BUILTIN_DOMAIN_RID,
