@@ -1273,6 +1273,28 @@ if test x$bfd_backtraces = xtrue; then
 		[AC_MSG_ERROR([binutils bfd.h header not found!])])
 	BFDLIB="-lbfd"
 	AC_SUBST(BFDLIB)
+	AC_CHECK_DECLS([bfd_get_section_flags, bfd_section_flags, bfd_get_section_vma, bfd_section_vma],
+		       [], [], [#include <bfd.h>])
+	AC_MSG_CHECKING([bfd_section_size API version])
+	AC_LANG_PUSH([C])
+	SAVE_CFLAGS="$CFLAGS"
+	AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+		#include <stdlib.h>
+		#include <bfd.h>
+		int main(int argc, char** argv) {
+			asection *sec = malloc(sizeof(*sec));
+			bfd_section_size(sec);
+			free(sec);
+			return 0;
+		} ]])],
+		[AC_MSG_RESULT([1-arg API])
+		 AC_DEFINE([HAVE_1_ARG_BFD_SECTION_SIZE], [1],
+			   [bfd_section_size 1-arg version])],
+		[AC_MSG_RESULT([2-args API])
+		 AC_DEFINE([HAVE_1_ARG_BFD_SECTION_SIZE], [0],
+			   [bfd_section_size 2-args version])])
+	CFLAGS="$SAVE_CFLAGS"
+	AC_LANG_POP([C])	
 fi
 
 if test x$unwind_backtraces = xtrue; then

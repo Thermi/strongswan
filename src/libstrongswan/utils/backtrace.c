@@ -248,12 +248,12 @@ static void find_addr(bfd *abfd, asection *section, bfd_find_data_t *data)
 	char fbuf[512] = "", sbuf[512] = "";
 	u_int line;
 
-	if (!data->found || (bfd_get_section_flags(abfd, section) & SEC_ALLOC) != 0)
+	if (!data->found || (ss_compat_bfd_section_flags(abfd, section) & SEC_ALLOC) != 0)
 	{
-		vma = bfd_get_section_vma(abfd, section);
+		vma = ss_compat_bfd_section_vma(abfd, section);
 		if (data->vma >= vma)
 		{
-			size = bfd_get_section_size(section);
+			size = ss_compat_bfd_section_size(abfd, section);
 			if (data->vma < vma + size)
 			{
 				data->found = bfd_find_nearest_line(abfd, section,

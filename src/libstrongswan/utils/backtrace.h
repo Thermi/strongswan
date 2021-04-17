@@ -27,6 +27,29 @@ typedef struct backtrace_t backtrace_t;
 
 #include <library.h>
 
+#if HAVE_DECL_BFD_GET_SECTION_FLAGS == 1
+#  define ss_compat_bfd_section_flags(_abfd, _section) \
+    bfd_get_section_flags(_abfd, _section)
+#else
+#  define ss_compat_bfd_section_flags(_abfd, _section) \
+    bfd_section_flags(_section)
+#endif
+#if HAVE_DECL_BFD_GET_SECTION_VMA == 1
+#  define ss_compat_bfd_section_vma(_abfd, _section) \
+    bfd_get_section_vma(_abfd, _section)    
+#else
+#  define ss_compat_bfd_section_vma(_abfd, _section) \
+    bfd_section_vma(_section)    
+#endif
+#if HAVE_1_ARG_BFD_SECTION_SIZE == 1
+#  define ss_compat_bfd_section_size(_abfd, _section) \
+    bfd_section_size(_section)
+#else
+#  define ss_compat_bfd_section_size(_abfd, _section) \
+    bfd_section_size(_abfd, _section);        
+#endif
+
+
 /**
  * A backtrace registers the frames on the stack during creation.
  */
