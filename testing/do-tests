@@ -447,8 +447,8 @@ do
 		{
 			next
 		}
-		printf("cmd_err=\044(tempfile -p test -s err); ")
-		printf("cmd_out=\044(tempfile -p test -s out); ")
+		printf("cmd_err=\044(mktemp --suffix err testXXXXXXXX); ")
+		printf("cmd_out=\044(mktemp --suffix out testXXXXXXXX); ")
 		if (command == "tcpdump")
 		{
 			printf("if [ \044TDUP_%s == \"true\" ]; then stop_tcpdump %s; fi; \n", host, host)
