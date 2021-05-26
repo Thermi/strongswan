@@ -739,6 +739,13 @@ if MONOLITHIC
 endif
 endif
 
+if USE_BLOCK_DNS
+  SUBDIRS += plugins/block_dns
+if MONOLITHIC
+  libcharon_la_LIBADD += plugins/block_dns/libstrongswan-block-dns.la
+endif
+endif
+
 if MONOLITHIC
   SUBDIRS += .
 endif
