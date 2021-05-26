@@ -55,8 +55,21 @@ if !USE_WINDOWS
     threading/rwlock.c \
     threading/spinlock.c \
     threading/semaphore.c \
-    networking/streams/stream_unix.c \
-    networking/streams/stream_service_unix.c
+    networking/tun_device.c
+else
+  libstrongswan_la_SOURCES += \
+    threading/windows/thread.c \
+    threading/windows/thread_value.c \
+    threading/windows/mutex.c \
+    threading/windows/rwlock.c \
+    threading/windows/spinlock.c \
+    threading/windows/semaphore.c \
+    utils/compat/windows.c \
+    utils/windows_helper.c \
+    networking/windows_tun.c
+if USE_WINTUN
+  libstrongswan_la_SOURCES += networking/wintun_support.c
+endif
 endif
 
 # private header files
@@ -100,7 +113,7 @@ credentials/auth_cfg.h credentials/credential_set.h credentials/cert_validator.h
 database/database.h database/database_factory.h fetcher/fetcher.h \
 fetcher/fetcher_manager.h eap/eap.h pen/pen.h ipsec/ipsec_types.h \
 networking/host.h networking/host_resolver.h networking/packet.h \
-networking/tun_device.h networking/streams/stream.h \
+networking/streams/stream.h \
 networking/streams/stream_unix.h networking/streams/stream_service_unix.h \
 networking/streams/stream_service_systemd.h \
 networking/streams/stream_tcp.h networking/streams/stream_service_tcp.h \
@@ -123,6 +136,18 @@ utils/utils/strerror.h utils/compat/windows.h utils/compat/apple.h utils/compat/
 utils/utils/atomics.h utils/utils/types.h utils/utils/byteorder.h \
 utils/utils/string.h utils/utils/memory.h utils/utils/tty.h utils/utils/path.h \
 utils/utils/status.h utils/utils/object.h utils/utils/time.h utils/utils/align.h
+if USE_WINDOWS
+  nobase_strongswan_include_HEADERS += \
+    utils/windows_helper.h \
+    networking/windows_tun.h
+if USE_WINTUN
+ nobase_strongswan_include_HEADERS += \
+   networking/wintun_support.h
+endif
+else
+ nobase_strongswan_include_HEADERS += \
+    networking/tun_device.h
+endif
 endif
 
 library.lo :	$(top_builddir)/config.status
@@ -156,10 +181,14 @@ if USE_WINDOWS
     threading/windows/spinlock.c \
     threading/windows/semaphore.c \
     utils/compat/windows.c
+  libstrongswan_la_LIBADD += -lws2_32 -lpsapi -lcfgmgr32 -lsetupapi
 else
   libstrongswan_la_LIBADD += $(PTHREADLIB)
 endif
 
+if USE_WINTUN
+    libstrongswan_la_LIBADD += -lwinpthread
+endif
 if USE_DBGHELP
   libstrongswan_la_LIBADD += -ldbghelp
   AM_CPPFLAGS += -DHAVE_DBGHELP

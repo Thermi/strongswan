@@ -333,6 +333,7 @@ ARG_ENABL_SET([leak-detective], [enable malloc hooks to find memory leaks.])
 ARG_ENABL_SET([lock-profiler],  [enable lock/mutex profiling code.])
 ARG_ENABL_SET([log-thread-ids], [use thread ID, if available, instead of an incremented value starting from 1, to identify threads.])
 ARG_ENABL_SET([monolithic],     [build monolithic version of libstrongswan that includes all enabled plugins. Similarly, the plugins of charon are assembled in libcharon.])
+ARG_ENABL_SET([wintun],		[enable wintun TUN driver support.])
 
 # ===================================
 #  option to disable default options
@@ -1821,6 +1822,7 @@ AM_CONDITIONAL(USE_PYTHON_EGGS, test x$python_eggs = xtrue)
 AM_CONDITIONAL(USE_PERL_CPAN, test x$perl_cpan = xtrue)
 AM_CONDITIONAL(USE_TOX, test "x$TOX" != x)
 AM_CONDITIONAL(USE_PY_TEST, test "x$PY_TEST" != x -a "x$TOX" = x)
+AM_CONDITIONAL(USE_WINTUN, test "x$wintun" = xtrue)
 
 # ========================
 #  set global definitions
@@ -1852,6 +1854,9 @@ if test x$fuzzing = xtrue; then
 fi
 if test x$imc_swima = xtrue -o x$imv_swima = xtrue; then
 	AC_DEFINE([USE_JSON], [], [build code for JSON])
+fi
+if test x$wintun = xtrue; then
+	AC_DEFINE([USE_WINTUN], [], [Build in wintun TUN driver support])
 fi
 
 # ====================================================

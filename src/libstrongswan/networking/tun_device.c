@@ -26,7 +26,9 @@
 #if !TARGET_OS_OSX
 #define TUN_DEVICE_NOT_SUPPORTED
 #endif
-#elif !defined(__linux__) && !defined(HAVE_NET_IF_TUN_H)
+#endif
+
+#if ! (defined(__linux__) || defined(HAVE_NET_IF_TUN_H) || defined(USE_WINTUN))
 #define TUN_DEVICE_NOT_SUPPORTED
 #endif
 
@@ -222,31 +224,8 @@ static bool set_address_impl(private_tun_device_t *this, host_t *addr,
 		return FALSE;
 	}
 	return TRUE;
-}
 
 #endif /* __FreeBSD__ */
-
-METHOD(tun_device_t, set_address, bool,
-	private_tun_device_t *this, host_t *addr, uint8_t netmask)
-{
-	if (!set_address_impl(this, addr, netmask))
-	{
-		return FALSE;
-	}
-	DESTROY_IF(this->address);
-	this->address = addr->clone(addr);
-	this->netmask = netmask;
-	return TRUE;
-}
-
-METHOD(tun_device_t, get_address, host_t*,
-	private_tun_device_t *this, uint8_t *netmask)
-{
-	if (netmask && this->address)
-	{
-		*netmask = this->netmask;
-	}
-	return this->address;
 }
 
 METHOD(tun_device_t, up, bool,
@@ -313,6 +292,30 @@ METHOD(tun_device_t, get_mtu, int,
 		this->mtu = ifr.ifr_mtu;
 	}
 	return this->mtu;
+}
+
+
+METHOD(tun_device_t, set_address, bool,
+	private_tun_device_t *this, host_t *addr, uint8_t netmask)
+{
+	if (!set_address_impl(this, addr, netmask))
+	{
+		return FALSE;
+	}
+	DESTROY_IF(this->address);
+	this->address = addr->clone(addr);
+	this->netmask = netmask;
+	return TRUE;
+}
+
+METHOD(tun_device_t, get_address, host_t*,
+	private_tun_device_t *this, uint8_t *netmask)
+{
+	if (netmask && this->address)
+	{
+		*netmask = this->netmask;
+	}
+	return this->address;
 }
 
 METHOD(tun_device_t, get_name, char*,
@@ -408,12 +411,9 @@ METHOD(tun_device_t, destroy, void,
 	free(this);
 }
 
-/**
- * Initialize the tun device
- */
-static bool init_tun(private_tun_device_t *this, const char *name_tmpl)
+bool init_tun(private_tun_device_t *this, const char *name_tmpl)
 {
-#ifdef __APPLE__
+#if defined(__APPLE__)
 
 	struct ctl_info info;
 	struct sockaddr_ctl addr;
@@ -533,8 +533,7 @@ static bool init_tun(private_tun_device_t *this, const char *name_tmpl)
 		DBG1(DBG_LIB, "failed to open %s: %s", this->if_name, strerror(errno));
 	}
 	return this->tunfd > 0;
-
-#endif /* !__APPLE__ */
+#endif
 }
 
 /*
