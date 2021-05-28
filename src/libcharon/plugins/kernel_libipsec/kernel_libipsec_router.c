@@ -30,6 +30,7 @@
 #include <threading/rwlock.h>
 #include <threading/thread.h>
 #include <processing/jobs/callback_job.h>
+#include <processing/jobs/acquire_job.h>
 
 typedef struct private_kernel_libipsec_router_t private_kernel_libipsec_router_t;
 
@@ -142,6 +143,19 @@ static bool tun_entry_equals(tun_entry_t *a, tun_entry_t *b)
 static void send_esp(void *data, esp_packet_t *packet)
 {
 	charon->sender->send_no_marker(charon->sender, (packet_t*)packet);
+}
+
+/**
+ * Raise an acquire event
+ */
+static void raise_acquire(void *data, uint32_t reqid,
+			  traffic_selector_t *source_ts,
+			  traffic_selector_t *destination_ts)
+{
+	lib->processor->queue_job(lib->processor, (job_t *) acquire_job_create(
+		 reqid,
+		 source_ts,
+		 destination_ts));
 }
 
 /**
@@ -543,6 +557,8 @@ METHOD(kernel_libipsec_router_t, destroy, void,
 										 (ipsec_outbound_cb_t)send_esp);
 	ipsec->processor->unregister_inbound(ipsec->processor,
 										 (ipsec_inbound_cb_t)deliver_plain);
+	ipsec->processor->unregister_acquire(ipsec->processor,
+		 (ipsec_acquire_cb_t)raise_acquire);
 	charon->kernel->remove_listener(charon->kernel, &this->public.listener);
 #ifdef WIN32
 	SetEvent(this->event);
