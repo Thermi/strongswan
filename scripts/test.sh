@@ -186,7 +186,7 @@ elif [ -e /usr/lib/os-release ]; then
 fi
 
 TARGET=check
-: ${STRONGSWAN_TEST_SH_DEPS-="libgmp-dev"}
+: ${STRONGSWAN_TEST_SH_DEPS-="libgmp-dev ccache gettext libtool tzdata"}
 declare -g DEPS="$STRONGSWAN_TEST_SH_DEPS"
 
 CFLAGS="-g -O2 -Wall -Wno-format -Wno-format-security -Wno-pointer-sign -Werror"
