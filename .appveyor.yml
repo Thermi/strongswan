@@ -155,5 +155,18 @@ for:
     - set CCACHE_DIR=C:\CCACHE
     - set MSYS_SH=C:\msys%BITS%\usr\bin\sh.exe
     - set MSYSTEM=MINGW%BITS%
+    # update msys2
+    - '%MSYS_SH% --login -c ". /etc/profile && curl -O http://repo.msys2.org/msys/x86_64/msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz"'
+    - '%MSYS_SH% --login -c ". /etc/profile && curl -O http://repo.msys2.org/msys/x86_64/msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig"'
+    - '%MSYS_SH% --login -c ". /etc/profile && pacman-key --verify msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig"'
+    - '%MSYS_SH% --login -c ". /etc/profile && pacman -U --noconfirm msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz"'
+    - ps: Get-Process | Where-Object {$_.path -like 'C:\msys64*'} | Stop-Process
+      # Update zstd and pacman https://github.com/msys2/MSYS2-packages/issues/2300
+    - '%MSYS_SH% --login -c ". /etc/profile && pacman --noconfirm --upgrade https://repo.msys2.org/msys/x86_64/zstd-1.4.7-1-x86_64.pkg.tar.xz"'
+    - '%MSYS_SH% --login -c ". /etc/profile && pacman --noconfirm --upgrade https://repo.msys2.org/msys/x86_64/pacman-5.2.2-5-x86_64.pkg.tar.xz"'
+    - '%MSYS_SH% --login -c ". /etc/profile && pacman --needed --noconfirm -Sy --overwrite /etc/pacman.d/\* pacman-mirrors"'
+    - '%MSYS_SH% --login -c ". /etc/profile && pacman --noconfirm -Syu"'
+    - '%MSYS_SH% --login -c ". /etc/profile && pacman --noconfirm -Sy autoconf automake bison flex git"'
+
 artifacts:
     - path: config.h
