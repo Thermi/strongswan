@@ -169,8 +169,8 @@ for:
     - '%MSYS_SH% --login -c ". /etc/profile && pacman --noconfirm -Sy autoconf automake bison flex gperf gettext mingw-w64-x86_64-gmp gmp ccache unzip git"'
 
 artifacts:
-    - path: config.h
-    - path: config.log
+  - path: config.h
+  - path: config.log
 
 on_failure:
   - appveyor PushArtifact config.log
