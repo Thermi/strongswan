@@ -1,35 +1,51 @@
-#!/bin/sh
+#!/bin/bash
 # Build script for CI
+set -x
+
+fix_msys2() {
+        curl -O https://www2.futureware.at/~nickoe/msys2-mirror/msys/i686/msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz | exit 1
+        curl -O https://www2.futureware.at/~nickoe/msys2-mirror/msys/i686/msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig | exit 1
+        pacman-key --verify msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz.sig || exit 1
+        pacman -U --noconfirm msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz
+        rm msys2-keyring-r21.b39fb11-1-any.pkg.tar.xz*
+        pacman --noconfirm -Sydd pacman
+}
 
 build_botan()
 {
 	# same revision used in the build recipe of the testing environment
-	BOTAN_REV=2.18.0
+	BOTAN_REV=2.15.0
 	BOTAN_DIR=$DEPS_BUILD_DIR/botan
 
 	if test -d "$BOTAN_DIR"; then
-		return
+		cd $BOTAN_DIR
+	else
+		echo "$ build_botan()"
+
+		# if the leak detective is enabled we have to disable threading support
+		# (used for std::async) as that causes invalid frees somehow, the
+		# locking allocator causes a static leak via the first function that
+		# references it (e.g. crypter or hasher), so we disable that too
+		if test "$LEAK_DETECTIVE" = "yes"; then
+			BOTAN_CONFIG="--without-os-features=threads
+						  --disable-modules=locking_allocator"
+		fi
+		# disable some larger modules we don't need for the tests
+		BOTAN_CONFIG="$BOTAN_CONFIG --disable-modules=pkcs11,tls,x509,xmss
+					  --prefix=$DEPS_PREFIX"
+
+		git clone https://github.com/randombit/botan.git $BOTAN_DIR &&
+		cd $BOTAN_DIR &&
+		git checkout -qf $BOTAN_REV &&
+		python ./configure.py --amalgamation $BOTAN_CONFIG &&
+		make -j4 libs >/dev/null
 	fi
 
-	echo "$ build_botan()"
-
-	# if the leak detective is enabled we have to disable threading support
-	# (used for std::async) as that causes invalid frees somehow, the
-	# locking allocator causes a static leak via the first function that
-	# references it (e.g. crypter or hasher), so we disable that too
-	if test "$LEAK_DETECTIVE" = "yes"; then
-		BOTAN_CONFIG="--without-os-features=threads
-					  --disable-modules=locking_allocator"
+	ret=$?
+	if [ $ret != 0 ]
+	then
+		exit $ret
 	fi
-	# disable some larger modules we don't need for the tests
-	BOTAN_CONFIG="$BOTAN_CONFIG --disable-modules=pkcs11,tls,x509,xmss
-				  --prefix=$DEPS_PREFIX"
-
-	git clone https://github.com/randombit/botan.git $BOTAN_DIR &&
-	cd $BOTAN_DIR &&
-	git checkout -qf $BOTAN_REV &&
-	python ./configure.py --amalgamation $BOTAN_CONFIG &&
-	make -j4 libs >/dev/null &&
 	sudo make install >/dev/null &&
 	sudo ldconfig || exit $?
 	cd -
@@ -37,30 +53,35 @@ build_botan()
 
 build_wolfssl()
 {
-	WOLFSSL_REV=v4.7.0-stable
+	WOLFSSL_REV=v4.4.0-stable
 	WOLFSSL_DIR=$DEPS_BUILD_DIR/wolfssl
 
 	if test -d "$WOLFSSL_DIR"; then
-		return
+		cd $WOLFSSL_DIR
+	else
+		echo "$ build_wolfssl()"
+
+		WOLFSSL_CFLAGS="-DWOLFSSL_PUBLIC_MP -DWOLFSSL_DES_ECB"
+		WOLFSSL_CONFIG="--prefix=$DEPS_PREFIX
+			--disable-crypttests --disable-examples
+			--enable-keygen --enable-rsapss --enable-aesccm
+			--enable-aesctr --enable-des3 --enable-camellia
+			--enable-curve25519 --enable-ed25519
+			--enable-curve448 --enable-ed448
+			--enable-sha3 --enable-shake256"
+		git clone https://github.com/wolfSSL/wolfssl.git $WOLFSSL_DIR &&
+		cd $WOLFSSL_DIR &&
+		git checkout -qf $WOLFSSL_REV &&
+		./autogen.sh &&
+		./configure C_EXTRA_FLAGS="$WOLFSSL_CFLAGS" $WOLFSSL_CONFIG &&
+		make -j4 >/dev/null		
 	fi
-
-	echo "$ build_wolfssl()"
-
-	WOLFSSL_CFLAGS="-DWOLFSSL_PUBLIC_MP -DWOLFSSL_DES_ECB -DHAVE_ECC_BRAINPOOL"
-	WOLFSSL_CONFIG="--prefix=$DEPS_PREFIX
-					--disable-crypttests --disable-examples
-					--enable-keygen --enable-rsapss --enable-aesccm
-					--enable-aesctr --enable-des3 --enable-camellia
-					--enable-curve25519 --enable-ed25519
-					--enable-curve448 --enable-ed448
-					--enable-sha3 --enable-shake256 --enable-ecccustcurves"
-
-	git clone https://github.com/wolfSSL/wolfssl.git $WOLFSSL_DIR &&
-	cd $WOLFSSL_DIR &&
-	git checkout -qf $WOLFSSL_REV &&
-	./autogen.sh &&
-	./configure C_EXTRA_FLAGS="$WOLFSSL_CFLAGS" $WOLFSSL_CONFIG &&
-	make -j4 >/dev/null &&
+	
+	ret=$?
+	if [ $ret != 0 ]
+	then
+		exit $ret
+	fi
 	sudo make install >/dev/null &&
 	sudo ldconfig || exit $?
 	cd -
@@ -68,29 +89,95 @@ build_wolfssl()
 
 build_tss2()
 {
-	TSS2_REV=2.4.3
+	TSS2_REV=2.4.1
 	TSS2_PKG=tpm2-tss-$TSS2_REV
 	TSS2_DIR=$DEPS_BUILD_DIR/$TSS2_PKG
 	TSS2_SRC=https://github.com/tpm2-software/tpm2-tss/releases/download/$TSS2_REV/$TSS2_PKG.tar.gz
 
 	if test -d "$TSS2_DIR"; then
-		return
+		# install tss2
+		cd "$TSS2_DIR"
+	else
+		echo "$ build_tss2()"
+
+		curl -L $TSS2_SRC | tar xz -C $DEPS_BUILD_DIR &&
+		cd $TSS2_DIR &&
+		./configure --prefix=$DEPS_PREFIX --disable-doxygen-doc &&
+		make -j4 >/dev/null
 	fi
 
-	echo "$ build_tss2()"
+	ret=$?
+	if [ $ret != 0 ]
+	then
+		exit $ret
+	fi
 
-	curl -L $TSS2_SRC | tar xz -C $DEPS_BUILD_DIR &&
-	cd $TSS2_DIR &&
-	./configure --prefix=$DEPS_PREFIX --disable-doxygen-doc &&
-	make -j4 >/dev/null &&
 	sudo make install >/dev/null &&
 	sudo ldconfig || exit $?
 	cd -
 }
 
-: ${BUILD_DIR=$PWD}
-: ${DEPS_BUILD_DIR=$BUILD_DIR/..}
+fix_timezone() {
+	if test -e /etc/timezone ; then
+		return 0
+	fi
+	if test -n "$TZ"; then
+		echo "TZ var not set. Defaulting to UTC timezone." >&2
+	fi
+	: ${TZ:=UTC}
+	echo "$TZ" > /etc/timezone
+	dpkg-reconfigure -f noninteractive tzdata || true
+}
+
+install_deps() {
+	# configure.ac checks against the easy_install file in $PATH, which is only provided by the PIP egg, not the Ubuntu package!
+	: ${DEPS:=FOO}
+	case "$TRAVIS_OS_NAME" in
+	osx)
+		brew update && \
+		brew install ${DEPS}
+		;;
+	freebsd)
+		pkg install -y automake autoconf libtool pkgconf && \
+		pkg install -y bison flex gperf gettext ${DEPS}
+		;;
+	linux)
+		sudo apt-get update -qq && \
+		sudo apt-get install -qq bison flex gperf gettext ${DEPS}
+		;;
+	esac
+
+    case "$APPVEYOR" in
+    true)
+        sudo apt-get install -qq bison flex gperf gettext pkg-config ${DEPS}
+        ;;
+    True)
+        pacman --noconfirm -Sy bison flex gperf gettext mingw-w64-x86_64-gmp gmp ccache unzip
+        ;;
+    esac
+}
+
+appveyor_set_vars() {
+    if test -n "$APPVEYOR"
+    then
+        case "$APPVEYOR" in
+        True)
+            declare -g TRAVIS_OS_NAME=windows
+        ;;   
+        *)
+            # Ubuntu or unknown
+            declare -g TRAVIS_OS_NAME=linux
+        ;;
+        esac
+        declare -g TRAVIS_COMMIT="$APPVEYOR_REPO_COMMIT" \
+                TRAVIS_BUILD_NUMBER="$APPVEYOR_BUILD_NUMBER"
+    fi
+}
+: ${TRAVIS_BUILD_DIR=$PWD}
+: ${DEPS_BUILD_DIR=$TRAVIS_BUILD_DIR/..}
 : ${DEPS_PREFIX=/usr/local}
+
+appveyor_set_vars
 
 if [ -e /etc/os-release ]; then
 	. /etc/os-release
@@ -103,6 +190,20 @@ TARGET=check
 DEPS="libgmp-dev"
 
 CFLAGS="-g -O2 -Wall -Wno-format -Wno-format-security -Wno-pointer-sign -Werror"
+
+#True is Windows, true is Ubuntu
+# no sudo on Windows
+if test "$APPVEYOR" = "True"; then
+    alias sudo=""
+fi
+export DEBIAN_FRONTEND=noninteractive
+
+# Make sure the printf-builtin test on AppVeyor (Windows platform) runs the
+# windows compatible path and not the Linux/Unix specific path
+if test "$TEST" == "printf-builtin" -a "$APPVEYOR" == "True"
+then
+    TEST=win64
+fi
 
 case "$TEST" in
 default)
@@ -157,10 +258,12 @@ all|coverage|sonarcloud)
 			--disable-osx-attr --disable-tkm --disable-uci
 			--disable-unwind-backtraces
 			--disable-svc --disable-dbghelp-backtraces --disable-socket-win
-			--disable-kernel-wfp --disable-kernel-iph --disable-winhttp
-			--disable-python-eggs-install"
+			--disable-kernel-wfp --disable-kernel-iph --disable-winhttp"
 	# not enabled on the build server
 	CONFIG="$CONFIG --disable-af-alg"
+	if test "$TRAVIS_CPU_ARCH" != "amd64"; then
+		CONFIG="$CONFIG --disable-aesni --disable-rdrand"
+	fi
 	if test "$TEST" != "coverage"; then
 		CONFIG="$CONFIG --disable-coverage"
 	else
@@ -228,6 +331,7 @@ win*)
 	esac
 	;;
 android)
+	DEPS="$DEPS openjdk-8-jdk"
 	if test "$1" = "deps"; then
 		git clone git://git.strongswan.org/android-ndk-boringssl.git -b ndk-static \
 			src/frontends/android/app/src/main/jni/openssl
@@ -320,7 +424,7 @@ dist)
 	TARGET=distcheck
 	;;
 apidoc)
-	DEPS="doxygen"
+	DEPS="gettext doxygen libtool"
 	CONFIG="--disable-defaults"
 	TARGET=apidoc
 	;;
@@ -394,10 +498,13 @@ esac
 
 case "$1" in
 deps)
-	case "$OS_NAME" in
+	case "$TRAVIS_OS_NAME" in
 	linux)
 		sudo apt-get update -qq && \
 		sudo apt-get install -qq bison flex gperf gettext $DEPS
+		install_deps
+		fix_timezone
+		exit 0
 		;;
 	macos)
 		brew update && \
@@ -407,11 +514,15 @@ deps)
 		pkg install -y automake autoconf libtool pkgconf && \
 		pkg install -y bison flex gperf gettext $DEPS
 		;;
+    windows)
+        fix_msys2
+        install_deps
+        ;;
 	esac
 	exit $?
 	;;
 pydeps)
-	test -z "$PYDEPS" || pip3 -q install --user $PYDEPS
+	test -z "$PYDEPS" || pip -q install --user $PYDEPS
 	exit $?
 	;;
 build-deps)
@@ -429,12 +540,16 @@ CONFIG="$CONFIG
 	--enable-leak-detective=${LEAK_DETECTIVE-no}"
 
 echo "$ ./autogen.sh"
+./autogen.sh || true
+automake --add-missing || true
 ./autogen.sh || exit $?
 echo "$ CC=$CC CFLAGS=\"$CFLAGS\" ./configure $CONFIG"
 CC="$CC" CFLAGS="$CFLAGS" ./configure $CONFIG || exit $?
 
 case "$TEST" in
 apidoc)
+	#disable verbosity or -x output will be written to make.warnings
+	set +x
 	exec 2>make.warnings
 	;;
 *)
@@ -443,10 +558,49 @@ esac
 
 echo "$ make $TARGET"
 case "$TEST" in
-sonarcloud)
-	# without target, coverage is currently not supported anyway because
-	# sonarqube only supports gcov, not lcov
-	build-wrapper-linux-x86-64 --out-dir bw-output make -j4 || exit $?
+*sonarcloud)
+        export SONAR_SCANNER_VERSION=4.2.0.1873
+        # This implicitely (based on .appveyor.yml) only runs on Windows platforms, so travis won't ever run this
+        if [[ "$TEST" == win* ]]
+        then
+            export SONAR_SCANNER_HOME=$DEPS_BUILD_DIR/.sonar/sonar-scanner-$SONAR_SCANNER_VERSION-windows
+            curl --create-dirs -sSLo $DEPS_BUILD_DIR/.sonar/sonar-scanner.zip \
+https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/\sonar-scanner-cli-\
+$SONAR_SCANNER_VERSION-windows.zip || exit $?
+            unzip -o $DEPS_BUILD_DIR/.sonar/sonar-scanner.zip -d $DEPS_BUILD_DIR/.sonar/ || exit $?
+            export PATH=$SONAR_SCANNER_HOME/bin:$PATH
+            export SONAR_SCANNER_OPTS="-server"
+            curl --create-dirs -sSLo $DEPS_BUILD_DIR/.sonar/build-wrapper-win-x86.zip \
+                    https://sonarcloud.io/static/cpp/build-wrapper-win-x86.zip
+            unzip -o $DEPS_BUILD_DIR/.sonar/build-wrapper-win-x86.zip -d $DEPS_BUILD_DIR/.sonar/
+            export PATH=$DEPS_BUILD_DIR/.sonar/build-wrapper-win-x86:$PATH
+            build-wrapper-win-x86-64.exe --out-dir bw-output make -j4 || exit $?
+        else
+            if test -n "$APPVEYOR"
+            then
+                export SONAR_SCANNER_HOME=$HOME/.sonar/sonar-scanner-$SONAR_SCANNER_VERSION-linux
+                curl --create-dirs -sSLo $HOME/.sonar/sonar-scanner.zip \
+                    https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/\
+sonar-scanner-cli-$SONAR_SCANNER_VERSION-linux.zip || exit $?
+                unzip -o $HOME/.sonar/sonar-scanner.zip -d $HOME/.sonar/ || exit $?
+                export PATH=$SONAR_SCANNER_HOME/bin:$PATH
+                export SONAR_SCANNER_OPTS="-server"
+
+                curl --create-dirs -sSLo $HOME/.sonar/build-wrapper-linux-x86.zip \
+                    https://sonarcloud.io/static/cpp/build-wrapper-linux-x86.zip
+                unzip -o $HOME/.sonar/build-wrapper-linux-x86.zip -d $HOME/.sonar/
+                export PATH=$HOME/.sonar/build-wrapper-linux-x86:$PATH
+            fi
+            # there is an issue with the platform detection that causes sonarqube to
+            # fail on bionic with "ERROR: ld.so: object '...libinterceptor-${PLATFORM}.so'
+            # from LD_PRELOAD cannot be preloaded (cannot open shared object file)"
+            # https://jira.sonarsource.com/browse/CPP-2027
+            BW_PATH=$(dirname $(which build-wrapper-linux-x86-64))
+            cp $BW_PATH/libinterceptor-x86_64.so $BW_PATH/libinterceptor-haswell.so
+            # without target, coverage is currently not supported anyway because
+            # sonarqube only supports gcov, not lcov
+            build-wrapper-linux-x86-64 --out-dir bw-output make -j4 || exit $?
+        fi
 	;;
 *)
 	make -j4 $TARGET || exit $?
@@ -461,25 +615,42 @@ apidoc)
 	fi
 	rm make.warnings
 	;;
-sonarcloud)
-	sonar-scanner \
-		-Dsonar.host.url=https://sonarcloud.io \
-		-Dsonar.projectKey=${SONAR_PROJECT} \
-		-Dsonar.organization=${SONAR_ORGANIZATION} \
-		-Dsonar.login=${SONAR_TOKEN} \
-		-Dsonar.projectVersion=$(git describe)+${BUILD_NUMBER} \
-		-Dsonar.sources=. \
-		-Dsonar.cfamily.threads=2 \
-		-Dsonar.cfamily.cache.enabled=true \
-		-Dsonar.cfamily.cache.path=$HOME/.sonar-cache \
-		-Dsonar.cfamily.build-wrapper-output=bw-output || exit $?
+*sonarcloud)
+           case "$TEST" in
+            win*)
+                sonar-scanner.bat -Dsonar.organization=contauro-ag \
+                -Dsonar.projectKey=contauro-ag_strongswan \
+                -Dsonar.projectVersion="$(git describe)+${TRAVIS_BUILD_NUMBER}" \
+                -Dsonar.sources=. \
+                -Dsonar.cfamily.threads=2 \
+                -Dsonar.cfamily.cache.enabled=true \
+                -Dsonar.host.url=https://sonarcloud.io \
+                -Dsonar.cfamily.cache.path=$HOME/.sonar-cache \
+                -Dsonar.cfamily.build-wrapper-output=bw-output \
+                -Dsonar.branch.name=${APPVEYOR_REPO_BRANCH} \
+                -Dsonar.login=${SONARCLOUD_LOGIN}
+            ;;
+            *)
+                sonar-scanner -Dsonar.organization=contauro-ag \
+                -Dsonar.projectKey=contauro-ag_strongswan \
+                -Dsonar.projectVersion="$(git describe)+${TRAVIS_BUILD_NUMBER}" \
+                -Dsonar.sources=. \
+                -Dsonar.cfamily.threads=2 \
+                -Dsonar.cfamily.cache.enabled=true \
+                -Dsonar.host.url=https://sonarcloud.io \
+                -Dsonar.cfamily.cache.path=$HOME/.sonar-cache \
+                -Dsonar.cfamily.build-wrapper-output=bw-output \
+                -Dsonar.branch.name=${APPVEYOR_REPO_BRANCH} \
+                -Dsonar.login=${SONARCLOUD_LOGIN}
+            ;;
+            esac
 	rm -r bw-output .scannerwork
 	;;
 android)
 	rm -r strongswan-*
 	cd src/frontends/android
 	echo "$ ./gradlew build"
-	NDK_CCACHE=ccache ./gradlew build || exit $?
+	NDK_CCACHE=ccache ./gradlew build
 	;;
 *)
 	;;
