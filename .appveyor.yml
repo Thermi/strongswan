@@ -166,7 +166,8 @@ for:
     - '%MSYS_SH% --login -c ". /etc/profile && pacman --noconfirm --upgrade https://repo.msys2.org/msys/x86_64/pacman-5.2.2-5-x86_64.pkg.tar.xz"'
     - '%MSYS_SH% --login -c ". /etc/profile && pacman --needed --noconfirm -Sy --overwrite /etc/pacman.d/\* pacman-mirrors"'
     - '%MSYS_SH% --login -c ". /etc/profile && pacman --noconfirm -Syu"'
-    - '%MSYS_SH% --login -c ". /etc/profile && pacman --noconfirm -Sy autoconf automake bison flex git"'
+    - '%MSYS_SH% --login -c ". /etc/profile && pacman --noconfirm -Sy autoconf automake bison flex gperf gettext mingw-w64-x86_64-gmp gmp ccache unzip git"'
 
 artifacts:
     - path: config.h
+    - path: config.log
