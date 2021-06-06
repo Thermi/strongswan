@@ -171,3 +171,7 @@ for:
 artifacts:
     - path: config.h
     - path: config.log
+
+on_failure:
+  - appveyor PushArtifact config.log
+  - appveyor PushArtifact config.h
