@@ -136,16 +136,13 @@ install_deps() {
 		sudo apt-get update -qq && \
 		sudo apt-get install -qq bison flex gperf gettext ${DEPS}
 		;;
+	windows)
+		pacman --noconfirm -Sy bison flex gperf gettext mingw-w64-x86_64-gmp gmp ccache unzip $DEPS
+		;;
+	*)
+		echo "Unknown TRAVIS_OS_NAME $TRAVIS_OS_NAME, aborting" >&2
+	;;
 	esac
-
-    case "$APPVEYOR" in
-    true)
-        sudo apt-get install -qq bison flex gperf gettext pkg-config ${DEPS}
-        ;;
-    True)
-        pacman --noconfirm -Sy bison flex gperf gettext mingw-w64-x86_64-gmp gmp ccache unzip
-        ;;
-    esac
 }
 
 appveyor_set_vars() {
