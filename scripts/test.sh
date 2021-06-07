@@ -5,7 +5,7 @@ set -x
 build_botan()
 {
 	# same revision used in the build recipe of the testing environment
-	BOTAN_REV=2.15.0
+	BOTAN_REV=2.18.0
 	BOTAN_DIR=$DEPS_BUILD_DIR/botan
 
 	if test -d "$BOTAN_DIR"; then
@@ -44,7 +44,7 @@ build_botan()
 
 build_wolfssl()
 {
-	WOLFSSL_REV=v4.4.0-stable
+	WOLFSSL_REV=v4.7.0-stable
 	WOLFSSL_DIR=$DEPS_BUILD_DIR/wolfssl
 
 	if test -d "$WOLFSSL_DIR"; then
@@ -80,7 +80,7 @@ build_wolfssl()
 
 build_tss2()
 {
-	TSS2_REV=2.4.1
+	TSS2_REV=2.4.3
 	TSS2_PKG=tpm2-tss-$TSS2_REV
 	TSS2_DIR=$DEPS_BUILD_DIR/$TSS2_PKG
 	TSS2_SRC=https://github.com/tpm2-software/tpm2-tss/releases/download/$TSS2_REV/$TSS2_PKG.tar.gz
