@@ -123,7 +123,7 @@ fix_timezone() {
 install_deps() {
 	# configure.ac checks against the easy_install file in $PATH, which is only provided by the PIP egg, not the Ubuntu package!
 	: ${DEPS:=FOO}
-	case "$TRAVIS_OS_NAME" in
+	case "$OS_NAME" in
 	osx)
 		brew update && \
 		brew install ${DEPS}
@@ -140,7 +140,7 @@ install_deps() {
 		pacman --noconfirm -Sy bison flex gperf gettext mingw-w64-x86_64-gmp gmp ccache unzip $DEPS
 		;;
 	*)
-		echo "Unknown TRAVIS_OS_NAME $TRAVIS_OS_NAME, aborting" >&2
+		echo "Unknown OS_NAME $OS_NAME, aborting" >&2
 	;;
 	esac
 }
@@ -150,19 +150,19 @@ appveyor_set_vars() {
     then
         case "$APPVEYOR" in
         True)
-            declare -g TRAVIS_OS_NAME=windows
+            declare -g OS_NAME=windows
         ;;   
         *)
             # Ubuntu or unknown
-            declare -g TRAVIS_OS_NAME=linux
+            declare -g OS_NAME=linux
         ;;
         esac
-        declare -g TRAVIS_COMMIT="$APPVEYOR_REPO_COMMIT" \
-                TRAVIS_BUILD_NUMBER="$APPVEYOR_BUILD_NUMBER"
+        declare -g COMMIT="$APPVEYOR_REPO_COMMIT" \
+                BUILD_NUMBER="$APPVEYOR_BUILD_NUMBER"
     fi
 }
-: ${TRAVIS_BUILD_DIR=$PWD}
-: ${DEPS_BUILD_DIR=$TRAVIS_BUILD_DIR/..}
+: ${BUILD_DIR=$PWD}
+: ${DEPS_BUILD_DIR=$BUILD_DIR/..}
 : ${DEPS_PREFIX=/usr/local}
 
 appveyor_set_vars
@@ -249,7 +249,7 @@ all|coverage|sonarcloud)
 			--disable-kernel-wfp --disable-kernel-iph --disable-winhttp"
 	# not enabled on the build server
 	CONFIG="$CONFIG --disable-af-alg"
-	if test "$TRAVIS_CPU_ARCH" != "amd64"; then
+	if test "$CPU_ARCH" != "amd64"; then
 		CONFIG="$CONFIG --disable-aesni --disable-rdrand"
 	fi
 	if test "$TEST" != "coverage"; then
@@ -486,7 +486,7 @@ esac
 
 case "$1" in
 deps)
-	case "$TRAVIS_OS_NAME" in
+	case "$OS_NAME" in
 	linux)
 		sudo apt-get update -qq && \
 		sudo apt-get install -qq bison flex gperf gettext $DEPS
@@ -607,7 +607,7 @@ apidoc)
             win*)
                 sonar-scanner.bat -Dsonar.organization=contauro-ag \
                 -Dsonar.projectKey=contauro-ag_strongswan \
-                -Dsonar.projectVersion="$(git describe)+${TRAVIS_BUILD_NUMBER}" \
+                -Dsonar.projectVersion="$(git describe)+${BUILD_NUMBER}" \
                 -Dsonar.sources=. \
                 -Dsonar.cfamily.threads=2 \
                 -Dsonar.cfamily.cache.enabled=true \
@@ -620,7 +620,7 @@ apidoc)
             *)
                 sonar-scanner -Dsonar.organization=contauro-ag \
                 -Dsonar.projectKey=contauro-ag_strongswan \
-                -Dsonar.projectVersion="$(git describe)+${TRAVIS_BUILD_NUMBER}" \
+                -Dsonar.projectVersion="$(git describe)+${BUILD_NUMBER}" \
                 -Dsonar.sources=. \
                 -Dsonar.cfamily.threads=2 \
                 -Dsonar.cfamily.cache.enabled=true \
