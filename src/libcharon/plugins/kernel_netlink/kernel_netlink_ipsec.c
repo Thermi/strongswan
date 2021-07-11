@@ -40,6 +40,7 @@
  */
 
 #define _GNU_SOURCE
+#include <musl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>

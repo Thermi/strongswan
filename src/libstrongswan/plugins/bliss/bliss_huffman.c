@@ -17,6 +17,8 @@
 #include "bliss_param_set.h"
 
 #include <library.h>
+#undef fprintf
+#undef printf
 
 #include <stdio.h>
 #include <math.h>
