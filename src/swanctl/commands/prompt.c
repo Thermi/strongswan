@@ -18,8 +18,8 @@
 #include <unistd.h>
 
 struct vici_prompt_t {
-    command_format_options_t format;
-    vici_conn_t *conn;
+	command_format_options_t format;
+	vici_conn_t *conn;
 };
 
 typedef struct vici_prompt_t vici_prompt_t;
@@ -27,52 +27,52 @@ typedef struct vici_prompt_t vici_prompt_t;
 CALLBACK(prompt_cb, void,
 	vici_prompt_t *this, char *name, vici_res_t *msg)
 {
-            char *a, *our_identity, *their_identity, *secret_type, *peer_message, txt[256];
-        command_format_options_t format = this->format;
+	char *a, *our_identity, *their_identity, *secret_type, *peer_message, txt[256];
+	command_format_options_t format = this->format;
 	vici_req_t *req;
 	vici_res_t *res;
-        
+		
 	if (format & COMMAND_FORMAT_RAW)
 	{
 		vici_dump(msg, "prompt-request", format & COMMAND_FORMAT_PRETTY, stdout);
 	}
 
-        /** print identities and type */
-        secret_type=vici_find_str(msg, "UNKNOWN", "secret-type");
-        our_identity=vici_find_str(msg, "UNKNOWN", "local-identity");
-        their_identity=vici_find_str(msg, "UNKNOWN", "remote-identity");
-        peer_message=vici_find_str(msg, "", "peer-message");
-        vici_find_str(msg, "UNKNOWN", "secret-type");
-        printf("Secret Type: %s\n", secret_type);
-        printf("Their identity: %s\n", their_identity);
-        printf("Our identity: %s\n", our_identity);
-        snprintf(txt, sizeof(txt), "Peer message: %s. Please enter the password.", peer_message);
-        /** Read credentials; One line (password or pin) */
-        a = getpass(txt);
-        /** ? Need to convert from wide characters (UTF-16) to UTF-8 ? */
-        // a = fgets(buf, sizeof(buf), stdin);
-        req = vici_begin("prompt-reply");
-        vici_add_key_valuef(req, "secret-type",  secret_type);
-        vici_add_key_valuef(req, "local-identity",  our_identity);
-        vici_add_key_valuef(req, "remote-identity",  their_identity);        
-        if (!a)
-        {
-            printf("Empty data or error occured\n");
-            vici_add_key_valuef(req, "success", "no");
-            vici_add_key_valuef(req, "errmsg", "User entered no data or an error occured");
-        } else {
-            vici_add_key_valuef(req, "success", "yes");
-            chunk_t data = chunk_clone(chunk_from_str(a));
-            vici_add_key_value(req, "secret", data.ptr, data.len);
-            /* vici_add_key_value(req, "secret", a, strlen(a)+1); */
-        }
-        res = vici_submit(req, this->conn);
-        printf("Secret sent\n");
-        if (!res)
-        {
-            fprintf(stderr, "prompt-reply request failed: %s", strerror(errno));
-            return;
-        }
+	/** print identities and type */
+	secret_type=vici_find_str(msg, "UNKNOWN", "secret-type");
+	our_identity=vici_find_str(msg, "UNKNOWN", "local-identity");
+	their_identity=vici_find_str(msg, "UNKNOWN", "remote-identity");
+	peer_message=vici_find_str(msg, "", "peer-message");
+	vici_find_str(msg, "UNKNOWN", "secret-type");
+	printf("Secret Type: %s\n", secret_type);
+	printf("Their identity: %s\n", their_identity);
+	printf("Our identity: %s\n", our_identity);
+	snprintf(txt, sizeof(txt), "Peer message: %s. Please enter the password.", peer_message);
+	/** Read credentials; One line (password or pin) */
+	a = getpass(txt);
+	/** ? Need to convert from wide characters (UTF-16) to UTF-8 ? */
+	// a = fgets(buf, sizeof(buf), stdin);
+	req = vici_begin("prompt-reply");
+	vici_add_key_valuef(req, "secret-type",  secret_type);
+	vici_add_key_valuef(req, "local-identity",  our_identity);
+	vici_add_key_valuef(req, "remote-identity",  their_identity);        
+	if (!a)
+	{
+		printf("Empty data or error occured\n");
+		vici_add_key_valuef(req, "success", "no");
+		vici_add_key_valuef(req, "errmsg", "User entered no data or an error occured");
+	} else {
+		vici_add_key_valuef(req, "success", "yes");
+		chunk_t data = chunk_clone(chunk_from_str(a));
+		vici_add_key_value(req, "secret", data.ptr, data.len);
+		/* vici_add_key_value(req, "secret", a, strlen(a)+1); */
+	}
+	res = vici_submit(req, this->conn);
+	printf("Secret sent\n");
+	if (!res)
+	{
+		fprintf(stderr, "prompt-reply request failed: %s", strerror(errno));
+		return;
+		}
 	if (this->format & COMMAND_FORMAT_RAW)
 	{
 		vici_dump(res, "prompt-reply reply", this->format & COMMAND_FORMAT_PRETTY,
@@ -94,13 +94,13 @@ CALLBACK(prompt_cb, void,
 static int promptcmd(vici_conn_t *conn)
 {
 	command_format_options_t format = COMMAND_FORMAT_NONE;
-        vici_prompt_t *this;
-        
-        INIT(this,
-            .format = format,
-            .conn = conn
-        );
-        
+		vici_prompt_t *this;
+		
+		INIT(this,
+			.format = format,
+			.conn = conn
+		);
+		
 	char *arg;
 	int ret;
 
@@ -123,20 +123,20 @@ static int promptcmd(vici_conn_t *conn)
 		}
 		break;
 	}
-        
+		
 	if (vici_register(conn, "prompt-request", prompt_cb, this) != 0)
 	{
-                free(this);
+				free(this);
 		ret = errno;
 		fprintf(stderr, "registering for prompt-request failed: %s\n", strerror(errno));
 		return ret;
 	}
-        
-        printf("Ready; Waiting for message from daemon\n");
+		
+	printf("Ready; Waiting for message from daemon\n");
 	wait_sigint();
 
 	fprintf(stderr, "disconnecting...\n");
-                
+	
 	return 0;
 }
 
