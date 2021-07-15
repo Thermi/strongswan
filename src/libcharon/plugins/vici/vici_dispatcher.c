@@ -402,11 +402,13 @@ CALLBACK(disconnect, void,
 	enumerator_t *events, *ids;
 	event_t *event;
 	u_int *current;
+	char *name;
+	command_t *cmd;
 
 	/* deregister client from all events */
 	this->mutex->lock(this->mutex);
 	events = this->events->create_enumerator(this->events);
-	while (events->enumerate(events, NULL, &event))
+	while (events->enumerate(events, &name, &event))
 	{
 		while (event->uses)
 		{
@@ -417,6 +419,11 @@ CALLBACK(disconnect, void,
 		{
 			if (id == *current)
 			{
+				cmd = this->cmds->get(this->cmds, name);
+				if (cmd)
+				{
+					cmd->register_cb(cmd->register_cb_data, name, id, false);
+				}
 				array_remove_at(event->clients, ids);
 			}
 		}

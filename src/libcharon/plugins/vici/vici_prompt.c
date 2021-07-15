@@ -139,8 +139,8 @@ void sanitize_string(chunk_t message)
 }
 
 /* Subtract the `struct timeval' values X and Y,
-   storing the result in RESULT.
-   Return 1 if the difference is negative, otherwise 0.  */
+	storing the result in RESULT.
+	Return 1 if the difference is negative, otherwise 0.  */
 int timeval_subtract (struct timeval *result, struct timeval *x, struct timeval *y)
 {
 	/* Perform the carry for the later subtraction by updating @var{y}. */
@@ -165,8 +165,8 @@ int timeval_subtract (struct timeval *result, struct timeval *x, struct timeval 
 
 
 static void manage_command(private_vici_prompt_t *this,
-						   char *name, vici_command_cb_t cb, bool reg,
-						   vici_register_cb_t register_cb, void *user)
+							char *name, vici_command_cb_t cb, bool reg,
+							vici_register_cb_t register_cb, void *user)
 {
 	this->dispatcher->manage_command(this->dispatcher, name,
 									 reg ? cb : NULL, this, register_cb, user);
@@ -260,6 +260,7 @@ void register_cb (void *user, char *name, u_int id, bool reg)
 	if (reg)
 	{
 		this->prompt_clients->insert_last(this->prompt_clients, client);
+		this->enabled = true;
 	} else {
 		this->prompt_clients->remove(this->prompt_clients, &id,
 			compare_and_free_prompt_client_t_and_u_int);
@@ -280,14 +281,14 @@ void register_cb (void *user, char *name, u_int id, bool reg)
 		this->dispatcher->raise_event(this->dispatcher, "prompt-request", id, msg);
 		msg->destroy(msg);
 	}
-   
+	
 	this->lock->unlock(this->lock);
 }
 CALLBACK(prompt_disable, vici_message_t*,
 	private_vici_prompt_t *this, char *name, u_int id, vici_message_t *message)
 {
 	this->lock->lock(this->lock);
-	this->enabled = FALSE;
+	this->enabled = FALSE;	
 	this->lock->unlock(this->lock);	
 	DBG2(DBG_LIB, "VICI client %d: prompt disabled", id);
 	return create_reply(TRUE, "prompt disabled");
@@ -331,7 +332,7 @@ CALLBACK(prompt_reply, vici_message_t*,
 		DBG1(DBG_LIB, "vici client %u: Provided secret type (%s) isn't "
 			 "password or pin.", id, shared_secret_type);
 		msg = create_reply(FALSE, "Provided secret type (%s) isn't "
-						   "password or pin.", shared_secret_type);
+							"password or pin.", shared_secret_type);
 		goto out;
 	}
 
@@ -343,8 +344,8 @@ CALLBACK(prompt_reply, vici_message_t*,
 	this->lock->lock(this->lock);
 	
 	if (!this->requests_in_progress->find_first(this->requests_in_progress,
-											    find_matching_prompt_request,
-											    (void **) &proc, test))
+												 find_matching_prompt_request,
+												 (void **) &proc, test))
 	{
 		DBG1(DBG_LIB, "vici client %u No matching prompt request found for vici client", id);
 		msg = create_reply(FALSE, "No matching prompt request found for vici client", id);
@@ -497,8 +498,8 @@ CALLBACK(callback_shared, shared_key_t*,
 				DBG2(DBG_LIB, "Found reply from vici client %u", reply->id);
 				result = reply->shared_key->get_ref(reply->shared_key);
 				/* Only cache passwords, not PINs because those can be time dependent (e.g. TOTP).
-				   If the PIN is wrong, then authentication will fail and that will then need to
-				   be retried via some to be implemented mechanism (if it's a reauthentication) */
+					If the PIN is wrong, then authentication will fail and that will then need to
+					be retried via some to be implemented mechanism (if it's a reauthentication) */
 				if (type == SHARED_EAP) {
 					this->creds->add_shared(this->creds, reply->shared_key, NULL);
 				}
