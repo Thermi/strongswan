@@ -223,13 +223,14 @@ CALLBACK(find_matching_prompt_request, bool, void *a, va_list args)
 		&& da->type == db->type;    
 }
 
-CALLBACK(find_matching_client_and_id, bool, void *a, void *b)
+/* CALLBACK(find_matching_client_and_id, bool, void *a, void *b)
 {
 	prompt_client_t *da = a;
 	u_int id = * (u_int *)b;
 
 	return da->id == id;
 }
+*/
 
 /**
  * Create a (error) reply message
