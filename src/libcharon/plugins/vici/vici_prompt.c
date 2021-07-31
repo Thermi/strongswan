@@ -387,9 +387,6 @@ CALLBACK(callback_shared, shared_key_t*,
 	enumerator_t *enumerator;
 	prompt_client_reply_t *reply;
 	prompt_request_in_progress_t *in_progress;
-	linked_list_t *to_delete;
-	vici_builder_t *builder;
-	vici_message_t *message;
 	shared_key_t *result = NULL;
 	timeval_t now, then, timeout;
 
@@ -415,14 +412,6 @@ CALLBACK(callback_shared, shared_key_t*,
 
 	time_monotonic(&then);
 	timeval_add_ms(&then, this->timeout);
-	to_delete = linked_list_create();
-
-	builder = vici_builder_create();
-	builder->add_kv(builder, "remote-identity", "%Y", other);
-	builder->add_kv(builder, "local-identity", "%Y", me);
-	builder->add_kv(builder, "secret-type", type == SHARED_EAP ? "password" : "PIN");
-	builder->add_kv(builder, "peer-message", "%s", prompt.ptr);
-	message = builder->finalize(builder);
 
 	if (prompt.ptr)
 	{
