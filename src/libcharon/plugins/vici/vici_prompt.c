@@ -574,7 +574,7 @@ METHOD(job_t, notify_job_execute, job_requeue_t,
 	message = builder->finalize(builder);
 
 	this->prompt->dispatcher->raise_event(this->prompt->dispatcher, this->timeout ? "prompt-timeout" : "prompt-request", 0, message);
-	return JOB_REQUEUE_TYPE_NONE;
+	return JOB_REQUEUE_NONE;
 }
 
 /**
