@@ -254,10 +254,6 @@ void register_cb (void *user, char *name, u_int id, bool reg)
 {
 	private_vici_prompt_t *this = user;
 	prompt_client_t *client;
-	enumerator_t *enumerator;
-	prompt_request_in_progress_t *prompt_request;
-	vici_builder_t *builder;
-	vici_message_t *msg;
 	INIT (client,
 			.id = id
 	);
@@ -387,18 +383,15 @@ CALLBACK(callback_shared, shared_key_t*,
 	identification_t *other, const char *msg, id_match_t *match_me,
 	id_match_t *match_other)
 {
-	bool sent = FALSE, ret = FALSE;
+	bool ret = FALSE;
 	enumerator_t *enumerator;
-	prompt_client_t *current;
 	prompt_client_reply_t *reply;
 	prompt_request_in_progress_t *in_progress;
-	notify_prompt_job_t *job;
 	linked_list_t *to_delete;
 	vici_builder_t *builder;
 	vici_message_t *message;
 	shared_key_t *result = NULL;
 	timeval_t now, then, timeout;
-	u_int tmp;
 
 	chunk_t prompt = {
 		.ptr = NULL,
@@ -491,6 +484,8 @@ CALLBACK(callback_shared, shared_key_t*,
 					case SHARED_IKE:
 						this->creds->add_shared(this->creds, reply->shared_key, me->clone(me), other->clone(other), NULL);
 						break;
+					default:
+						break;
 				}
 				DBG2(DBG_LIB, "reply cached");
 				ret = TRUE;
@@ -517,7 +512,6 @@ CALLBACK(callback_shared, shared_key_t*,
 			me->clone(me), other->clone(other), type, strdupnull(prompt.ptr), TRUE), 0);
 	}
 
-out:;
 	/* Timeout reached, now destroy all data structures to clean up */
 	this->lock->lock(this->lock);
 	this->requests_in_progress->remove(this->requests_in_progress, in_progress, NULL);
@@ -591,6 +585,7 @@ METHOD(job_t, notify_job_execute, job_requeue_t,
 	message = builder->finalize(builder);
 
 	this->prompt->dispatcher->raise_event(this->prompt->dispatcher, this->timeout ? "prompt-timeout" : "prompt-request", 0, message);
+	return JOB_REQUEUE_TYPE_NONE;
 }
 
 /**
