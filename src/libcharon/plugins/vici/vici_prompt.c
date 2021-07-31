@@ -31,6 +31,8 @@
 
 typedef struct private_vici_prompt_t private_vici_prompt_t;
 
+typedef struct private_notify_prompt_job_t private_notify_prompt_job_t;
+
 /**
  * Directory for saved X.509 CRLs
  */
@@ -117,8 +119,28 @@ typedef struct {
 	/* stores objects of type prompt_client_reply_t */
 	linked_list_t *clients;
 	char *msg;
+	mutex_t *mutex;
+	size_t refcnt;
 } prompt_request_in_progress_t;
 
+typedef struct {
+	job_t job_interface;
+} notify_prompt_job_t;
+
+struct private_notify_prompt_job_t {
+	notify_prompt_job_t public;
+	private_vici_prompt_t *prompt;	
+	identification_t *me;
+	identification_t *other;
+	char *msg;
+	shared_key_type_t type;
+	bool timeout;
+};
+
+/* Ahead declaration */
+notify_prompt_job_t *notify_prompt_job_create(private_vici_prompt_t *prompt, 
+	identification_t *me, identification_t *other, shared_key_type_t type,
+	char *msg, bool timeout);
 
 void sanitize_string(chunk_t message)
 {
@@ -201,23 +223,6 @@ CALLBACK(find_matching_prompt_request, bool, void *a, va_list args)
 		&& da->type == db->type;    
 }
 
-CALLBACK(find_matching_prompt_reply, bool, void *a, va_list args)
-{
-	prompt_client_reply_t *da = a, *db;
-	VA_ARGS_VGET(args, db);
-
-	return da->id == db->id;
-}
-/*
-CALLBACK(find_matching_reply_and_id, bool, void *a, va_list args)
-{
-	prompt_client_reply_t *da = a;
-	u_int db;
-	VA_ARGS_VGET(args, db);
-	
-	return da->id == db;
-}
-*/
 CALLBACK(find_matching_client_and_id, bool, void *a, void *b)
 {
 	prompt_client_t *da = a;
@@ -225,6 +230,7 @@ CALLBACK(find_matching_client_and_id, bool, void *a, void *b)
 
 	return da->id == id;
 }
+
 /**
  * Create a (error) reply message
  */
@@ -257,6 +263,7 @@ void register_cb (void *user, char *name, u_int id, bool reg)
 	);
 	
 	this->lock->lock(this->lock);
+	DBG3(DBG_LIB, "prompt client register cb");
 	if (reg)
 	{
 		this->prompt_clients->insert_last(this->prompt_clients, client);
@@ -264,24 +271,7 @@ void register_cb (void *user, char *name, u_int id, bool reg)
 	} else {
 		this->prompt_clients->remove(this->prompt_clients, &id,
 			compare_and_free_prompt_client_t_and_u_int);
-	}
-	
-	/*
-	 * Send existing prompts to new client
-	 */
-	enumerator = this->requests_in_progress->create_enumerator(this->requests_in_progress);
-	while(enumerator->enumerate(enumerator, &prompt_request))
-	{
-		builder = vici_builder_create();
-		builder->add_kv(builder, "msg", "%s", prompt_request->msg);
-		builder->add_kv(builder, "local-identity", "%Y", prompt_request->me);
-		builder->add_kv(builder, "remote-identity", "%Y", prompt_request->other);
-		builder->add_kv(builder, "secret-type", prompt_request->type == SHARED_EAP ? "password" : "PIN");
-		msg = builder->finalize(builder);
-		this->dispatcher->raise_event(this->dispatcher, "prompt-request", id, msg);
-		msg->destroy(msg);
-	}
-	
+	}	
 	this->lock->unlock(this->lock);
 }
 CALLBACK(prompt_disable, vici_message_t*,
@@ -290,18 +280,19 @@ CALLBACK(prompt_disable, vici_message_t*,
 	this->lock->lock(this->lock);
 	this->enabled = FALSE;	
 	this->lock->unlock(this->lock);	
-	DBG2(DBG_LIB, "VICI client %d: prompt disabled", id);
-	return create_reply(TRUE, "prompt disabled");
+	DBG2(DBG_LIB, "vici client %d: prompt disabled", id);
+	return create_reply(FALSE, "prompt disabled");
 }
 
 CALLBACK(prompt_reply, vici_message_t*,
 	private_vici_prompt_t *this, char *name, u_int id, vici_message_t *message)
 {
 	prompt_request_in_progress_t *proc = NULL, *test = NULL;
-	prompt_client_reply_t *reply = NULL, *reply_test = NULL;
+	prompt_client_reply_t *reply = NULL;
 	vici_message_t *msg = NULL;
-	chunk_t def = { .ptr = NULL, .len = 0};
-	chunk_t key = message->get_value(message, def, "secret"), clone;
+	chunk_t def = { .ptr = NULL, .len = 0},
+		key = message->get_value(message, def, "secret"), clone;
+
 	char *remote_identity = message->get_str(message, NULL, "remote-identity"),
 		 *local_identity = message->get_str(message, NULL, "local-identity");
 	char *shared_secret_type = message->get_str(message, NULL, "secret-type");
@@ -312,7 +303,7 @@ CALLBACK(prompt_reply, vici_message_t*,
 	
 	if (!me || !other)
 	{
-		DBG1(DBG_LIB, "Provided identities could not be parsed into "
+		DBG1(DBG_LIB, "provided identities could not be parsed into "
 			 "identification_t objects. Proceeding without using those as "
 			 "matches.");
 	}
@@ -341,6 +332,7 @@ CALLBACK(prompt_reply, vici_message_t*,
 		.other = other,
 		.type = type,
 	);
+
 	this->lock->lock(this->lock);
 	
 	if (!this->requests_in_progress->find_first(this->requests_in_progress,
@@ -349,40 +341,37 @@ CALLBACK(prompt_reply, vici_message_t*,
 	{
 		DBG1(DBG_LIB, "vici client %u No matching prompt request found for vici client", id);
 		msg = create_reply(FALSE, "No matching prompt request found for vici client", id);
-		goto out;
-	}
-
-	INIT(reply_test,
-		.id = id,
-	);
-
-	if (!proc->clients->find_first(proc->clients, find_matching_prompt_reply,
-		(void **) &reply,  reply_test))
-	{
-		DBG1(DBG_LIB, "No matching reply found");
-		msg = create_reply(FALSE, "no matching reply found");
+		this->lock->unlock(this->lock);
 		goto out;
 	}
 
 	clone = chunk_clone(key);
-	reply->shared_key = shared_key_create(proc->type, clone);
 
-	msg = create_reply(TRUE, "Reply stored");
+	INIT(reply,
+		.id = id,
+		.shared_key = shared_key_create(proc->type, clone),
+		.type = type
+	);
 
+	proc->clients->insert_last(proc->clients, reply);
+
+	msg = create_reply(FALSE, "reply stored");
+
+	DBG1(DBG_LIB, "reply stored");
+	this->lock->unlock(this->lock);
+	this->mutex->lock(this->mutex);
 	this->cond->broadcast(this->cond);
+	this->mutex->unlock(this->mutex);
+
 
 out:;
 	if (test)
 	{
 		free(test);
 	}
-	if (reply_test)
-	{
-		free(reply_test);
-	}
+
 	me->destroy(me);
 	other->destroy(other);
-	this->lock->unlock(this->lock);
 	return msg;
 }
 /**
@@ -398,28 +387,32 @@ CALLBACK(callback_shared, shared_key_t*,
 	identification_t *other, const char *msg, id_match_t *match_me,
 	id_match_t *match_other)
 {
-	bool sent = FALSE;
+	bool sent = FALSE, ret = FALSE;
 	enumerator_t *enumerator;
 	prompt_client_t *current;
 	prompt_client_reply_t *reply;
 	prompt_request_in_progress_t *in_progress;
+	notify_prompt_job_t *job;
 	linked_list_t *to_delete;
 	vici_builder_t *builder;
 	vici_message_t *message;
 	shared_key_t *result = NULL;
 	timeval_t now, then, timeout;
 	u_int tmp;
+
 	chunk_t prompt = {
 		.ptr = NULL,
 		.len = 0,
 	};
 
+	DBG3(DBG_LIB, "received callback for secret_type %N", shared_key_type_names, type);
+
 	/* Only prompt for user secrets, no PSKs or PPKs */
-	if ((type != SHARED_EAP && type != SHARED_PIN) || !this->enabled)
+	if ((type != SHARED_EAP && type != SHARED_PIN) || !this->prompt_clients->get_count(this->prompt_clients) || !this->enabled)
 	{
 		return NULL;
 	}
-	
+
 	if (msg) {
 		/* prompt = chunk_alloc(strlen(msg)+1); */
 		prompt.ptr = strndup(msg, strlen(msg)+1);
@@ -448,64 +441,63 @@ CALLBACK(callback_shared, shared_key_t*,
 		.me = me->clone(me),
 		.other = other->clone(other),
 		.type = type,
-		.msg = strndup(prompt.ptr, prompt.len),
+		.msg = strdupnull(prompt.ptr),
 	);
 
 	this->lock->lock(this->lock);
 	this->requests_in_progress->insert_last(this->requests_in_progress, in_progress);
-	enumerator = this->prompt_clients->create_enumerator(this->prompt_clients);
-	while(enumerator->enumerate(enumerator, &current))
-	{
-		/* TODO: Use jobs for this. raise event for all registered clients. This blocks execution */
-		INIT(reply,
-			.id = current->id,
-			.shared_key = NULL,
-			.type = type,
-		);
-		DBG3(DBG_LIB, "Notifying client %u", current->id);
-		in_progress->clients->insert_last(in_progress->clients, reply);
-		if (this->dispatcher->raise_event(this->dispatcher, "prompt-request", current->id, message))
-		{
-			sent = TRUE;
-		} else {
-			to_delete->insert_last(to_delete, &current->id);
-			sent = FALSE;
-		}
-		
-	}
-	
-	enumerator->destroy(enumerator);
-	enumerator = to_delete->create_enumerator(to_delete);
-	while(enumerator->enumerate(enumerator, &tmp))
-	{
-		this->prompt_clients->remove(this->prompt_clients, &tmp, find_matching_client_and_id);
-	}
-	enumerator->destroy(enumerator);
+
+	lib->scheduler->schedule_job(lib->scheduler, (job_t*)notify_prompt_job_create(this,
+		me->clone(me), other->clone(other), type, strdupnull(prompt.ptr), FALSE), 0);
+
 	this->lock->unlock(this->lock);
-	if (!sent)
-	{
-		goto out;
-	}
-	this->mutex->lock(this->mutex);
+	DBG3(DBG_LIB, "test");
+
 	/* Wait for some signal that credentials were received or a timeout was reached. Condvar and timed job(?) */    
-	do {
+	while(true) {
+		
+		time_monotonic(&now);
+		timeval_subtract(&timeout, &then, &now);
+		uint64_t timeout_uint64 = timeout.tv_sec*1000*1000 + timeout.tv_usec;
+		/* Handle wrap around */
+		if ( timeout_uint64 < 0 || timeout_uint64 > this->timeout*1000*1000 ) {
+			break;
+		}
+
+		DBG4(DBG_LIB, "remaining timeout: %lu.%06lu", timeout.tv_sec, timeout.tv_usec);
+
+		this->mutex->lock(this->mutex);
+		ret = this->cond->timed_wait_abs(this->cond, this->mutex, timeout);
+		this->mutex->unlock(this->mutex);
+
 		this->lock->lock(this->lock);
 		enumerator = in_progress->clients->create_enumerator(in_progress->clients);
 		while(enumerator->enumerate(enumerator, &reply))
 		{
 			if (reply->shared_key && reply->type == type)
 			{
-				DBG2(DBG_LIB, "Found reply from vici client %u", reply->id);
+				DBG2(DBG_LIB, "found reply from vici client %u", reply->id);
 				result = reply->shared_key->get_ref(reply->shared_key);
 				/* Only cache passwords, not PINs because those can be time dependent (e.g. TOTP).
 					If the PIN is wrong, then authentication will fail and that will then need to
 					be retried via some to be implemented mechanism (if it's a reauthentication) */
-				if (type == SHARED_EAP) {
-					this->creds->add_shared(this->creds, reply->shared_key, NULL);
+				*match_me = ID_MATCH_PERFECT;
+				*match_other = ID_MATCH_PERFECT;
+				switch (type)
+				{
+					case SHARED_EAP:
+						this->creds->add_shared(this->creds, reply->shared_key, me->clone(me), NULL);
+						break;
+					case SHARED_IKE:
+						this->creds->add_shared(this->creds, reply->shared_key, me->clone(me), other->clone(other), NULL);
+						break;
 				}
+				DBG2(DBG_LIB, "reply cached");
+				ret = TRUE;
 				break;
 			}
 		}
+
 		enumerator->destroy(enumerator);
 		enumerator = NULL;
 		this->lock->unlock(this->lock);
@@ -515,20 +507,15 @@ CALLBACK(callback_shared, shared_key_t*,
 			break;
 		}
 
-		DBG3(DBG_LIB, "Was woken up but did not find a valid reply for prompt request");
-		time_monotonic(&now);
-		timeval_subtract(&timeout, &then, &now);
-		DBG3(DBG_LIB, "remaining timeout: %ld.%06ld", timeout.tv_sec, timeout.tv_usec);
-
-		/*	timeout.tv_sec = then.tv_sec - now.tv_sec;
-			timeout.tv_usec = then.tv_usec - now.tv_usec;
-		 */
-	} while (this->cond->timed_wait_abs(this->cond, this->mutex, timeout));
-	
-	if (!result) {
-		DBG1(DBG_LIB, "Timed out while waiting for credentials for %Y %Y", me, other);
+		DBG4(DBG_LIB, "was woken up but did not find a valid reply for prompt request");
 	}
-	this->mutex->unlock(this->mutex);
+
+	if (!ret) {
+		DBG1(DBG_LIB, "timed out while waiting for credentials for %Y %Y", me, other);
+
+		lib->scheduler->schedule_job(lib->scheduler, (job_t*) notify_prompt_job_create(this,
+			me->clone(me), other->clone(other), type, strdupnull(prompt.ptr), TRUE), 0);
+	}
 
 out:;
 	/* Timeout reached, now destroy all data structures to clean up */
@@ -545,7 +532,6 @@ out:;
 	free(in_progress);
 	return result;
 }
-
 
 vici_message_t* prompt_request(void *user, char *name, u_int id, vici_message_t *request)
 {
@@ -574,6 +560,65 @@ METHOD(vici_prompt_t, destroy, void,
 	this->creds->destroy(this->creds);
 	this->cb->destroy(this->cb);	
 	free(this);
+}
+
+METHOD(job_t, notify_job_destroy, void,
+	private_notify_prompt_job_t *this)
+{
+	this->me->destroy(this->me);
+	this->other->destroy(this->other);
+	free(this->msg);
+	free(this);
+}
+
+METHOD(job_t, notify_job_get_priority, job_priority_t,
+	private_notify_prompt_job_t *this)
+{
+	return JOB_PRIO_MEDIUM;
+}
+
+METHOD(job_t, notify_job_execute, job_requeue_t,
+	private_notify_prompt_job_t *this)
+{
+	vici_builder_t *builder;
+	vici_message_t *message;
+
+	builder = vici_builder_create();
+	builder->add_kv(builder, "remote-identity", "%Y", this->other);
+	builder->add_kv(builder, "local-identity", "%Y", this->me);
+	builder->add_kv(builder, "secret-type", this->type == SHARED_EAP ? "password" : "PIN");
+	builder->add_kv(builder, "peer-message", "%s", this->msg);
+	message = builder->finalize(builder);
+
+	this->prompt->dispatcher->raise_event(this->prompt->dispatcher, this->timeout ? "prompt-timeout" : "prompt-request", 0, message);
+}
+
+/**
+ * See header
+ */
+notify_prompt_job_t *notify_prompt_job_create(private_vici_prompt_t *prompt, 
+	identification_t *me, identification_t *other, shared_key_type_t type,
+	char *msg, bool timeout)
+{
+	private_notify_prompt_job_t *this;
+
+	INIT(this,
+		.public = {
+			.job_interface = {
+				.execute = _notify_job_execute,
+				.get_priority = _notify_job_get_priority,
+				.destroy = _notify_job_destroy,
+			},
+		},
+		.prompt = prompt,
+		.me = me,
+		.other = other,
+		.type = type,
+		.msg = msg,
+		.timeout = timeout,
+	);
+
+	return &this->public;
 }
 
 vici_prompt_t *vici_prompt_create(vici_dispatcher_t *dispatcher)

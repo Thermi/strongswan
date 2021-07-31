@@ -13,13 +13,15 @@
  */
 
 #include "command.h"
+#include "prompt.h"
 
 #include <errno.h>
 #include <unistd.h>
 
+
 struct vici_prompt_t {
 	command_format_options_t format;
-	vici_conn_t *conn;
+	vici_conn_t *conn, *backchannel;
 };
 
 typedef struct vici_prompt_t vici_prompt_t;
@@ -47,10 +49,8 @@ CALLBACK(prompt_cb, void,
 	printf("Their identity: %s\n", their_identity);
 	printf("Our identity: %s\n", our_identity);
 	snprintf(txt, sizeof(txt), "Peer message: %s. Please enter the password.", peer_message);
-	/** Read credentials; One line (password or pin) */
+
 	a = getpass(txt);
-	/** ? Need to convert from wide characters (UTF-16) to UTF-8 ? */
-	// a = fgets(buf, sizeof(buf), stdin);
 	req = vici_begin("prompt-reply");
 	vici_add_key_valuef(req, "secret-type",  secret_type);
 	vici_add_key_valuef(req, "local-identity",  our_identity);
@@ -64,15 +64,15 @@ CALLBACK(prompt_cb, void,
 		vici_add_key_valuef(req, "success", "yes");
 		chunk_t data = chunk_clone(chunk_from_str(a));
 		vici_add_key_value(req, "secret", data.ptr, data.len);
-		/* vici_add_key_value(req, "secret", a, strlen(a)+1); */
 	}
-	res = vici_submit(req, this->conn);
+	res = vici_submit(req, this->backchannel);
 	printf("Secret sent\n");
 	if (!res)
 	{
 		fprintf(stderr, "prompt-reply request failed: %s", strerror(errno));
 		return;
-		}
+	}
+
 	if (this->format & COMMAND_FORMAT_RAW)
 	{
 		vici_dump(res, "prompt-reply reply", this->format & COMMAND_FORMAT_PRETTY,
@@ -88,21 +88,35 @@ CALLBACK(prompt_cb, void,
 		printf("stored reply for identities %s == %s type %s\n", our_identity, their_identity, secret_type);
 	}
 	vici_free_res(res);
+
 	return; 
 }
 
 static int promptcmd(vici_conn_t *conn)
 {
 	command_format_options_t format = COMMAND_FORMAT_NONE;
-		vici_prompt_t *this;
-		
-		INIT(this,
-			.format = format,
-			.conn = conn
-		);
-		
-	char *arg;
+	vici_prompt_t *this;
+
+	char *arg, *uri = lib->settings->get_str(lib->settings, "%s.socket",
+			lib->settings->get_str(lib->settings, "%s.plugins.vici.socket",
+								   NULL, lib->ns), lib->ns);
+	
+	INIT(this,
+		.format = format,
+		.conn = conn,
+		.backchannel = vici_connect(uri),
+	);
+	
+
 	int ret;
+
+	if (!this->backchannel)
+	{
+		ret = errno;
+		command_usage("connecting to '%s' URI failed: %s",
+					  uri ?: "default", strerror(errno));
+		return ret;
+	}
 
 	while (TRUE)
 	{
@@ -126,7 +140,7 @@ static int promptcmd(vici_conn_t *conn)
 		
 	if (vici_register(conn, "prompt-request", prompt_cb, this) != 0)
 	{
-				free(this);
+		free(this);
 		ret = errno;
 		fprintf(stderr, "registering for prompt-request failed: %s\n", strerror(errno));
 		return ret;
@@ -135,8 +149,8 @@ static int promptcmd(vici_conn_t *conn)
 	printf("Ready; Waiting for message from daemon\n");
 	wait_sigint();
 
+	vici_disconnect(this->backchannel);
 	fprintf(stderr, "disconnecting...\n");
-	
 	return 0;
 }
 
