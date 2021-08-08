@@ -38,12 +38,20 @@ static double end_timing(struct timespec *start)
 
 static void print_mallinfo()
 {
+#if defined(HAVE_MALLINFO2)
+	struct mallinfo2 mi = mallinfo2();
+
+	printf("malloc: sbrk %zu, mmap %zu, used %zu, free %zu\n",
+		   mi.arena, mi.hblkhd, mi.uordblks, mi.fordblks);
+
+#else /* HAVE_MALLINFO2 */
 #ifdef HAVE_MALLINFO
 	struct mallinfo mi = mallinfo();
 
 	printf("malloc: sbrk %d, mmap %d, used %d, free %d\n",
 		   mi.arena, mi.hblkhd, mi.uordblks, mi.fordblks);
 #endif /* HAVE_MALLINFO */
+#endif
 }
 
 #define ALLOCS 1024
