@@ -51,6 +51,9 @@
 #ifdef HAVE_MALLINFO
 #include <malloc.h>
 #endif
+#if defined(HAVE_MALLINFO2)
+#include <malloc.h>
+#endif
 
 #include <daemon.h>
 #include <asn1/asn1.h>
@@ -1649,7 +1652,18 @@ CALLBACK(stats, vici_message_t*,
 		b->end_section(b);
 	}
 #endif
+#if defined(HAVE_MALLINFO2)
+	{
+		struct mallinfo2 mi = mallinfo2();
 
+		b->begin_section(b, "mallinfo");
+		b->add_kv(b, "sbrk", "%zu", mi.arena);
+		b->add_kv(b, "mmap", "%zu", mi.hblkhd);
+		b->add_kv(b, "used", "%zu", mi.uordblks);
+		b->add_kv(b, "free", "%zu", mi.fordblks);
+		b->end_section(b);
+	}
+#else /* HAVE_MALLINFO2 */
 #ifdef HAVE_MALLINFO
 	{
 		struct mallinfo mi = mallinfo();
@@ -1662,7 +1676,7 @@ CALLBACK(stats, vici_message_t*,
 		b->end_section(b);
 	}
 #endif /* HAVE_MALLINFO */
-
+#endif
 	return b->finalize(b);
 }
 
