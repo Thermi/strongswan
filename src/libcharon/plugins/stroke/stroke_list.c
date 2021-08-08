@@ -24,7 +24,10 @@
 
 #ifdef HAVE_MALLINFO
 #include <malloc.h>
-#endif /* HAVE_MALLINFO */
+#endif
+#if defined(HAVE_MALLINFO2)
+#include <malloc.h>
+#endif
 
 #include <daemon.h>
 #include <collections/linked_list.h>
@@ -490,6 +493,14 @@ METHOD(stroke_list_t, status, void,
 		}
 		fprintf(out, "):\n  uptime: %V, since %T\n", &now, &this->uptime, &since,
 				FALSE);
+#if defined(HAVE_MALLINFO2)
+		{
+			struct mallinfo2 mi = mallinfo2();
+
+			fprintf(out, "  malloc: sbrk %zu, mmap %zu, used %zu, free %zu\n",
+				    mi.arena, mi.hblkhd, mi.uordblks, mi.fordblks);
+		}		
+#else /* HAVE_MALLINFO2 */
 #ifdef HAVE_MALLINFO
 		{
 			struct mallinfo mi = mallinfo();
@@ -498,6 +509,7 @@ METHOD(stroke_list_t, status, void,
 				    mi.arena, mi.hblkhd, mi.uordblks, mi.fordblks);
 		}
 #endif /* HAVE_MALLINFO */
+#endif
 		fprintf(out, "  worker threads: %d of %d idle, ",
 				lib->processor->get_idle_threads(lib->processor),
 				lib->processor->get_total_threads(lib->processor));
