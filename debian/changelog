@@ -1,5 +1,5 @@
-strongswan (5.9-1bf) UNRELEASED; urgency=low
+strongswan (5.9.6bf)
 
-  * Initial bluefield release.
-
+  * Second bluefield release.
+ -- Feras Bisharat <fbisharat@nvidia.com>
  -- Mahantesh Salimath <mahantesh@nvidia.com>  Thu, 03 Dec 2020 16:03:05 +0000

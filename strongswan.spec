@@ -1,6 +1,6 @@
 Name: strongswan-bf
-Version: 5.9
-Release: 1%{?dist}
+Version: 5.9.6
+Release: 2%{?dist}
 Summary: BlueField Strongswan Package
 
 License: BSD and GPLv2+ and MIT and Expat
