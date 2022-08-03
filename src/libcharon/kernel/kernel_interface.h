@@ -600,6 +600,25 @@ struct kernel_interface_t {
 							 char **kernel_name);
 
 	/**
+	 * Get an unused mark (Linux fwmark/nfmark) value within the given mask
+	 * @param mask				the mask of the mark
+	 * @return 					the mark value
+	 */ 
+	uint32_t (*get_mark)(kernel_interface_t *this, uint32_t mask);
+
+	/**
+	 * Declare that a certain mark is no longer in use
+	 * @param mark 				the mark value to release
+	 * 
+	 */ 
+	void (*release_mark)(kernel_interface_t *this, uint32_t mark);
+
+	/**
+	 * Reset the mark tracker (discards all tracked marks, resets counter to 0)
+     */
+	void (*reset_mark_tracker)(kernel_interface_t *this);
+
+	/**
 	 * Destroys a kernel_interface_t object.
 	 */
 	void (*destroy) (kernel_interface_t *this);

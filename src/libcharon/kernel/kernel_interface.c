@@ -40,6 +40,7 @@
 #include "kernel_interface.h"
 
 #include <utils/debug.h>
+#include <utils/utils/mark.h>
 #include <threading/mutex.h>
 #include <collections/linked_list.h>
 #include <collections/hashtable.h>
@@ -140,6 +141,12 @@ struct private_kernel_interface_t {
 	 */
 	linked_list_t *algorithms;
 
+#ifdef linux
+	/**
+	 * tracking of used mark
+	 */
+	mark_tracker_t *mark_tracker;
+#endif
 	/**
 	 * List of interface names to include or exclude (char*), NULL if interfaces
 	 * are not filtered
@@ -1017,6 +1024,36 @@ METHOD(kernel_interface_t, lookup_algorithm, bool,
 	return found;
 }
 
+METHOD(kernel_interface_t, get_mark, uint32_t,
+	private_kernel_interface_t *this, uint32_t mask)
+{
+#ifdef linux
+	return this->mark_tracker->get_mark(this->mark_tracker, mask);
+#else
+	return NOT_SUPPORTED;
+#endif
+
+}
+
+METHOD(kernel_interface_t, release_mark, void,
+	private_kernel_interface_t *this, uint32_t mark)
+{
+#ifdef linux
+	return this->mark_tracker->release_mark(this->mark_tracker, mark);
+#else
+	return NOT_SUPPORTED;
+#endif		
+}
+
+METHOD(kernel_interface_t, reset_mark_tracker, void,
+	private_kernel_interface_t *this)
+{
+#ifdef linux
+	this->mark_tracker->reset(this->mark_tracker);
+#endif
+}
+
+
 METHOD(kernel_interface_t, destroy, void,
 	private_kernel_interface_t *this)
 {
@@ -1089,6 +1126,9 @@ kernel_interface_t *kernel_interface_create()
 			.remove_listener = _remove_listener,
 			.register_algorithm = _register_algorithm,
 			.lookup_algorithm = _lookup_algorithm,
+			.get_mark = _get_mark,
+			.release_mark = _release_mark,
+			.reset_mark_tracker = _reset_mark_tracker,
 			.acquire = _acquire,
 			.expire = _expire,
 			.mapping = _mapping,
@@ -1105,6 +1145,9 @@ kernel_interface_t *kernel_interface_create()
 								   (hashtable_equals_t)equals_reqid, 8),
 		.reqids_by_ts = hashtable_create((hashtable_hash_t)hash_reqid_by_ts,
 								   (hashtable_equals_t)equals_reqid_by_ts, 8),
+		#ifdef linux
+		.mark_tracker = mark_tracker_create(),
+		#endif
 	);
 
 	ifaces = lib->settings->get_str(lib->settings,
