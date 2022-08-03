@@ -44,7 +44,7 @@ settings/settings.c settings/settings_types.c \
 settings/settings_parser.y settings/settings_lexer.l utils/cpu_feature.c \
 utils/utils.c utils/chunk.c utils/debug.c utils/enum.c utils/identification.c \
 utils/lexparser.c utils/optionsfrom.c utils/capabilities.c utils/backtrace.c \
-utils/parser_helper.c utils/test.c utils/process.c utils/utils/strerror.c \
+utils/utils/mark.c utils/parser_helper.c utils/test.c utils/process.c utils/utils/strerror.c \
 utils/utils/atomics.c utils/utils/string.c utils/utils/memory.c \
 utils/utils/tty.c utils/utils/path.c utils/utils/status.c utils/utils/time.c \
 utils/utils/align.c
@@ -126,7 +126,7 @@ utils/cpu_feature.h utils/leak_detective.h utils/printf_hook/printf_hook.h \
 utils/printf_hook/printf_hook_vstr.h utils/printf_hook/printf_hook_builtin.h \
 utils/parser_helper.h utils/test.h utils/integrity_checker.h utils/process.h \
 utils/utils/strerror.h utils/compat/windows.h utils/compat/apple.h utils/compat/android.h \
-utils/utils/atomics.h utils/utils/types.h utils/utils/byteorder.h \
+utils/utils/atomics.h utils/utils/types.h utils/utils/byteorder.h utils/utils/mark.h \
 utils/utils/string.h utils/utils/memory.h utils/utils/tty.h utils/utils/path.h \
 utils/utils/status.h utils/utils/object.h utils/utils/time.h utils/utils/align.h
 endif
