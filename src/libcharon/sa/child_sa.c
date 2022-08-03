@@ -1943,6 +1943,9 @@ METHOD(child_sa_t, destroy, void,
 		charon->kernel->del_sa(charon->kernel, &id, &sa);
 	}
 
+	charon->kernel->release_mark(charon->kernel, this->mark_in.value);
+	charon->kernel->release_mark(charon->kernel, this->mark_out.value);
+
 	if (this->reqid_allocated)
 	{
 		if (charon->kernel->release_reqid(charon->kernel,
@@ -2008,7 +2011,7 @@ child_sa_t *child_sa_create(host_t *me, host_t *other, child_cfg_t *config,
 							child_sa_create_t *data)
 {
 	private_child_sa_t *this;
-	static refcount_t unique_id = 0, unique_mark = 0;
+	static refcount_t unique_id = 0;
 
 	INIT(this,
 		.public = {
@@ -2100,21 +2103,23 @@ child_sa_t *child_sa_create(host_t *me, host_t *other, child_cfg_t *config,
 	if (MARK_IS_UNIQUE(this->mark_in.value) ||
 		MARK_IS_UNIQUE(this->mark_out.value))
 	{
-		refcount_t mark = 0;
+		uint32_t mark_in = 0x0, mark_out = 0x0;
 		bool unique_dir = this->mark_in.value == MARK_UNIQUE_DIR ||
 						  this->mark_out.value == MARK_UNIQUE_DIR;
+		mark_in = charon->kernel->get_mark(charon->kernel, this->mark_in.mask | this->mark_out.mask);
 
-		if (!unique_dir)
+		if (unique_dir) 
 		{
-			mark = ref_get(&unique_mark);
-		}
+			mark_out = charon->kernel->get_mark(charon->kernel, this->mark_in.mask | this->mark_out.mask);
+		}				  
+		
 		if (MARK_IS_UNIQUE(this->mark_in.value))
 		{
-			this->mark_in.value = unique_dir ? ref_get(&unique_mark) : mark;
+			this->mark_in.value = mark_in;
 		}
 		if (MARK_IS_UNIQUE(this->mark_out.value))
 		{
-			this->mark_out.value = unique_dir ? ref_get(&unique_mark) : mark;
+			this->mark_out.value = unique_dir ? mark_out : mark_in;
 		}
 	}
 
