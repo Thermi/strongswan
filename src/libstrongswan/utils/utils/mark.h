@@ -13,8 +13,8 @@
  */
 
 /**
- * @defgroup mark mark
- * @{ @ingroup mark
+ * @defgroup mark_i mark
+ * @{ @ingroup utils_i
  */
 #ifndef MARK_H_
 #define MARK_H_
