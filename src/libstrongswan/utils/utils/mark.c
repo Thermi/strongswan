@@ -18,6 +18,12 @@
 #include <collections/hashtable.h>
 
 typedef struct private_mark_tracker_t private_mark_tracker_t;
+typedef struct internal_mark_t internal_mark_t;
+
+
+struct internal_mark_t {
+    uint32_t mark;
+};
 
 struct private_mark_tracker_t {
     mark_tracker_t public;
@@ -57,8 +63,9 @@ uint32_t max_number(uint32_t mask) {
 
 METHOD(mark_tracker_t, release_mark, void, private_mark_tracker_t *this, uint32_t mark){
     this->spinlock->lock(this->spinlock);
-    uint64_t cpy = mark;
-    this->hashtable->remove(this->hashtable, (void *) cpy);
+    internal_mark_t *internal_mark = malloc(sizeof(internal_mark_t));
+    internal_mark->mark = mark;
+    this->hashtable->remove(this->hashtable, internal_mark);
     this->spinlock->unlock(this->spinlock);
 }
 
@@ -82,40 +89,47 @@ METHOD(mark_tracker_t, get_mark, uint32_t, private_mark_tracker_t *this, uint32_
         
     }
     this->mark_counter = next_value;
-    this->hashtable->put(this->hashtable, (void *)cpy, (void *)true);
+    internal_mark_t *internal_mark = malloc(sizeof(internal_mark_t));
+    this->hashtable->put(this->hashtable, internal_mark, internal_mark);
     this->spinlock->unlock(this->spinlock);
     return next_value;
 }
+
+u_int hash_mark(const void *key) {
+    const internal_mark_t *internal_mark = key;
+    u_int cast = internal_mark->mark;
+    return cast;
+}
+
+bool cmp_mark(const void *key, const void *other_key) {
+    const internal_mark_t *mark = key, *other_mark = other_key;
+    if (mark->mark < other_mark->mark) {
+        return -1;
+    }
+    if (mark->mark == other_mark->mark) {
+        return 0;
+    }
+    return 1;
+}
+
+void destroy_internal_mark(void *value, const void *key)
+{
+    internal_mark_t *mark = (void *) value;
+    free(mark);
+}
+
 METHOD(mark_tracker_t, destroy, void, private_mark_tracker_t *this) {
     this->spinlock->lock(this->spinlock);
-    this->hashtable->destroy(this->hashtable);
+    this->hashtable->destroy_function(this->hashtable, destroy_internal_mark);
     this->spinlock->unlock(this->spinlock);
     this->spinlock->destroy(this->spinlock);
     free(this);
     return;
 }
 
-u_int hash_mark(const void *key) {
-    uint64_t intermediate = (uint64_t) key;
-    u_int cast = intermediate;
-    return cast;
-}
-
-bool cmp_mark(const void *key, const void *other_key) {
-    uint64_t intermediate = (uint64_t) key, other_intermediate = (uint64_t) other_key;
-    uint32_t mark_1 = intermediate, mark_2 = other_intermediate;
-    if (mark_1 < mark_2) {
-        return -1;
-    }
-    if (mark_1 == mark_2) {
-        return 0;
-    }
-    return 1;
-}
-
 METHOD(mark_tracker_t, reset, void, private_mark_tracker_t *this) {
     this->spinlock->lock(this->spinlock);
-    this->hashtable->destroy(this->hashtable);
+    this->hashtable->destroy_function(this->hashtable, destroy_internal_mark);    
     this->hashtable = hashtable_create(&hash_mark, &cmp_mark, 0);
     this->mark_counter = 0;
     this->spinlock->unlock(this->spinlock);
