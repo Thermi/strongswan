@@ -129,7 +129,7 @@ METHOD(mark_tracker_t, reset, void, private_mark_tracker_t *this) {
     this->spinlock->lock(this->spinlock);
     this->hashtable->destroy_function(this->hashtable, destroy_internal_mark);    
     this->hashtable = hashtable_create(&hash_mark, &cmp_mark, 0);
-    this->mark_counter = 0;
+    this->mark_counter = 1;
     this->spinlock->unlock(this->spinlock);
 }
 
@@ -143,7 +143,7 @@ mark_tracker_t *mark_tracker_create() {
             .reset = _reset,
         },
         .spinlock = spinlock_create(),
-        .mark_counter = 0,
+        .mark_counter = 1,
         .hashtable = hashtable_create(&hash_mark, &cmp_mark, 0),
     );
     return &this->public;
