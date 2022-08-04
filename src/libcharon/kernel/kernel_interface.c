@@ -1063,6 +1063,7 @@ METHOD(kernel_interface_t, destroy, void,
 		free(algorithm->name);
 		free(algorithm);
 	}
+	this->mark_tracker->destroy(this->mark_tracker);
 	this->algorithms->destroy(this->algorithms);
 	this->mutex_algs->destroy(this->mutex_algs);
 	DESTROY_IF(this->ipsec);
