@@ -1039,9 +1039,7 @@ METHOD(kernel_interface_t, release_mark, void,
 	private_kernel_interface_t *this, uint32_t mark)
 {
 #ifdef linux
-	return this->mark_tracker->release_mark(this->mark_tracker, mark);
-#else
-	return NOT_SUPPORTED;
+	this->mark_tracker->release_mark(this->mark_tracker, mark);
 #endif		
 }
 
