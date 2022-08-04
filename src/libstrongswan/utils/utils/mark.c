@@ -63,9 +63,9 @@ uint32_t max_number(uint32_t mask) {
 
 METHOD(mark_tracker_t, release_mark, void, private_mark_tracker_t *this, uint32_t mark){
     this->spinlock->lock(this->spinlock);
-    internal_mark_t *internal_mark = malloc(sizeof(internal_mark_t));
-    internal_mark->mark = mark;
-    this->hashtable->remove(this->hashtable, internal_mark);
+    internal_mark_t internal_mark;
+    internal_mark.mark = mark;
+    this->hashtable->remove(this->hashtable, &internal_mark);
     this->spinlock->unlock(this->spinlock);
 }
 
