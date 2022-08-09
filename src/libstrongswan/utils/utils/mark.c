@@ -75,9 +75,10 @@ METHOD(mark_tracker_t, get_mark, uint32_t, private_mark_tracker_t *this, uint32_
      */
     this->spinlock->lock(this->spinlock);
     internal_mark_t *candidate = malloc(sizeof(internal_mark_t));
+
     candidate->mark = this->mark_counter;
     while (true) {
-        candidate->mark = increment_unmasked_bits(candidate->mark, 1, mask);
+        candidate->mark = increment_unmasked_bits(candidate->mark & mask, 1, mask);
         if (!this->hashtable->get(this->hashtable, candidate)) {
             break;
         }
