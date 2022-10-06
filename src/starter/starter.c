@@ -288,22 +288,31 @@ static bool check_pid(char *file)
 /* Set daemon name and adjust command and pid filenames accordingly */
 static bool set_daemon_name()
 {
+	char *pid_dir = IPSEC_PIDDIR, ipsec_dir = IPSEC_DIR;
+
 	if (!daemon_name)
 	{
 		daemon_name = "charon";
 	}
-
+	if (getenv("IPSEC_DIR"))
+	{
+		ipsec_dir = getenv("IPSEC_DIR");
+	}
 	if (asprintf(&cmd, IPSEC_DIR"/%s", daemon_name) < 0)
 	{
 		 cmd = (char*)cmd_default;
 	}
 
-	if (asprintf(&pid_file, IPSEC_PIDDIR"/%s.pid", daemon_name) < 0)
+	if (getenv("IPSEC_PIDDIR"))
+	{
+		pid_dir = getenv("IPSEC_PIDDIR");
+	}
+	if (asprintf(&pid_file, "%s/%s.pid", pid_dir, daemon_name) < 0)
 	{
 		 pid_file = (char*)pid_file_default;
 	}
 
-	if (asprintf(&starter_pid_file, IPSEC_PIDDIR"/starter.%s.pid",
+	if (asprintf(&starter_pid_file, "%s/starter.%s.pid", pid_dir,
 				 daemon_name) < 0)
 	{
 		 starter_pid_file = (char*)starter_pid_file_default;
