@@ -16,6 +16,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  */
+#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <signal.h>
@@ -38,10 +39,11 @@
 #include <private/android_filesystem_config.h> /* for AID_VPN */
 #endif
 
+
 /**
  * PID file, in which charon stores its process id
  */
-#define PID_FILE IPSEC_PIDDIR "/charon.pid"
+#define DEFAULT_PID_FILE (IPSEC_PIDDIR "/charon.pid")
 
 /**
  * Default user and group
@@ -58,6 +60,7 @@
  * Global reference to PID file (required to truncate, if undeletable)
  */
 static FILE *pidfile = NULL;
+static char *PID_FILE = DEFAULT_PID_FILE;
 
 /**
  * hook in library for debugging messages
@@ -205,11 +208,11 @@ static bool check_pidfile()
 			pidfile = NULL;
 			if (pid && pid != getpid() && kill(pid, 0) == 0)
 			{
-				DBG1(DBG_DMN, "charon already running ('"PID_FILE"' exists)");
+				DBG1(DBG_DMN, "charon already running ('%s' exists)", PID_FILE);
 				return TRUE;
 			}
 		}
-		DBG1(DBG_DMN, "removing pidfile '"PID_FILE"', process not running");
+		DBG1(DBG_DMN, "removing pidfile '%s', process not running", PID_FILE);
 		unlink(PID_FILE);
 	}
 
@@ -222,12 +225,12 @@ static bool check_pidfile()
 		fd = fileno(pidfile);
 		if (fd == -1)
 		{
-			DBG1(DBG_DMN, "unable to determine fd for '"PID_FILE"'");
+			DBG1(DBG_DMN, "unable to determine fd for '%s'", PID_FILE);
 			return TRUE;
 		}
 		if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1)
 		{
-			DBG1(DBG_LIB, "setting FD_CLOEXEC for '"PID_FILE"' failed: %s",
+			DBG1(DBG_LIB, "setting FD_CLOEXEC for '%s' failed: %s", PID_FILE,
 				 strerror(errno));
 		}
 		/* Only change owner of the pidfile if we have CAP_CHOWN. Otherwise,
@@ -254,7 +257,7 @@ static bool check_pidfile()
 	}
 	else
 	{
-		DBG1(DBG_DMN, "unable to create pidfile '"PID_FILE"'");
+		DBG1(DBG_DMN, "unable to create pidfile '%s'", PID_FILE);
 		return TRUE;
 	}
 }
@@ -308,6 +311,10 @@ int main(int argc, char *argv[])
 	level_t levels[DBG_MAX];
 	bool use_syslog = FALSE;
 
+	if (getenv("IPSEC_PIDDIR"))
+	{
+		asprintf(&PID_FILE, "%s/charon.pid", getenv("IPSEC_PIDDIR"));
+	}
 	/* logging for library during initialization, as we have no bus yet */
 	dbg = dbg_stderr;
 
